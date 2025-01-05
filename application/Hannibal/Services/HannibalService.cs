@@ -1,5 +1,6 @@
 using Hannibal.Configuration;
 using Hannibal.Models;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Hannibal.Services;

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Hannibal")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b673fb502a1aa8f03393647854ff9bdf22dc5e0a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+45e71dccb9289bb9cb2ed6a5be6a0fab1215c378")]
 [assembly: System.Reflection.AssemblyProductAttribute("Hannibal")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Hannibal")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
