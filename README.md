@@ -10,3 +10,4 @@ Frontends come in elixir / phoenix.
 Services come in dotnet c#
 
 Makes heavy use of rclone and other industry proven tools.
+![image](https://github.com/user-attachments/assets/883978a2-605f-4068-a06e-205ac14b6295)
