@@ -1,7 +1,6 @@
 namespace Higgins.Models;
 
-public class Endpoint
+public class CreateEndpointResult
 {
     public int Id { get; set; }
-    public string Path { get; set; }
 }

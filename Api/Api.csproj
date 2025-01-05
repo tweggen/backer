@@ -21,7 +21,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\application\Hannibal\Hannibal.csproj" />
-      <ProjectReference Include="..\application\Hannibal\Higgins.csproj" />
       <ProjectReference Include="..\application\Higgins\Higgins.csproj" />
     </ItemGroup>
 

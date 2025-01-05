@@ -65,6 +65,30 @@ app.MapPost("/api/hannibal/shutdown", async (
 .WithOpenApi();
 
 
+app.MapPut("/api/higgins/createEndpoint", async (
+        IHigginsService higginsService,
+        Higgins.Models.Endpoint endpoint,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await higginsService.CreateEndpointAsync(endpoint, cancellationToken);
+        return Results.Ok(result);
+    })
+    .WithName("CreateEndpoint")
+    .WithOpenApi();
+
+
+app.MapPut("/api/higgins/createRoute", async (
+    IHigginsService higginsService,
+    Higgins.Models.Route route,
+    CancellationToken cancellationToken) =>
+{
+    var result = await higginsService.CreateRouteAsync(route, cancellationToken);
+    return Results.Ok(result);
+})
+.WithName("CreateRoute")
+.WithOpenApi();
+
+
 // Global error handler
 app.Use(async (context, next) =>
 {
