@@ -1,4 +1,4 @@
-namespace Hannibal;
+namespace Hannibal.Models;
 
 
 public class Job
