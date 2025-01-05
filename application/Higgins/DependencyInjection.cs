@@ -1,9 +1,9 @@
-using Hannibal.Configuration;
-using Hannibal.Services;
+using Higgins.Configuration;
+using Higgins.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hannibal;
+namespace Higgins;
 
 public static class DependencyInjection
 {
@@ -11,10 +11,10 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.Configure<HannibalServiceOptions>(
-            configuration.GetSection("HannibalService"));
+        services.Configure<HigginsServiceOptions>(
+            configuration.GetSection("HigginsService"));
 
-        services.AddScoped<IHannibalService, HannibalService>();
+        services.AddScoped<IHigginsService, HigginsService>();
         
         return services;
     }

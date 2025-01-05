@@ -1,5 +1,7 @@
 using Hannibal;
 using Hannibal.Services;
+using Higgins;
+using Higgins.Services;
 using Microsoft.AspNetCore.HttpLogging;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +22,7 @@ builder.Services.AddHttpLogging(logging =>
 // Add application services
 builder.Services
     .AddHannibalService(builder.Configuration)
+    .AddHigginsService(builder.Configuration)
     // .AddMonitorService(builder.Configuration)
     // .AddMetadataService(builder.Configuration)
     ;
