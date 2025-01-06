@@ -16,9 +16,19 @@ public static class DependencyInjection
         services.Configure<HannibalServiceOptions>(
             configuration.GetSection("HannibalService"));
 
+        var dbPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Backer",
+            "hannibal.db"
+        );
+        
+        Directory.CreateDirectory(Path.GetDirectoryName(dbPath));
+        var connectionString = $"Data Source={dbPath}";
+
         services.AddDbContext<HannibalContext>(options =>
             options.UseSqlite(
-                configuration.GetConnectionString("HannibalDatabase")
+                //configuration.GetConnectionString("HannibalDatabase")
+                connectionString
             ));
 
         services.AddScoped<IHannibalService, HannibalService>();

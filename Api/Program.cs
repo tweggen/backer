@@ -1,9 +1,12 @@
 using Hannibal;
+using Hannibal.Data;
 using Hannibal.Models;
 using Hannibal.Services;
 using Higgins;
+using Higgins.Data;
 using Higgins.Services;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,12 +62,23 @@ app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
 
 app.MapGet("/api/hannibal/v1/jobs", async (
         IHannibalService hannibalService,
-        ResultPage resultPage,
-        JobFilter jobFilter,
+        [FromQuery] int? page,
+        [FromQuery] int? minState,
+        [FromQuery] int? maxState,
         CancellationToken cancellationToken) =>
     {
         var jobs = await hannibalService.GetJobsAsync(
-            resultPage, jobFilter, cancellationToken);
+            new ResultPage
+            {
+                Offset = 20*(page ?? 0), 
+                Length = 20
+            }, 
+            new JobFilter
+            {
+                MinState = (Job.JobState) (minState ?? (int)Job.JobState.Preparing),
+                MaxState = (Job.JobState) (maxState ?? (int)Job.JobState.DoneSuccess)
+            }, 
+            cancellationToken);
         return jobs is not null ? Results.Ok(jobs) : Results.NotFound();
     })
     .WithName("GetJobs")
@@ -152,6 +166,21 @@ app.Use(async (context, next) =>
         });
     }
 });
+
+
+
+// Initialize database right after building the application
+using (var scope = app.Services.CreateScope())
+{
+    {
+        var hannibalContext = scope.ServiceProvider.GetRequiredService<HannibalContext>();
+        await hannibalContext.InitializeDatabaseAsync();
+    }
+    {
+        var higginsContext = scope.ServiceProvider.GetRequiredService<HigginsContext>();
+        await higginsContext.InitializeDatabaseAsync();
+    }
+}
 
 app.Run();
 
