@@ -36,15 +36,19 @@ public class HannibalService : IHannibalService
     public async Task<Job> GetJobAsync(int jobId, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Information requested about job {jobId}", jobId);
-        
-        return new Job 
-        { 
-            Id = jobId, FromUri = "file:///tmp/a", ToUri = "file:///tmp/b", State = Job.JobState.Ready 
-        };
+
+        var job = await _context.Jobs.FindAsync(jobId);
+        if (null == job)
+        {
+            throw new KeyNotFoundException($"No job found with id {jobId}.");
+        }
+
+        return job;
     }
 
 
-    public async Task<IEnumerable<Job>> GetAllJobsAsync(ResultPage resultPage, JobFilter filter, CancellationToken cancellationToken)
+    public async Task<IEnumerable<Job>> GetJobsAsync(
+        ResultPage resultPage, JobFilter filter, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Job list requested");
 

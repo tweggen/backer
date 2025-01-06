@@ -45,18 +45,33 @@ app.UseHttpLogging();
 app.MapHealthChecks("/health");
 
 
-app.MapGet("/api/hannibal/{jobId}", async (
+app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
     IHannibalService hannibalService,
-    int jobId) =>
+    int jobId,
+    CancellationToken cancellationToken) =>
 {
-    var job = await hannibalService.GetJobAsync(jobId);
+    var job = await hannibalService.GetJobAsync(jobId, cancellationToken);
     return job is not null ? Results.Ok(job) : Results.NotFound();
 })
 .WithName("GetJob")
 .WithOpenApi();
 
 
-app.MapPost("/api/hannibal/acquireNextJob", async (
+app.MapGet("/api/hannibal/v1/jobs", async (
+        IHannibalService hannibalService,
+        ResultPage resultPage,
+        JobFilter jobFilter,
+        CancellationToken cancellationToken) =>
+    {
+        var jobs = await hannibalService.GetJobsAsync(
+            resultPage, jobFilter, cancellationToken);
+        return jobs is not null ? Results.Ok(jobs) : Results.NotFound();
+    })
+    .WithName("GetJobs")
+    .WithOpenApi();
+
+
+app.MapPost("/api/hannibal/v1/acquireNextJob", async (
     IHannibalService hannibalService,
     string capabilities,
     string owner,
@@ -69,7 +84,7 @@ app.MapPost("/api/hannibal/acquireNextJob", async (
 .WithOpenApi();
 
 
-app.MapPost("/api/hannibal/reportJob", async (
+app.MapPost("/api/hannibal/v1/reportJob", async (
     IHannibalService hannibalService,
     JobStatus jobStatus,
     CancellationToken cancellationToken) =>
@@ -81,7 +96,7 @@ app.MapPost("/api/hannibal/reportJob", async (
 .WithOpenApi();
 
 
-app.MapPost("/api/hannibal/shutdown", async (
+app.MapPost("/api/hannibal/v1/shutdown", async (
     IHannibalService hannibalService) =>
 {
     var shutdownResult = await hannibalService.ShutdownAsync();
@@ -91,7 +106,7 @@ app.MapPost("/api/hannibal/shutdown", async (
 .WithOpenApi();
 
 
-app.MapPost("/api/higgins/endpoints/create", async (
+app.MapPost("/api/higgins/v1/endpoints/create", async (
         IHigginsService higginsService,
         Higgins.Models.Endpoint endpoint,
         CancellationToken cancellationToken) =>
@@ -103,7 +118,7 @@ app.MapPost("/api/higgins/endpoints/create", async (
     .WithOpenApi();
 
 
-app.MapPost("/api/higgins/routes/create", async (
+app.MapPost("/api/higgins/v1/routes/create", async (
     IHigginsService higginsService,
     Higgins.Models.Route route,
     CancellationToken cancellationToken) =>
