@@ -22,7 +22,7 @@ public static class DependencyInjection
             "higgins.db"
         );
         
-        Directory.CreateDirectory(Path.GetDirectoryName(dbPath));
+        Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
         var connectionString = $"Data Source={dbPath}";
 
         services.AddDbContext<HigginsContext>(options =>
