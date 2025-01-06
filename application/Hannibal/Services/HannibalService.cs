@@ -1,5 +1,7 @@
 using Hannibal.Configuration;
+using Hannibal.Data;
 using Hannibal.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -9,7 +11,8 @@ namespace Hannibal.Services;
 public class HannibalService : IHannibalService
 {
     private object _lo = new();
-    
+
+    private readonly HannibalContext _context;
     private readonly ILogger<HannibalService> _logger;
     private readonly HannibalServiceOptions _options;
 
@@ -20,9 +23,11 @@ public class HannibalService : IHannibalService
     private static int _nextId;
     
     public HannibalService(
+        HannibalContext context,
         ILogger<HannibalService> logger,
         IOptions<HannibalServiceOptions> options)
     {
+        _context = context;
         _logger = logger;
         _options = options.Value;
     }
@@ -43,7 +48,7 @@ public class HannibalService : IHannibalService
     {
         _logger.LogInformation("Job list requested");
 
-        var list = await _context.ToListAsync();
+        var list = await _context.Jobs.ToListAsync();
         if (null == list)
         {
             return new List<Job>();

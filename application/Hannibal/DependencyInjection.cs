@@ -1,5 +1,7 @@
 using Hannibal.Configuration;
+using Hannibal.Data;
 using Hannibal.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,6 +15,11 @@ public static class DependencyInjection
     {
         services.Configure<HannibalServiceOptions>(
             configuration.GetSection("HannibalService"));
+
+        services.AddDbContext<HannibalContext>(options =>
+            options.UseSqlite(
+                configuration.GetConnectionString("HannibalDatabase")
+            ));
 
         services.AddScoped<IHannibalService, HannibalService>();
         

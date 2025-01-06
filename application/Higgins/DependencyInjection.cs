@@ -13,13 +13,13 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.Configure<HigginsServiceOptions>(
+            configuration.GetSection("HigginsService"));
+
         services.AddDbContext<HigginsContext>(options =>
             options.UseSqlite(
                 configuration.GetConnectionString("HigginsDatabase")
             ));
-
-        services.Configure<HigginsServiceOptions>(
-            configuration.GetSection("HigginsService"));
 
         services.AddScoped<IHigginsService, HigginsService>();
         
