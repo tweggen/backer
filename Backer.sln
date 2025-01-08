@@ -8,6 +8,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Application", "Application"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Higgins", "application\Higgins\Higgins.csproj", "{8729CA3B-5296-4817-BABC-36DA1C72E9C6}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Worker", "Worker", "{858EEF45-1051-45F8-B770-9821CC106FC7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerRClone", "worker\WorkerRClone\WorkerRClone.csproj", "{DD01A7F3-0798-4DC5-92B2-2407871F01C8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,9 +30,14 @@ Global
 		{8729CA3B-5296-4817-BABC-36DA1C72E9C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8729CA3B-5296-4817-BABC-36DA1C72E9C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8729CA3B-5296-4817-BABC-36DA1C72E9C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD01A7F3-0798-4DC5-92B2-2407871F01C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD01A7F3-0798-4DC5-92B2-2407871F01C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD01A7F3-0798-4DC5-92B2-2407871F01C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD01A7F3-0798-4DC5-92B2-2407871F01C8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D1AEF81A-F693-45E3-AAB1-E7CF20FFA2B2} = {F59EAE49-3A3C-4E00-BDCF-8B1E345BC7E7}
 		{8729CA3B-5296-4817-BABC-36DA1C72E9C6} = {F59EAE49-3A3C-4E00-BDCF-8B1E345BC7E7}
+		{DD01A7F3-0798-4DC5-92B2-2407871F01C8} = {858EEF45-1051-45F8-B770-9821CC106FC7}
 	EndGlobalSection
 EndGlobal

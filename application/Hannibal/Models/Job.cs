@@ -23,6 +23,16 @@ public class Job
     };
     
     public JobState State { get; set; }
+ 
+    /**
+     * This job is supposed to start earliest at this point in time.
+     */
+    public DateTime StartFrom { get; set; }
+    
+    /**
+     * This job is supposed to end by that particular date.
+     */
+    public DateTime EndBy { get; set; }
     
     public string FromUri { get; set; }
     public string ToUri { get; set; }
