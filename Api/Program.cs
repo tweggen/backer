@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
+builder.Services.AddSignalR();
 
 // Configure HTTP logging
 builder.Services.AddHttpLogging(logging =>
@@ -59,7 +60,7 @@ app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
 .WithName("GetJob")
 .WithOpenApi();
 
-
+app.MapHub<HannibalHub>("/hannibal");
 app.MapGet("/api/hannibal/v1/jobs", async (
         IHannibalService hannibalService,
         [FromQuery] int? page,
