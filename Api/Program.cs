@@ -1,3 +1,4 @@
+using Api;
 using Hannibal;
 using Hannibal.Data;
 using Hannibal.Models;
@@ -7,6 +8,8 @@ using Higgins.Data;
 using Higgins.Services;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR.Client;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,20 +35,6 @@ builder.Services
     // .AddMetadataService(builder.Configuration)
     ;
 
-builder.Services.AddSingleton(provider =>
-{
-    var connection = new HubConnectionBuilder()
-        .WithUrl("http://your-server-url/hubname")
-        .Build();
-
-    connection.On<string>("ReceiveMessage", (message) =>
-    {
-        Console.WriteLine($"Received message: {message}");
-    });
-
-    return connection;
-});
-
 
 var httpBaseUriAccessor = new HttpBaseUrlAccessor()
 {
@@ -53,8 +42,50 @@ var httpBaseUriAccessor = new HttpBaseUrlAccessor()
 };
 builder.Services.AddSingleton<IHttpBaseUrlAccessor>(httpBaseUriAccessor);
 
+
+builder.Services.AddSingleton<HubConnectionFactory>();
+builder.Services.AddSingleton(provider =>
+{
+    var factory = provider.GetRequiredService<HubConnectionFactory>();
+    var hannibalConnection = factory.CreateConnection($"{httpBaseUriAccessor.GetHttpUrl()}/hannibal");
+    var higginsConnection = factory.CreateConnection($"{httpBaseUriAccessor.GetHttpUrl()}/higgins");
+    return new Dictionary<string, HubConnection>
+    {
+        { "hannibal", hannibalConnection },
+        { "higgins", higginsConnection }
+    };
+});
+
+
 // Build the application
 var app = builder.Build();
+
+
+{
+    var hannibalConnection = app.Services.GetRequiredService<HubConnection>();
+    app.Lifetime.ApplicationStarted.Register(async () =>
+    {
+        var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
+        await Task.WhenAll(connections.Values.Select(conn => conn.StartAsync()).ToArray());
+        
+        try
+        {
+            await hannibalConnection.StartAsync();
+            Console.WriteLine("Connection started.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting connection: {ex.Message}");
+        }
+    });
+
+    app.Lifetime.ApplicationStopping.Register(async () =>
+    {
+        var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
+        await Task.WhenAll(connections.Values.Select(conn => conn.StopAsync()).ToArray());
+    });
+}
+
 
 // Configure middleware pipeline
 if (app.Environment.IsDevelopment())
@@ -81,30 +112,31 @@ app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
 .WithName("GetJob")
 .WithOpenApi();
 
+
 app.MapHub<HannibalHub>("/hannibal");
 app.MapGet("/api/hannibal/v1/jobs", async (
-        IHannibalService hannibalService,
-        [FromQuery] int? page,
-        [FromQuery] int? minState,
-        [FromQuery] int? maxState,
-        CancellationToken cancellationToken) =>
-    {
-        var jobs = await hannibalService.GetJobsAsync(
-            new ResultPage
-            {
-                Offset = 20*(page ?? 0), 
-                Length = 20
-            }, 
-            new JobFilter
-            {
-                MinState = (Job.JobState) (minState ?? (int)Job.JobState.Preparing),
-                MaxState = (Job.JobState) (maxState ?? (int)Job.JobState.DoneSuccess)
-            }, 
-            cancellationToken);
-        return jobs is not null ? Results.Ok(jobs) : Results.NotFound();
-    })
-    .WithName("GetJobs")
-    .WithOpenApi();
+    IHannibalService hannibalService,
+    [FromQuery] int? page,
+    [FromQuery] int? minState,
+    [FromQuery] int? maxState,
+    CancellationToken cancellationToken) =>
+{
+    var jobs = await hannibalService.GetJobsAsync(
+        new ResultPage
+        {
+            Offset = 20*(page ?? 0), 
+            Length = 20
+        }, 
+        new JobFilter
+        {
+            MinState = (Job.JobState) (minState ?? (int)Job.JobState.Preparing),
+            MaxState = (Job.JobState) (maxState ?? (int)Job.JobState.DoneSuccess)
+        }, 
+        cancellationToken);
+    return jobs is not null ? Results.Ok(jobs) : Results.NotFound();
+})
+.WithName("GetJobs")
+.WithOpenApi();
 
 
 app.MapPost("/api/hannibal/v1/acquireNextJob", async (
@@ -143,15 +175,15 @@ app.MapPost("/api/hannibal/v1/shutdown", async (
 
 
 app.MapPost("/api/higgins/v1/endpoints/create", async (
-        IHigginsService higginsService,
-        Higgins.Models.Endpoint endpoint,
-        CancellationToken cancellationToken) =>
-    {
-        var result = await higginsService.CreateEndpointAsync(endpoint, cancellationToken);
-        return Results.Ok(result);
-    })
-    .WithName("CreateEndpoint")
-    .WithOpenApi();
+    IHigginsService higginsService,
+    Higgins.Models.Endpoint endpoint,
+    CancellationToken cancellationToken) =>
+{
+    var result = await higginsService.CreateEndpointAsync(endpoint, cancellationToken);
+    return Results.Ok(result);
+})
+.WithName("CreateEndpoint")
+.WithOpenApi();
 
 
 app.MapPost("/api/higgins/v1/routes/create", async (
@@ -190,7 +222,6 @@ app.Use(async (context, next) =>
 });
 
 
-
 // Initialize database right after building the application
 using (var scope = app.Services.CreateScope())
 {
@@ -203,6 +234,7 @@ using (var scope = app.Services.CreateScope())
         await higginsContext.InitializeDatabaseAsync();
     }
 }
+
 
 app.Run();
 
