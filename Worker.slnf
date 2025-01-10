@@ -1,0 +1,10 @@
+﻿{
+  "solution": {
+    "path": "Backer.sln",
+    "projects": [
+      "Api\\Api.csproj",
+      "application\\Hannibal\\Hannibal.csproj",
+      "application\\Higgins\\Higgins.csproj"
+    ]
+  }
+}

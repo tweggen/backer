@@ -1,8 +1,12 @@
 using Hannibal;
+using Hannibal.Data;
+using Hannibal.Models;
 using Hannibal.Services;
 using Higgins;
+using Higgins.Data;
 using Higgins.Services;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
+builder.Services.AddSignalR();
 
 // Configure HTTP logging
 builder.Services.AddHttpLogging(logging =>
@@ -43,19 +48,70 @@ app.UseHttpLogging();
 // Health check endpoint
 app.MapHealthChecks("/health");
 
-app.MapPost("/api/hannibal/acquireNextJob", async (
+
+app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
     IHannibalService hannibalService,
-    string capabilities,
+    int jobId,
     CancellationToken cancellationToken) =>
 {
-    var result = await hannibalService.AcquireNextJobAsync(capabilities, cancellationToken);
+    var job = await hannibalService.GetJobAsync(jobId, cancellationToken);
+    return job is not null ? Results.Ok(job) : Results.NotFound();
+})
+.WithName("GetJob")
+.WithOpenApi();
+
+app.MapHub<HannibalHub>("/hannibal");
+app.MapGet("/api/hannibal/v1/jobs", async (
+        IHannibalService hannibalService,
+        [FromQuery] int? page,
+        [FromQuery] int? minState,
+        [FromQuery] int? maxState,
+        CancellationToken cancellationToken) =>
+    {
+        var jobs = await hannibalService.GetJobsAsync(
+            new ResultPage
+            {
+                Offset = 20*(page ?? 0), 
+                Length = 20
+            }, 
+            new JobFilter
+            {
+                MinState = (Job.JobState) (minState ?? (int)Job.JobState.Preparing),
+                MaxState = (Job.JobState) (maxState ?? (int)Job.JobState.DoneSuccess)
+            }, 
+            cancellationToken);
+        return jobs is not null ? Results.Ok(jobs) : Results.NotFound();
+    })
+    .WithName("GetJobs")
+    .WithOpenApi();
+
+
+app.MapPost("/api/hannibal/v1/acquireNextJob", async (
+    IHannibalService hannibalService,
+    string capabilities,
+    string owner,
+    CancellationToken cancellationToken) =>
+{
+    var result = await hannibalService.AcquireNextJobAsync(capabilities, owner, cancellationToken);
     return Results.Ok(result);
 })
 .WithName("AcquireNextJob")
 .WithOpenApi();
 
 
-app.MapPost("/api/hannibal/shutdown", async (
+app.MapPost("/api/hannibal/v1/reportJob", async (
+    IHannibalService hannibalService,
+    JobStatus jobStatus,
+    CancellationToken cancellationToken) =>
+{
+    var result = await hannibalService.ReportJobAsync(jobStatus, cancellationToken);
+    return Results.Ok(result);
+})
+.WithName("ReportJob")
+.WithOpenApi();
+
+
+app.MapPost("/api/hannibal/v1/shutdown", async (
     IHannibalService hannibalService) =>
 {
     var shutdownResult = await hannibalService.ShutdownAsync();
@@ -65,7 +121,7 @@ app.MapPost("/api/hannibal/shutdown", async (
 .WithOpenApi();
 
 
-app.MapPut("/api/higgins/createEndpoint", async (
+app.MapPost("/api/higgins/v1/endpoints/create", async (
         IHigginsService higginsService,
         Higgins.Models.Endpoint endpoint,
         CancellationToken cancellationToken) =>
@@ -77,7 +133,7 @@ app.MapPut("/api/higgins/createEndpoint", async (
     .WithOpenApi();
 
 
-app.MapPut("/api/higgins/createRoute", async (
+app.MapPost("/api/higgins/v1/routes/create", async (
     IHigginsService higginsService,
     Higgins.Models.Route route,
     CancellationToken cancellationToken) =>
@@ -112,4 +168,20 @@ app.Use(async (context, next) =>
     }
 });
 
+
+
+// Initialize database right after building the application
+using (var scope = app.Services.CreateScope())
+{
+    {
+        var hannibalContext = scope.ServiceProvider.GetRequiredService<HannibalContext>();
+        await hannibalContext.InitializeDatabaseAsync();
+    }
+    {
+        var higginsContext = scope.ServiceProvider.GetRequiredService<HigginsContext>();
+        await higginsContext.InitializeDatabaseAsync();
+    }
+}
+
 app.Run();
+

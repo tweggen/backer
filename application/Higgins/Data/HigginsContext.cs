@@ -14,6 +14,25 @@ public class HigginsContext : DbContext
     public DbSet<Endpoint> Endpoints { get; set; }
     public DbSet<Route> Routes { get; set; }
 
+    public async Task InitializeDatabaseAsync()
+    {
+        // This ensures the database is created
+        await Database.EnsureCreatedAsync();
+        
+        // Optionally, you could seed initial data here
+        if (!await Endpoints.AnyAsync())
+        {
+            // Add any required initial data
+        }
+        
+        // Optionally, you could seed initial data here
+        if (!await Routes.AnyAsync())
+        {
+            // Add any required initial data
+        }
+    }
+    
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // modelBuilder.ApplyConfiguration<HigginsJobConfiguration>(new HigginsJobConfiguration());

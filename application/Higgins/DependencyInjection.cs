@@ -13,13 +13,23 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDbContext<HigginsContext>(options =>
-            options.UseSqlite(
-                configuration.GetConnectionString("HigginsDatabase")
-            ));
-
         services.Configure<HigginsServiceOptions>(
             configuration.GetSection("HigginsService"));
+
+        var dbPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Backer",
+            "higgins.db"
+        );
+        
+        Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+        var connectionString = $"Data Source={dbPath}";
+
+        services.AddDbContext<HigginsContext>(options =>
+            options.UseSqlite(
+                //configuration.GetConnectionString("HigginsDatabase")
+                connectionString
+            ));
 
         services.AddScoped<IHigginsService, HigginsService>();
         
