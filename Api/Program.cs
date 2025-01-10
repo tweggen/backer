@@ -1,3 +1,4 @@
+using Api;
 using Hannibal;
 using Hannibal.Data;
 using Hannibal.Models;
@@ -31,6 +32,13 @@ builder.Services
     // .AddMonitorService(builder.Configuration)
     // .AddMetadataService(builder.Configuration)
     ;
+
+
+var httpBaseUriAccessor = new HttpBaseUrlAccessor()
+{
+    SiteUrlString = builder.WebHost.GetSetting(WebHostDefaults.ServerUrlsKey)
+};
+builder.Services.AddSingleton<IHttpBaseUrlAccessor>(httpBaseUriAccessor);
 
 // Build the application
 var app = builder.Build();
