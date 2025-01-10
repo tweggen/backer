@@ -7,7 +7,6 @@ using Higgins.Data;
 using Higgins.Services;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +45,13 @@ builder.Services.AddSingleton(provider =>
 
     return connection;
 });
+
+
+var httpBaseUriAccessor = new HttpBaseUrlAccessor()
+{
+    SiteUrlString = builder.WebHost.GetSetting(WebHostDefaults.ServerUrlsKey)
+};
+builder.Services.AddSingleton<IHttpBaseUrlAccessor>(httpBaseUriAccessor);
 
 // Build the application
 var app = builder.Build();
