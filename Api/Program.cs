@@ -7,6 +7,7 @@ using Higgins.Data;
 using Higgins.Services;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,20 @@ builder.Services
     // .AddMonitorService(builder.Configuration)
     // .AddMetadataService(builder.Configuration)
     ;
+
+builder.Services.AddSingleton(provider =>
+{
+    var connection = new HubConnectionBuilder()
+        .WithUrl("http://your-server-url/hubname")
+        .Build();
+
+    connection.On<string>("ReceiveMessage", (message) =>
+    {
+        Console.WriteLine($"Received message: {message}");
+    });
+
+    return connection;
+});
 
 // Build the application
 var app = builder.Build();
