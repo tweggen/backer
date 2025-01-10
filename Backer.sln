@@ -8,8 +8,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Application", "Application"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Higgins", "application\Higgins\Higgins.csproj", "{8729CA3B-5296-4817-BABC-36DA1C72E9C6}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Worker", "Worker", "{858EEF45-1051-45F8-B770-9821CC106FC7}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerRClone", "worker\WorkerRClone\WorkerRClone.csproj", "{DD01A7F3-0798-4DC5-92B2-2407871F01C8}"
 EndProject
 Global
