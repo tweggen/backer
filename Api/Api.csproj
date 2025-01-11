@@ -23,6 +23,7 @@
     <ItemGroup>
       <ProjectReference Include="..\application\Hannibal\Hannibal.csproj" />
       <ProjectReference Include="..\application\Higgins\Higgins.csproj" />
+      <ProjectReference Include="..\worker\WorkerRClone\WorkerRClone.csproj" />
     </ItemGroup>
 
 </Project>

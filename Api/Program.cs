@@ -6,6 +6,7 @@ using Hannibal.Services;
 using Higgins;
 using Higgins.Data;
 using Higgins.Services;
+using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -29,10 +30,11 @@ builder.Services.AddHttpLogging(logging =>
 
 // Add application services
 builder.Services
+        // Application
     .AddHannibalService(builder.Configuration)
     .AddHigginsService(builder.Configuration)
-    // .AddMonitorService(builder.Configuration)
-    // .AddMetadataService(builder.Configuration)
+        // Workers
+    .AddRCloneService(builder.Configuration)
     ;
 
 
@@ -66,17 +68,20 @@ var app = builder.Build();
     app.Lifetime.ApplicationStarted.Register(async () =>
     {
         var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
-        await Task.WhenAll(connections.Values.Select(conn => conn.StartAsync()).ToArray());
-        
-        try
+        await Task.WhenAll(connections.Values.Select(conn =>
         {
-            await hannibalConnection.StartAsync();
-            Console.WriteLine("Connection started.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error starting connection: {ex.Message}");
-        }
+            try
+            {
+                var t = conn.StartAsync();
+                Console.WriteLine("Connection started.");
+                return t;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error starting connection: {ex.Message}");
+                return Task.CompletedTask;
+            }
+        }).ToArray());
     });
 
     app.Lifetime.ApplicationStopping.Register(async () =>
