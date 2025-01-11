@@ -38,16 +38,13 @@ builder.Services
     ;
 
 
-var httpBaseUriAccessor = new HttpBaseUrlAccessor()
-{
-    SiteUrlString = builder.WebHost.GetSetting(WebHostDefaults.ServerUrlsKey)
-};
-builder.Services.AddSingleton<IHttpBaseUrlAccessor>(httpBaseUriAccessor);
-
+builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
 builder.Services.AddSingleton<HubConnectionFactory>();
 builder.Services.AddSingleton(provider =>
 {
+    var httpBaseUriAccessor = provider.GetRequiredService<HttpBaseUrlAccessor>();
+    
     var factory = provider.GetRequiredService<HubConnectionFactory>();
     var hannibalConnection = factory.CreateConnection($"{httpBaseUriAccessor.GetHttpUrl()}/hannibal");
     var higginsConnection = factory.CreateConnection($"{httpBaseUriAccessor.GetHttpUrl()}/higgins");
@@ -64,7 +61,6 @@ var app = builder.Build();
 
 
 {
-    var hannibalConnection = app.Services.GetRequiredService<HubConnection>();
     app.Lifetime.ApplicationStarted.Register(async () =>
     {
         var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
@@ -78,7 +74,7 @@ var app = builder.Build();
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error starting connection: {ex.Message}");
+                Console.WriteLine($"Error starting connection: {e.Message}");
                 return Task.CompletedTask;
             }
         }).ToArray());

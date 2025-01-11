@@ -14,7 +14,7 @@ public static class DependencyInjection
         services.Configure<RCloneServiceOptions>(
             configuration.GetSection("RCloneService"));
 
-        services.AddScoped<IRCloneService, RCloneService>();
+        services.AddHostedService<RCloneService>();
         
         return services;
     }

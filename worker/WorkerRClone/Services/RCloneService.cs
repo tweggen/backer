@@ -1,15 +1,20 @@
+using System.ComponentModel;
 using Hannibal.Models;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Result = WorkerRClone.Models.Result;
 
 namespace WorkerRClone;
 
-public class RCloneService : IRCloneService
+public class RCloneService : BackgroundService
 {
     private HubConnection _hannibalConnection;
+    private ILogger<RCloneService> _logger;
 
-    public RCloneService(Dictionary<string, HubConnection> connections)
+    public RCloneService(ILogger<RCloneService> logger, Dictionary<string, HubConnection> connections)
     {
+        _logger = logger;
         _hannibalConnection = connections["hannibal"];
 
         _hannibalConnection.On<Job>("NewJobAvailable", (message) =>
@@ -18,13 +23,12 @@ public class RCloneService : IRCloneService
         });
     }
 
-    public async Task<Result> GetStatus(int jobId, CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        throw new NotImplementedException();
-    }
-
-    public async Task<Job> GetCurrentJob(CancellationToken cancellationToken)
-    {
-        throw new NotImplementedException();
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+            await Task.Delay(1_000, stoppingToken);
+        }
     }
 }
