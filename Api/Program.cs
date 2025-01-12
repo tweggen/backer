@@ -1,6 +1,7 @@
 using Api;
 using Api.Configuration;
 using Hannibal;
+using Hannibal.Client;
 using Hannibal.Data;
 using Hannibal.Models;
 using Hannibal.Services;
@@ -37,6 +38,8 @@ builder.Services
         // Application
     .AddHannibalService(builder.Configuration)
     .AddHigginsService(builder.Configuration)
+        // Clients
+    .AddHannibalServiceClient(builder.Configuration)
         // Workers
     .AddRCloneService(builder.Configuration)
     ;
@@ -173,9 +176,9 @@ app.MapPost("/api/hannibal/v1/reportJob", async (
 
 
 app.MapPost("/api/hannibal/v1/shutdown", async (
-    IHannibalService hannibalService) =>
+    IHannibalService hannibalService, CancellationToken cancellationToken) =>
 {
-    var shutdownResult = await hannibalService.ShutdownAsync();
+    var shutdownResult = await hannibalService.ShutdownAsync(cancellationToken);
     return Results.Ok(shutdownResult);
 })
 .WithName("Shutdown")

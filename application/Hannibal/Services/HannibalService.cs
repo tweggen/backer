@@ -68,15 +68,19 @@ public class HannibalService : IHannibalService
     {
         _logger.LogInformation("new job requested by for client with capas {capabilities}", capabilities);
 
-        int jobId;
-        lock (_lo)
+        var job = await _context.Jobs.FirstOrDefaultAsync(j => j.State == Job.JobState.Ready && j.Owner == "");
+        if (job != null)
         {
-            jobId = ++_nextId;
+            job.Owner = owner;
+            job.State = Job.JobState.Executing;
+            _context.Update(job);
+            await _context.SaveChangesAsync();
+            return job;
         }
-        return new Job 
-        { 
-            Id = jobId, FromUri = "file:///tmp/a", ToUri = "file:///tmp/b", State = Job.JobState.Ready 
-        };
+        else
+        {
+            throw new KeyNotFoundException($"No job found for owner {owner} with caps {capabilities}");
+        }
     }
 
 

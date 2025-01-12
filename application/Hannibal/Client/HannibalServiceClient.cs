@@ -1,6 +1,8 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
+using Hannibal.Configuration;
 using Hannibal.Models;
+using Microsoft.Extensions.Options;
 
 namespace Hannibal.Client;
 
@@ -8,7 +10,9 @@ public class HannibalServiceClient : IHannibalServiceClient
 {
     private readonly HttpClient _httpClient;
 
-    public HannibalServiceClient(HttpClient httpClient)
+    public HannibalServiceClient(
+        IOptions<HannibalServiceOptions> options,
+        HttpClient httpClient)
     {
         _httpClient = httpClient;
     }

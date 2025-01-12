@@ -25,14 +25,14 @@ public class HannibalContext : DbContext
         {
             Jobs.AddAsync(new Job
             {
-                Owner = "timo",
+                Owner = "",
                 State = 0,
                 FromUri = "file:///tmp/a",
                 ToUri = "onedrive/bak/",
             });
             await Jobs.AddAsync(new Job
             {
-                Owner = "timo",
+                Owner = "",
                 State = 0,
                 FromUri = "file:///tmp/b",
                 ToUri = "onedrive/bak/",
