@@ -70,16 +70,19 @@ var app = builder.Build();
         var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
         await Task.WhenAll(connections.Values.Select(conn =>
         {
-            try
+            while (true)
             {
-                var t = conn.StartAsync();
-                Console.WriteLine("Connection started.");
-                return t;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine($"Error starting connection: {e.Message}");
-                return Task.CompletedTask;
+                try
+                {
+                    var t = conn.StartAsync();
+                    Console.WriteLine("Connection started.");
+                    return t;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Error starting connection: {e.Message}");
+                }
+                Task.Delay(1000);
             }
         }).ToArray());
     });
