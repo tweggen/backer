@@ -91,7 +91,7 @@ public class HannibalService : IHannibalService
     }
 
 
-    public async Task<ShutdownResult> ShutdownAsync()
+    public async Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationTokens)
     {
         return new ShutdownResult() { ErrorCode = 0 };
     }
