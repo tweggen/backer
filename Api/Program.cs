@@ -1,4 +1,5 @@
 using Api;
+using Api.Configuration;
 using Hannibal;
 using Hannibal.Data;
 using Hannibal.Models;
@@ -28,6 +29,9 @@ builder.Services.AddHttpLogging(logging =>
     logging.ResponseHeaders.Add("Content-Type");
 });
 
+builder.Services.Configure<ApiOptions>(
+    builder.Configuration.GetSection("Api"));
+
 // Add application services
 builder.Services
         // Application
@@ -43,11 +47,12 @@ builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 builder.Services.AddSingleton<HubConnectionFactory>();
 builder.Services.AddSingleton(provider =>
 {
-    var httpBaseUriAccessor = provider.GetRequiredService<HttpBaseUrlAccessor>();
+    var apiOptions = new ApiOptions();
+    builder.Configuration.GetSection("Api").Bind(apiOptions);
     
     var factory = provider.GetRequiredService<HubConnectionFactory>();
-    var hannibalConnection = factory.CreateConnection($"{httpBaseUriAccessor.GetHttpUrl()}/hannibal");
-    var higginsConnection = factory.CreateConnection($"{httpBaseUriAccessor.GetHttpUrl()}/higgins");
+    var hannibalConnection = factory.CreateConnection($"{apiOptions.UrlSignalR}/hannibal");
+    var higginsConnection = factory.CreateConnection($"{apiOptions.UrlSignalR}/higgins");
     return new Dictionary<string, HubConnection>
     {
         { "hannibal", hannibalConnection },
@@ -58,7 +63,6 @@ builder.Services.AddSingleton(provider =>
 
 // Build the application
 var app = builder.Build();
-
 
 {
     app.Lifetime.ApplicationStarted.Register(async () =>
@@ -237,5 +241,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 
-app.Run();
+await app.StartAsync();
+await app.WaitForShutdownAsync();
 
