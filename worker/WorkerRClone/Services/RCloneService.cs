@@ -27,8 +27,8 @@ public class RCloneService : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-            await Task.Delay(1_000, stoppingToken);
+            _logger.LogInformation("Worker running still at: {time}", DateTimeOffset.Now);
+            await Task.Delay(10_000, stoppingToken);
         }
     }
 }

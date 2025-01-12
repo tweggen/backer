@@ -109,6 +109,7 @@ app.UseHttpLogging();
 app.MapHealthChecks("/health");
 
 
+app.MapHub<HannibalHub>("/hannibal");
 app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
     IHannibalService hannibalService,
     int jobId,
@@ -121,7 +122,6 @@ app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
 .WithOpenApi();
 
 
-app.MapHub<HannibalHub>("/hannibal");
 app.MapGet("/api/hannibal/v1/jobs", async (
     IHannibalService hannibalService,
     [FromQuery] int? page,
@@ -182,6 +182,7 @@ app.MapPost("/api/hannibal/v1/shutdown", async (
 .WithOpenApi();
 
 
+app.MapHub<HigginsHub>("/higgins");
 app.MapPost("/api/higgins/v1/endpoints/create", async (
     IHigginsService higginsService,
     Higgins.Models.Endpoint endpoint,
