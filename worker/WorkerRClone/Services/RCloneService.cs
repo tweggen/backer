@@ -1,9 +1,11 @@
-using System.ComponentModel;
+using System.Diagnostics;
 using Hannibal.Client;
 using Hannibal.Models;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using WorkerRClone.Configuration;
 using Result = WorkerRClone.Models.Result;
 
 namespace WorkerRClone;
@@ -22,8 +24,13 @@ public class RCloneService : BackgroundService
     private IHannibalServiceClient _hannibalClient;
     private ILogger<RCloneService> _logger;
 
+    private readonly RCloneServiceOptions _options;
+
+    private Process _processRClone;
+    
     public RCloneService(
-        ILogger<RCloneService> logger, 
+        ILogger<RCloneService> logger,
+        IOptions<RCloneServiceOptions> options,
         Dictionary<string, HubConnection> connections,
         IHannibalServiceClient hannibalClient)
     {
@@ -32,9 +39,23 @@ public class RCloneService : BackgroundService
             _ownerId = $"worker-rclone-{_nextId++}";
         }
         _logger = logger;
+        _options = options.Value;
         _hannibalConnection = connections["hannibal"];
         _hannibalClient = hannibalClient;
-
+            
+        _processRClone = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = _options.RClonePath,
+                Arguments = _options.RCloneOptions,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true                
+            }
+        };
+        _processRClone.Start();
+        
         _hannibalConnection.On<Job>("NewJobAvailable", (message) =>
         {
             Console.WriteLine($"Received message: {message}");
@@ -55,6 +76,13 @@ public class RCloneService : BackgroundService
         }
     }
 
+
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        _processRClone.Dispose();
+        await base.StopAsync(cancellationToken);
+    }
+    
 
     private async Task _triggerFetchJob()
     {
