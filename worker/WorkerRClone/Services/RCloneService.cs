@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using WorkerRClone.Client;
 using WorkerRClone.Configuration;
 using Result = WorkerRClone.Models.Result;
 
@@ -28,6 +29,7 @@ public class RCloneService : BackgroundService
     private readonly RCloneServiceOptions _options;
 
     private Process _processRClone;
+    private HttpClient _rcloneHttpClient;
     
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -71,7 +73,8 @@ public class RCloneService : BackgroundService
                 break;
             }
         }
-        
+
+        _rcloneHttpClient = new HttpClient() { BaseAddress = new(urlRClone) };
         _hannibalConnection.On<Job>("NewJobAvailable", (message) =>
         {
             Console.WriteLine($"Received message: {message}");
@@ -86,6 +89,7 @@ public class RCloneService : BackgroundService
          * If we have nothing, we sleep until receiving an signalr update.
          */
         _triggerFetchJob();
+        
         while (!stoppingToken.IsCancellationRequested)
         {
             await Task.Delay(1_000, stoppingToken);
@@ -95,7 +99,15 @@ public class RCloneService : BackgroundService
 
     private void _startJob(Job job)
     {
-        
+        var rcloneClient = new RCloneClient(_rcloneHttpClient);
+        try
+        {
+            _logger.LogInformation($"Starting job {job.Id}");
+        }
+        catch (Exception e)
+        {
+            _logger.LogError($"Exception while sync: {e}");
+        }
     }
     
 
