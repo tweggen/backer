@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using Hannibal.Client;
 using Hannibal.Models;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -51,10 +52,25 @@ public class RCloneService : BackgroundService
                 Arguments = _options.RCloneOptions,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 CreateNoWindow = true                
             }
         };
         _processRClone.Start();
+        
+        StreamReader reader = _processRClone.StandardError;
+        string? urlRClone = null;
+        Regex reUrl = new("(?<url>http://[1-9][0-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*:[1-9][0-9]*)/");
+        while (true)
+        {
+            string output = reader.ReadLine();
+            Match match = reUrl.Match(output);
+            if (match.Success)
+            {
+                urlRClone = match.Groups["url"].Value;
+                break;
+            }
+        }
         
         _hannibalConnection.On<Job>("NewJobAvailable", (message) =>
         {
@@ -76,6 +92,12 @@ public class RCloneService : BackgroundService
         }
     }
 
+
+    private void _startJob(Job job)
+    {
+        
+    }
+    
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
@@ -126,6 +148,7 @@ public class RCloneService : BackgroundService
                 /*
                  * Execute the job.
                  */
+                _startJob(job);
                 jobResult.Status = 0;
                 _logger.LogError($"Success executing job {job.Id}");
             }
