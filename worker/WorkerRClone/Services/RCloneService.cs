@@ -48,43 +48,6 @@ public class RCloneService : BackgroundService
         _hannibalConnection = connections["hannibal"];
         _hannibalClient = hannibalClient;
             
-        _processRClone = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = _options.RClonePath,
-                Arguments = _options.RCloneOptions,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true                
-            }
-        };
-        _processRClone.Start();
-        
-        StreamReader reader = _processRClone.StandardError;
-        string? urlRClone = null;
-        Regex reUrl = new("http://(?<url>[1-9][0-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*:[1-9][0-9]*)/");
-        while (true)
-        {
-            string output = reader.ReadLine();
-            Match match = reUrl.Match(output);
-            if (match.Success)
-            {
-                urlRClone = match.Groups["url"].Value;
-                break;
-            }
-        }
-
-        _rcloneHttpClient = new HttpClient() { BaseAddress = new Uri($"http://{urlRClone}") };
-        var byteArray = new UTF8Encoding().GetBytes("who:how");
-        _rcloneHttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-
-        
-        _hannibalConnection.On<Job>("NewJobAvailable", (message) =>
-        {
-            Console.WriteLine($"Received message: {message}");
-        });
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -196,5 +159,56 @@ public class RCloneService : BackgroundService
         {
             _logger.LogError($"Exception getting job: {e}");
         }
+    }
+
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        await base.StartAsync(cancellationToken);
+        
+        _processRClone = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = _options.RClonePath,
+                Arguments = _options.RCloneOptions,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true                
+            }
+        };
+
+        if (!_processRClone.Start())
+        {
+            throw new InvalidOperationException("rclone did not start at all.");
+        }
+        
+        StreamReader reader = _processRClone.StandardError;
+        string? urlRClone = null;
+        Regex reUrl = new("http://(?<url>[1-9][0-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*:[1-9][0-9]*)/");
+        while (true)
+        {
+            string? output = await reader.ReadLineAsync();
+            if (null == output)
+            {
+                throw new InvalidOperationException("rclone did not start with the expected output.");
+            }
+            Match match = reUrl.Match(output);
+            if (match.Success)
+            {
+                urlRClone = match.Groups["url"].Value;
+                break;
+            }
+        }
+
+        _rcloneHttpClient = new HttpClient() { BaseAddress = new Uri($"http://{urlRClone}") };
+        var byteArray = new UTF8Encoding().GetBytes("who:how");
+        _rcloneHttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        
+        _hannibalConnection.On<Job>("NewJobAvailable", (message) =>
+        {
+            Console.WriteLine($"Received message: {message}");
+        });
+
     }
 }

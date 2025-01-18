@@ -1,4 +1,6 @@
-﻿using System.Net.Http.Json;
+﻿using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using WorkerRClone.Client.Models;
 
 namespace WorkerRClone.Client;
 
@@ -21,15 +23,15 @@ public class RCloneClient
          * createEmptySrcDirs - create empty src directories on destination if set
          */
         string srcFs = "";
-        string destFs = "";
-        var p = new
+        string dstFs = "";
+        SyncParams syncParams = new()
         {
             srcFs = srcFs,
-            destFs = destFs
+            dstFs = dstFs
         };
-
-        var response = await _httpClient.PostAsJsonAsync(
-            "/sync/sync", p, cancellationToken);
+        
+        JsonContent content = JsonContent.Create(syncParams, typeof(SyncParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/sync/sync", content, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return await response.Content.ReadAsStringAsync(cancellationToken);            
