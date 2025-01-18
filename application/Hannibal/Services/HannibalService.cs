@@ -21,7 +21,7 @@ public class HannibalService : IHannibalService
      * Until we have a real database backend, we fake new entries using _nextId.
      */
     private static int _nextId;
-    
+
     public HannibalService(
         HannibalContext context,
         ILogger<HannibalService> logger,
@@ -63,12 +63,15 @@ public class HannibalService : IHannibalService
         }
     }
 
-    
+
     public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken)
     {
+        await _ensureRequiredJobs();
+        
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
-        var job = await _context.Jobs.FirstOrDefaultAsync(j => j.State == Job.JobState.Ready && j.Owner == "", cancellationToken);
+        var job = await _context.Jobs.FirstOrDefaultAsync(j => j.State == Job.JobState.Ready && j.Owner == "",
+            cancellationToken);
         if (job != null)
         {
             job.Owner = acquireParams.Owner;
@@ -79,7 +82,8 @@ public class HannibalService : IHannibalService
         }
         else
         {
-            throw new KeyNotFoundException($"No job found for owner {acquireParams.Owner} with caps {acquireParams.Capabilities}");
+            throw new KeyNotFoundException(
+                $"No job found for owner {acquireParams.Owner} with caps {acquireParams.Capabilities}");
         }
     }
 
@@ -88,7 +92,8 @@ public class HannibalService : IHannibalService
     {
         _logger.LogInformation("job {jobId} reported back status {jobStatus}", jobStatus.JobId, jobStatus.Status);
 
-        var job = await _context.Jobs.FirstOrDefaultAsync(j => j.State == Job.JobState.Executing && j.Id == jobStatus.JobId, cancellationToken);
+        var job = await _context.Jobs.FirstOrDefaultAsync(
+            j => j.State == Job.JobState.Executing && j.Id == jobStatus.JobId, cancellationToken);
         if (job != null)
         {
             /*
@@ -105,7 +110,7 @@ public class HannibalService : IHannibalService
                  */
                 job.State = Job.JobState.Ready;
             }
-            
+
             _context.Update(job);
             await _context.SaveChangesAsync(cancellationToken);
         }
@@ -113,6 +118,7 @@ public class HannibalService : IHannibalService
         {
             throw new KeyNotFoundException($"No job found for jobId {jobStatus.JobId} that is executing.");
         }
+
         return new Result
         {
             Status = 0
@@ -123,5 +129,47 @@ public class HannibalService : IHannibalService
     public async Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationTokens)
     {
         return new ShutdownResult() { ErrorCode = 0 };
+    }
+
+
+    /**
+     * This is a hardcoded logic to make sure a certain set of jobs is created daily or weekly.
+     * This should be replaced by a more refined logic deriving these jobs from the higgins definitions
+     * and the user jobs supplied.
+     *
+     * The way we do it right now is neither scalable nor good architecture.
+     */
+    private async Task _ensureRequiredJobs()
+    {
+        List<Job> listDailyJobs = new()
+        {
+            new()
+            {
+                Tag = "DailyTmp",
+                EndBy = DateTime.MinValue + TimeSpan.FromHours(24 + 3),
+                StartFrom = DateTime.MinValue + TimeSpan.FromHours(3),
+                FromUri = "file:///tmp/a",
+                ToUri = "file:///tmp/b"
+            }
+        };
+
+        foreach (var daily in listDailyJobs)
+        {
+            var job = await _context.Jobs.FirstOrDefaultAsync(
+                j => j.State == Job.JobState.Ready && j.Tag == daily.Tag && j.StartFrom > DateTime.Today);
+            if (job == null)
+            {
+                _logger.LogInformation($"Adding template job {daily}");
+                await _context.Jobs.AddAsync(new Job(daily)
+                {
+                    StartFrom = DateTime.Today + (daily.StartFrom - DateTime.MinValue),
+                    EndBy = DateTime.Today + (daily.EndBy - DateTime.MinValue),
+                    Owner = "",
+                    State = Job.JobState.Ready
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync();
     }
 }

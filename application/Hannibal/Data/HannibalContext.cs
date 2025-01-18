@@ -23,6 +23,7 @@ public class HannibalContext : DbContext
         // Optionally, you could seed initial data here
         if (!await Jobs.AnyAsync())
         {
+            #if false
             Jobs.AddAsync(new Job
             {
                 Owner = "",
@@ -37,7 +38,8 @@ public class HannibalContext : DbContext
                 FromUri = "file:///tmp/b",
                 ToUri = "onedrive/bak/",
             });
-            await SaveChangesAsync();   
+            await SaveChangesAsync();
+            #endif
         }
     }
     

@@ -3,10 +3,33 @@ namespace Hannibal.Models;
 
 public class Job
 {
+    public Job()
+    {
+    }
+
+
+    public Job(Job o)
+    {
+        Id = o.Id;
+        Tag = o.Tag;
+        Owner = o.Owner;
+        State = o.State;
+        StartFrom = o.StartFrom;
+        EndBy = o.EndBy;
+        FromUri = o.FromUri;
+        ToUri = o.ToUri;
+        Status = o.Status;
+    }
+
     /**
-     * THe job id as defined by Hannibal.
+     * The job id as defined by Hannibal.
      */
     public int Id { get; set; }
+    
+    /**
+     * A tag given to the job by the author, derived from a regular backup part
+     */
+    public string Tag { get; set; }
     
     /**
      * The textural owner of the job as reported. 

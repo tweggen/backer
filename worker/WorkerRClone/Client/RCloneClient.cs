@@ -22,8 +22,8 @@ public class RCloneClient
          * dstFs - a remote name string e.g. "drive:dst" for the destination
          * createEmptySrcDirs - create empty src directories on destination if set
          */
-        string srcFs = "";
-        string dstFs = "";
+        string srcFs = uriFrom;
+        string dstFs = uriDest;
         SyncParams syncParams = new()
         {
             srcFs = srcFs,
