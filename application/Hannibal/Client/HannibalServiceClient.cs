@@ -45,8 +45,7 @@ public class HannibalServiceClient : IHannibalServiceClient
     {
         var response = await _httpClient.PostAsJsonAsync(
             "/api/hannibal/v1/reportJob",
-            new { jobStatus = jobStatus }
-        );
+            jobStatus);
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(); 
         return JsonSerializer.Deserialize<Result>(

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.RegularExpressions;
 using Hannibal.Client;
 using Hannibal.Models;
@@ -62,7 +64,7 @@ public class RCloneService : BackgroundService
         
         StreamReader reader = _processRClone.StandardError;
         string? urlRClone = null;
-        Regex reUrl = new("(?<url>http://[1-9][0-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*:[1-9][0-9]*)/");
+        Regex reUrl = new("http://(?<url>[1-9][0-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*:[1-9][0-9]*)/");
         while (true)
         {
             string output = reader.ReadLine();
@@ -74,7 +76,11 @@ public class RCloneService : BackgroundService
             }
         }
 
-        _rcloneHttpClient = new HttpClient() { BaseAddress = new(urlRClone) };
+        _rcloneHttpClient = new HttpClient() { BaseAddress = new Uri($"http://{urlRClone}") };
+        var byteArray = new UTF8Encoding().GetBytes("who:how");
+        _rcloneHttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+
+        
         _hannibalConnection.On<Job>("NewJobAvailable", (message) =>
         {
             Console.WriteLine($"Received message: {message}");
@@ -97,17 +103,19 @@ public class RCloneService : BackgroundService
     }
 
 
-    private async Task _startJob(Job job)
+    private async Task<Result> _startJob(Job job)
     {
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
         try
         {
             _logger.LogInformation($"Starting job {job.Id}");
             var res = await rcloneClient.Sync(job.FromUri, job.ToUri, CancellationToken.None);
+            return new() { Status = 0 };
         }
         catch (Exception e)
         {
             _logger.LogError($"Exception while sync: {e}");
+            return new() { Status = -1 };
         }
     }
     
@@ -160,9 +168,17 @@ public class RCloneService : BackgroundService
                 /*
                  * Execute the job.
                  */
-                _startJob(job);
-                jobResult.Status = 0;
-                _logger.LogError($"Success executing job {job.Id}");
+                var status = await _startJob(job);
+                if (status.Status == 0)
+                {
+                    jobResult.Status = 0;
+                    _logger.LogError($"Success executing job {job.Id}");
+                }
+                else
+                {
+                    jobResult.Status = -1;
+                    _logger.LogError($"Error executing job {job.Id}");
+                }
             }
             catch (Exception e)
             {

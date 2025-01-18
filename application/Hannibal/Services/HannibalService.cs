@@ -88,6 +88,31 @@ public class HannibalService : IHannibalService
     {
         _logger.LogInformation("job {jobId} reported back status {jobStatus}", jobStatus.JobId, jobStatus.Status);
 
+        var job = await _context.Jobs.FirstOrDefaultAsync(j => j.State == Job.JobState.Executing && j.Id == jobStatus.JobId, cancellationToken);
+        if (job != null)
+        {
+            /*
+             * Save back the status to the database.
+             */
+            if (jobStatus.Status >= 0)
+            {
+                job.State = Job.JobState.DoneSuccess;
+            }
+            else
+            {
+                /*
+                 * Not done. We should check if we should leave it as DoneSuccess or DoneError.
+                 */
+                job.State = Job.JobState.Ready;
+            }
+            
+            _context.Update(job);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        else
+        {
+            throw new KeyNotFoundException($"No job found for jobId {jobStatus.JobId} that is executing.");
+        }
         return new Result
         {
             Status = 0

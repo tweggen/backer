@@ -27,6 +27,7 @@ public class RCloneClient
             srcFs = srcFs,
             destFs = destFs
         };
+
         var response = await _httpClient.PostAsJsonAsync(
             "/rc/sync", p, cancellationToken);
         if (response.IsSuccessStatusCode)
