@@ -29,7 +29,7 @@ public class RCloneClient
         };
 
         var response = await _httpClient.PostAsJsonAsync(
-            "/rc/sync", p, cancellationToken);
+            "/sync/sync", p, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return await response.Content.ReadAsStringAsync(cancellationToken);            
