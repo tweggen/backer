@@ -8,7 +8,7 @@ public interface IHannibalServiceClient
     public Task<Job> GetJobAsync(int jobId);
 
     public Task<IEnumerable<Job>> GetJobsAsync(ResultPage resultPage, JobFilter filter);
-    public Task<Job> AcquireNextJobAsync(string capabilities, string owner);
+    public Task<Job> AcquireNextJobAsync(AcquireParams acquireParams);
     public Task<Result> ReportJobAsync(JobStatus jobStatus);
     public Task<ShutdownResult> ShutdownAsync();
 }

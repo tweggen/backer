@@ -152,11 +152,10 @@ app.MapGet("/api/hannibal/v1/jobs", async (
 
 app.MapPost("/api/hannibal/v1/acquireNextJob", async (
     IHannibalService hannibalService,
-    string capabilities,
-    string owner,
+    AcquireParams acquireParams,
     CancellationToken cancellationToken) =>
 {
-    var result = await hannibalService.AcquireNextJobAsync(capabilities, owner, cancellationToken);
+    var result = await hannibalService.AcquireNextJobAsync(acquireParams, cancellationToken);
     return Results.Ok(result);
 })
 .WithName("AcquireNextJob")

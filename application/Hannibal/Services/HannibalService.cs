@@ -64,22 +64,22 @@ public class HannibalService : IHannibalService
     }
 
     
-    public async Task<Job> AcquireNextJobAsync(string capabilities, string owner, CancellationToken cancellationToken)
+    public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("new job requested by for client with capas {capabilities}", capabilities);
+        _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
-        var job = await _context.Jobs.FirstOrDefaultAsync(j => j.State == Job.JobState.Ready && j.Owner == "");
+        var job = await _context.Jobs.FirstOrDefaultAsync(j => j.State == Job.JobState.Ready && j.Owner == "", cancellationToken);
         if (job != null)
         {
-            job.Owner = owner;
+            job.Owner = acquireParams.Owner;
             job.State = Job.JobState.Executing;
             _context.Update(job);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(cancellationToken);
             return job;
         }
         else
         {
-            throw new KeyNotFoundException($"No job found for owner {owner} with caps {capabilities}");
+            throw new KeyNotFoundException($"No job found for owner {acquireParams.Owner} with caps {acquireParams.Capabilities}");
         }
     }
 

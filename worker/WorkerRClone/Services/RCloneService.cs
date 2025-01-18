@@ -97,12 +97,13 @@ public class RCloneService : BackgroundService
     }
 
 
-    private void _startJob(Job job)
+    private async Task _startJob(Job job)
     {
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
         try
         {
             _logger.LogInformation($"Starting job {job.Id}");
+            var res = await rcloneClient.Sync(job.FromUri, job.ToUri, CancellationToken.None);
         }
         catch (Exception e)
         {
@@ -141,8 +142,7 @@ public class RCloneService : BackgroundService
              * Then get the next job.
              */
             var job = await _hannibalClient.AcquireNextJobAsync(
-                "rclone", 
-                _ownerId);
+                new() { Capabilities ="rclone", Owner = _ownerId });
             if (null == job)
             {
                 /*

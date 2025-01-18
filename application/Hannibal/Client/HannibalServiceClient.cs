@@ -1,6 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
-using Hannibal.Configuration;
+using Hannibal.Client.Configuration;
 using Hannibal.Models;
 using Microsoft.Extensions.Options;
 
@@ -11,7 +11,7 @@ public class HannibalServiceClient : IHannibalServiceClient
     private readonly HttpClient _httpClient;
 
     public HannibalServiceClient(
-        IOptions<HannibalServiceOptions> options,
+        IOptions<HannibalServiceClientOptions> options,
         HttpClient httpClient)
     {
         _httpClient = httpClient;
@@ -30,12 +30,10 @@ public class HannibalServiceClient : IHannibalServiceClient
     }
 
     
-    public async Task<Job> AcquireNextJobAsync(string capabilities, string owner)
+    public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams)
     {
         var response = await _httpClient.PostAsJsonAsync(
-            "/api/hannibal/v1/acquireNextJob",
-            new { capabilities = capabilities, owner = owner }
-            );
+            "/api/hannibal/v1/acquireNextJob", acquireParams);
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(); 
         return JsonSerializer.Deserialize<Job>(

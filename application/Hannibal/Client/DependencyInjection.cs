@@ -16,6 +16,8 @@ public static class DependencyInjection
          */
         services.Configure<HannibalServiceClientOptions>(configuration.GetSection("HannibalServiceClient"));
         
+        
+        #if false
         /*
          * Create our http client using the base url.
          */
@@ -28,7 +30,15 @@ public static class DependencyInjection
         /*
          * And create our single singleton client object.
          */
-        services.AddSingleton<IHannibalServiceClient, HannibalServiceClient>();
+        //services.AddSingleton<IHannibalServiceClient, HannibalServiceClient>();
+        #else
+        // Combine the HTTP client registration with the service registration
+        services.AddHttpClient<IHannibalServiceClient, HannibalServiceClient>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<HannibalServiceClientOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl);
+        });
+        #endif
 
         return services;
     }
