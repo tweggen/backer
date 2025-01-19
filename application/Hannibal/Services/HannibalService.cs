@@ -111,6 +111,7 @@ public class HannibalService : IHannibalService
                 job.State = Job.JobState.Ready;
             }
 
+            job.Owner = "";
             _context.Update(job);
             await _context.SaveChangesAsync(cancellationToken);
         }
@@ -148,8 +149,8 @@ public class HannibalService : IHannibalService
                 Tag = "DailyTmp",
                 EndBy = DateTime.MinValue + TimeSpan.FromHours(24 + 3),
                 StartFrom = DateTime.MinValue + TimeSpan.FromHours(3),
-                FromUri = "file:///tmp/a",
-                ToUri = "file:///tmp/b"
+                FromUri = "/tmp/a",
+                ToUri = "/tmp/b"
             }
         };
 

@@ -12,6 +12,7 @@ using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
+using Tools;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +36,8 @@ builder.Services.Configure<ApiOptions>(
 
 // Add application services
 builder.Services
+        // Tools
+    .AddProcessManager()
         // Application
     .AddHannibalService(builder.Configuration)
     .AddHigginsService(builder.Configuration)

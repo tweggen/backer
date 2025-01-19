@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Higgins", "application\Higg
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerRClone", "worker\WorkerRClone\WorkerRClone.csproj", "{DD01A7F3-0798-4DC5-92B2-2407871F01C8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tools", "Tools\Tools.csproj", "{D7D9EFE2-D324-45F1-BF82-8F9C877C31CA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,6 +34,10 @@ Global
 		{DD01A7F3-0798-4DC5-92B2-2407871F01C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DD01A7F3-0798-4DC5-92B2-2407871F01C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DD01A7F3-0798-4DC5-92B2-2407871F01C8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7D9EFE2-D324-45F1-BF82-8F9C877C31CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7D9EFE2-D324-45F1-BF82-8F9C877C31CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7D9EFE2-D324-45F1-BF82-8F9C877C31CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7D9EFE2-D324-45F1-BF82-8F9C877C31CA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D1AEF81A-F693-45E3-AAB1-E7CF20FFA2B2} = {F59EAE49-3A3C-4E00-BDCF-8B1E345BC7E7}

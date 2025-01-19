@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Tools;
 using WorkerRClone.Client;
 using WorkerRClone.Configuration;
 using Result = WorkerRClone.Models.Result;
@@ -24,9 +25,10 @@ public class RCloneService : BackgroundService
     private string _ownerId;
     private int _nRunningJobs = 0;
     
+    private ILogger<RCloneService> _logger;
+    private ProcessManager _processManager;
     private HubConnection _hannibalConnection;
     private IHannibalServiceClient _hannibalClient;
-    private ILogger<RCloneService> _logger;
 
     private readonly RCloneServiceOptions _options;
 
@@ -35,6 +37,7 @@ public class RCloneService : BackgroundService
     
     public RCloneService(
         ILogger<RCloneService> logger,
+        ProcessManager processManager,
         IOptions<RCloneServiceOptions> options,
         Dictionary<string, HubConnection> connections,
         IHannibalServiceClient hannibalClient)
@@ -44,10 +47,10 @@ public class RCloneService : BackgroundService
             _ownerId = $"worker-rclone-{_nextId++}";
         }
         _logger = logger;
+        _processManager = processManager;
         _options = options.Value;
         _hannibalConnection = connections["hannibal"];
         _hannibalClient = hannibalClient;
-            
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -164,35 +167,43 @@ public class RCloneService : BackgroundService
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
         await base.StartAsync(cancellationToken);
-        
-        _processRClone = new Process
-        {
-            StartInfo = new ProcessStartInfo
+
+        _processRClone = _processManager.StartManagedProcess(new ProcessStartInfo()
             {
                 FileName = _options.RClonePath,
                 Arguments = _options.RCloneOptions,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = true                
+                CreateNoWindow = true
             }
-        };
+        );
 
-        if (!_processRClone.Start())
+        if (_processRClone == null)
         {
+            _logger.LogError("rclone did not start at all.");
             throw new InvalidOperationException("rclone did not start at all.");
         }
         
         StreamReader reader = _processRClone.StandardError;
         string? urlRClone = null;
+        string strErrorOutput = "";
         Regex reUrl = new("http://(?<url>[1-9][0-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*:[1-9][0-9]*)/");
         while (true)
         {
+            if (_processRClone.HasExited)
+            {
+                _logger.LogError($"rclone exited with error {strErrorOutput}" );
+                throw new InvalidOperationException("rclone exited with error: ");
+            }
             string? output = await reader.ReadLineAsync();
             if (null == output)
             {
-                throw new InvalidOperationException("rclone did not start with the expected output.");
+                _logger.LogError($"rclone did not start with expected output but {strErrorOutput}" );
+                throw new InvalidOperationException("rclone did not start with the expected output,");
             }
+
+            strErrorOutput += output;
             Match match = reUrl.Match(output);
             if (match.Success)
             {
@@ -210,5 +221,12 @@ public class RCloneService : BackgroundService
             Console.WriteLine($"Received message: {message}");
         });
 
+    }
+
+    public override void Dispose()
+    {
+        _processRClone?.Kill();
+        _processRClone?.Dispose();
+        base.Dispose();
     }
 }
