@@ -76,7 +76,6 @@ public class HannibalService : IHannibalService
         {
             job.Owner = acquireParams.Owner;
             job.State = Job.JobState.Executing;
-            _context.Update(job);
             await _context.SaveChangesAsync(cancellationToken);
             return job;
         }
@@ -112,7 +111,6 @@ public class HannibalService : IHannibalService
             }
 
             job.Owner = "";
-            _context.Update(job);
             await _context.SaveChangesAsync(cancellationToken);
         }
         else
@@ -142,6 +140,7 @@ public class HannibalService : IHannibalService
      */
     private async Task _ensureRequiredJobs()
     {
+        string strTmp = "C:/Users/timow/AppData/Local/Temp";
         List<Job> listDailyJobs = new()
         {
             new()
@@ -149,8 +148,10 @@ public class HannibalService : IHannibalService
                 Tag = "DailyTmp",
                 EndBy = DateTime.MinValue + TimeSpan.FromHours(24 + 3),
                 StartFrom = DateTime.MinValue + TimeSpan.FromHours(3),
-                FromUri = "/tmp/a",
-                ToUri = "/tmp/b"
+                //FromUri = "/tmp/a",
+                //ToUri = "/tmp/b"
+                FromUri = $"{strTmp}/a",
+                ToUri = $"{strTmp}/b",
             }
         };
 
