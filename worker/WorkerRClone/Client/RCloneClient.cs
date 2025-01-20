@@ -6,7 +6,7 @@ namespace WorkerRClone.Client;
 
 public class RCloneClient
 {
-    private HttpClient _httpClient;
+    private HttpClient _httpClieönt;
 
     public RCloneClient(HttpClient httpClient)
     {
