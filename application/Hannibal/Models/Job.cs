@@ -16,8 +16,8 @@ public class Job
         State = o.State;
         StartFrom = o.StartFrom;
         EndBy = o.EndBy;
-        FromUri = o.FromUri;
-        ToUri = o.ToUri;
+        SourceEndpoint = o.SourceEndpoint;
+        DestinationEndpoint = o.DestinationEndpoint;
         Status = o.Status;
     }
 
@@ -30,6 +30,11 @@ public class Job
      * A tag given to the job by the author, derived from a regular backup part
      */
     public string Tag { get; set; }
+    
+    /**
+     * If this job was created from applying a rule, this is the rule.
+     */
+    public Rule? FromRule { get; set; }
     
     /**
      * The textural owner of the job as reported. 
@@ -57,8 +62,8 @@ public class Job
      */
     public DateTime EndBy { get; set; }
     
-    public string FromUri { get; set; }
-    public string ToUri { get; set; }
+    public string SourceEndpoint { get; set; }
+    public string DestinationEndpoint { get; set; }
     
     /**
      * The most recent status of the job.

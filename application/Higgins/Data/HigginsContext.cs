@@ -18,7 +18,6 @@ public class HigginsContext : DbContext
     
     public DbSet<Storage> Storages { get; set; }
     public DbSet<Endpoint> Endpoints { get; set; }
-    public DbSet<Route> Routes { get; set; }
     public DbSet<User> Users { get; set; }
 
     
@@ -37,18 +36,21 @@ public class HigginsContext : DbContext
         {
             User = userTimo,
             //Credentials = timosDropboxCredentials,
-            Technology = "dropbox"
+            Technology = "dropbox",
+            UriSchema = "onedrive"
         };
         Storage timosOnedrive = new()
         {
             User = userTimo,
             //Credentials = timosOnedriveCredentials,
-            Technology = "onedrive"
+            Technology = "onedrive",
+            UriSchema = "onedrive"
         };
         Endpoint dropboxTimomp3 = new()
         {
             User = userTimo,
             Storage = timosDropbox,
+            Name = "timo:dropbox:timomp3",
             Path = "timomp3",
             Comment = "Originals of timo music"
         };
@@ -56,6 +58,7 @@ public class HigginsContext : DbContext
         {
             User = userTimo,
             Storage = timosOnedrive,
+            Name = "timo:onedrive:timomp3",
             Path = "timomp3",
             Comment = "Shared copy of timo music"
         };
@@ -64,6 +67,7 @@ public class HigginsContext : DbContext
         {
             User = userTimo,
             Storage = timosDropbox,
+            Name = "timo:dropbox:zeug",
             Path = "zeug",
             Comment = "shared copy of esat data"
         };
@@ -71,24 +75,9 @@ public class HigginsContext : DbContext
         {
             User = userTimo,
             Storage = timosOnedrive,
+            Name = "timo:onedrive:zeug",
             Path = "zeug",
             Comment = "original esat data"
-        };
-
-
-        Route timomp3FromDropboxToOnedrive = new()
-        {
-            User = userTimo,
-            FromEndpoint = dropboxTimomp3,
-            ToEndpoint = onedriveTimomp3,
-        };
-
-
-        Route zeugFromOnedriveToDropbox = new()
-        {
-            User = userTimo,
-            FromEndpoint = onedriveZeug,
-            ToEndpoint = dropboxZeug,
         };
 
 
@@ -101,10 +90,7 @@ public class HigginsContext : DbContext
             await Endpoints.AddAsync(dropboxTimomp3);
             await Endpoints.AddAsync(onedriveTimomp3);
             await Endpoints.AddAsync(dropboxZeug);
-            await Endpoints.AddAsync(dropboxZeug);
-
-            await Routes.AddAsync(timomp3FromDropboxToOnedrive);
-            await Routes.AddAsync(zeugFromOnedriveToDropbox);
+            await Endpoints.AddAsync(onedriveZeug);
 
             await SaveChangesAsync();
         }

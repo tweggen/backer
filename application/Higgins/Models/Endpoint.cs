@@ -8,6 +8,7 @@ namespace Higgins.Models;
 public class Endpoint
 {
     public int Id { get; set; }
+    public string Name { get; set; }
     public User User { get; set; }
     public Storage Storage { get; set; }
     public string Path { get; set; }

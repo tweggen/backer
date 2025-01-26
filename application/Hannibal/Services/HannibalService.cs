@@ -66,8 +66,6 @@ public class HannibalService : IHannibalService
 
     public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken)
     {
-        await _ensureRequiredJobs();
-        
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
         var job = await _context.Jobs.FirstOrDefaultAsync(j => j.State == Job.JobState.Ready && j.Owner == "",
@@ -128,50 +126,5 @@ public class HannibalService : IHannibalService
     public async Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationTokens)
     {
         return new ShutdownResult() { ErrorCode = 0 };
-    }
-
-
-    /**
-     * This is a hardcoded logic to make sure a certain set of jobs is created daily or weekly.
-     * This should be replaced by a more refined logic deriving these jobs from the higgins definitions
-     * and the user jobs supplied.
-     *
-     * The way we do it right now is neither scalable nor good architecture.
-     */
-    private async Task _ensureRequiredJobs()
-    {
-        string strTmp = "C:/Users/timow/AppData/Local/Temp";
-        List<Job> listDailyJobs = new()
-        {
-            new()
-            {
-                Tag = "DailyTmp",
-                EndBy = DateTime.MinValue + TimeSpan.FromHours(24 + 3),
-                StartFrom = DateTime.MinValue + TimeSpan.FromHours(3),
-                //FromUri = "/tmp/a",
-                //ToUri = "/tmp/b"
-                FromUri = $"{strTmp}/a",
-                ToUri = $"{strTmp}/b",
-            }
-        };
-
-        foreach (var daily in listDailyJobs)
-        {
-            var job = await _context.Jobs.FirstOrDefaultAsync(
-                j => j.State == Job.JobState.Ready && j.Tag == daily.Tag && j.StartFrom > DateTime.Today);
-            if (job == null)
-            {
-                _logger.LogInformation($"Adding template job {daily}");
-                await _context.Jobs.AddAsync(new Job(daily)
-                {
-                    StartFrom = DateTime.Today + (daily.StartFrom - DateTime.MinValue),
-                    EndBy = DateTime.Today + (daily.EndBy - DateTime.MinValue),
-                    Owner = "",
-                    State = Job.JobState.Ready
-                });
-            }
-        }
-
-        await _context.SaveChangesAsync();
     }
 }

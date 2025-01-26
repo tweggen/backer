@@ -32,14 +32,4 @@ public class HigginsService : IHigginsService
         await _context.SaveChangesAsync(cancellationToken);
         return new CreateEndpointResult() { Id = endpoint.Id };
     }
-
-
-    public async Task<CreateRouteResult> CreateRouteAsync(
-        Route route,
-        CancellationToken cancellationToken)
-    {
-        _context.Routes.Add(route);
-        await _context.SaveChangesAsync(cancellationToken);
-        return new CreateRouteResult() { Id = route.Id };
-    }
 }
