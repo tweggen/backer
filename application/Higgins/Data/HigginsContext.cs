@@ -36,13 +36,13 @@ public class HigginsContext : DbContext
         Storage timosDropbox = new()
         {
             User = userTimo,
-            Credentials = timosDropboxCredentials,
+            //Credentials = timosDropboxCredentials,
             Technology = "dropbox"
         };
         Storage timosOnedrive = new()
         {
             User = userTimo,
-            Credentials = timosOnedriveCredentials,
+            //Credentials = timosOnedriveCredentials,
             Technology = "onedrive"
         };
         Endpoint dropboxTimomp3 = new()

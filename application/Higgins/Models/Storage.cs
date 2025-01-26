@@ -6,7 +6,8 @@ namespace Higgins.Models;
  */
 public class Storage
 {
+    public int Id { get; set; }
     public User User { get; set; }
     public string Technology { get; set; }
-    public Credentials Credentials { get; set; }
+    // public Credentials Credentials { get; set; }
 }

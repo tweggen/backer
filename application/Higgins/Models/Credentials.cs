@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+
 namespace Higgins.Models;
 
 /**
@@ -5,6 +8,16 @@ namespace Higgins.Models;
  */
 public class Credentials
 {
+    public int Id { get; set; }
+    
     public User User { get; set; }
-    public Dictionary<string, string> Environment { get; set; }
+
+    [NotMapped]
+    public Dictionary<string, string> Environment { get; set; } = new();
+    
+    public string EnvironmentJson
+    {
+        get => JsonSerializer.Serialize(Environment);
+        set => Environment = JsonSerializer.Deserialize<Dictionary<string, string>>(value);
+    }
 }
