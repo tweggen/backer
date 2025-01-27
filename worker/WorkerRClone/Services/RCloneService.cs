@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Hannibal.Client;
 using Hannibal.Models;
+using Higgins.Client;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,7 @@ public class RCloneService : BackgroundService
     private ProcessManager _processManager;
     private HubConnection _hannibalConnection;
     private IHannibalServiceClient _hannibalClient;
+    private IHigginsServiceClient _higginsClient;
 
     private readonly RCloneServiceOptions _options;
 
@@ -40,7 +42,8 @@ public class RCloneService : BackgroundService
         ProcessManager processManager,
         IOptions<RCloneServiceOptions> options,
         Dictionary<string, HubConnection> connections,
-        IHannibalServiceClient hannibalClient)
+        IHannibalServiceClient hannibalClient,
+        IHigginsServiceClient higginsClient)
     {
         lock (_classLock)
         {
@@ -51,6 +54,7 @@ public class RCloneService : BackgroundService
         _options = options.Value;
         _hannibalConnection = connections["hannibal"];
         _hannibalClient = hannibalClient;
+        _higginsClient = higginsClient;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -75,7 +79,20 @@ public class RCloneService : BackgroundService
         try
         {
             _logger.LogInformation($"Starting job {job.Id}");
-            var res = await rcloneClient.Sync(job.FromUri, job.ToUri, CancellationToken.None);
+            
+            /*
+             * Resolve the endpoints.
+             */
+            var sourceEndpoint = await _higginsClient.GetEndpointAsync(job.SourceEndpoint);
+            var destinationEndpoint = await _higginsClient.GetEndpointAsync(job.DestinationEndpoint);
+
+            string sourceUri = $"{sourceEndpoint.Storage.UriSchema}:/{sourceEndpoint.Path}";
+            string destinationUri = $"{sourceEndpoint.Storage.UriSchema}:/{sourceEndpoint.Path}";
+            
+            _logger.LogInformation($"sourceUri is {sourceUri}");
+            _logger.LogInformation($"destinationUri is {destinationUri}");
+            
+            // var res = await rcloneClient.Sync(sourceUri, destinationUri, CancellationToken.None);
             return new() { Status = 0 };
         }
         catch (Exception e)

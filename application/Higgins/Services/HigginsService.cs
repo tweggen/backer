@@ -1,6 +1,7 @@
 using Higgins.Configuration;
 using Higgins.Data;
 using Higgins.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -28,8 +29,22 @@ public class HigginsService : IHigginsService
         Endpoint endpoint,
         CancellationToken cancellationToken)
     {
-        _context.Endpoints.Add(endpoint);
+        await _context.Endpoints.AddAsync(endpoint);
         await _context.SaveChangesAsync(cancellationToken);
         return new CreateEndpointResult() { Id = endpoint.Id };
+    }
+
+
+    public async Task<Endpoint> GetEndpointAsync(
+        string name,
+        CancellationToken cancellationToken)
+    {
+        Endpoint? endpoint = await _context.Endpoints.FirstOrDefaultAsync(e => e.Name == name);
+        if (null == endpoint)
+        {
+            throw new KeyNotFoundException($"No endpoint found for name {name}");
+        }
+
+        return endpoint;
     }
 }

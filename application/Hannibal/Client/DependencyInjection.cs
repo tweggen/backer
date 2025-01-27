@@ -1,4 +1,5 @@
 using Hannibal.Client.Configuration;
+using Hannibal.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -17,29 +18,23 @@ public static class DependencyInjection
         services.Configure<HannibalServiceClientOptions>(configuration.GetSection("HannibalServiceClient"));
         
         
-        #if false
-        /*
-         * Create our http client using the base url.
-         */
-        services.AddHttpClient<HannibalServiceClient>((serviceProvider, client) =>
-        {
-            var options = serviceProvider.GetRequiredService<IOptions<HannibalServiceClientOptions>>().Value;
-            client.BaseAddress = new Uri(options.BaseUrl);
-        });
-        
-        /*
-         * And create our single singleton client object.
-         */
-        //services.AddSingleton<IHannibalServiceClient, HannibalServiceClient>();
-        #else
         // Combine the HTTP client registration with the service registration
         services.AddHttpClient<IHannibalServiceClient, HannibalServiceClient>((serviceProvider, client) =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<HannibalServiceClientOptions>>().Value;
             client.BaseAddress = new Uri(options.BaseUrl);
         });
-        #endif
 
         return services;
     }
+    
+    public static IServiceCollection AddHannibalBackofficeService(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddHostedService<BackofficeService>();
+        
+        return services;
+    }
+
 }

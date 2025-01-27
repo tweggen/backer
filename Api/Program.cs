@@ -6,6 +6,7 @@ using Hannibal.Data;
 using Hannibal.Models;
 using Hannibal.Services;
 using Higgins;
+using Higgins.Client;
 using Higgins.Data;
 using Higgins.Services;
 using WorkerRClone;
@@ -43,8 +44,10 @@ builder.Services
     .AddHigginsService(builder.Configuration)
         // Clients
     .AddHannibalServiceClient(builder.Configuration)
+    .AddHigginsServiceClient(builder.Configuration)
         // Workers
     .AddRCloneService(builder.Configuration)
+    .AddHannibalBackofficeService(builder.Configuration)
     ;
 
 
@@ -116,6 +119,8 @@ app.MapHealthChecks("/health");
 
 
 app.MapHub<HannibalHub>("/hannibal");
+
+
 app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
     IHannibalService hannibalService,
     int jobId,
@@ -188,6 +193,19 @@ app.MapPost("/api/hannibal/v1/shutdown", async (
 
 
 app.MapHub<HigginsHub>("/higgins");
+
+
+app.MapGet("/api/higgins/v1/endpoints", async (
+    IHigginsService higginsService,
+    string name,
+    CancellationToken cancellationToken) =>
+{
+    var result = await higginsService.GetEndpointAsync(name, cancellationToken);
+})
+.WithName("GetEndpoint")
+.WithOpenApi();
+
+    
 app.MapPost("/api/higgins/v1/endpoints/create", async (
     IHigginsService higginsService,
     Higgins.Models.Endpoint endpoint,
@@ -197,18 +215,6 @@ app.MapPost("/api/higgins/v1/endpoints/create", async (
     return Results.Ok(result);
 })
 .WithName("CreateEndpoint")
-.WithOpenApi();
-
-
-app.MapPost("/api/higgins/v1/routes/create", async (
-    IHigginsService higginsService,
-    Higgins.Models.Route route,
-    CancellationToken cancellationToken) =>
-{
-    var result = await higginsService.CreateRouteAsync(route, cancellationToken);
-    return Results.Ok(result);
-})
-.WithName("CreateRoute")
 .WithOpenApi();
 
 

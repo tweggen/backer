@@ -6,42 +6,43 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Linq;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hannibal.Services;
 
 public class BackofficeService : BackgroundService
 {
     private ILogger<BackofficeService> _logger;
-    private HannibalContext _context;
+    private IServiceScopeFactory _serviceScopeFactory;
     private HannibalServiceOptions _options;
     
     
     public BackofficeService(
         ILogger<BackofficeService> logger,
-        HannibalContext context,
+        IServiceScopeFactory serviceScopeFactory,
         IOptions<HannibalServiceOptions> options)
     {
         _logger = logger;
-        _context = context;
+        _serviceScopeFactory = serviceScopeFactory;
         _options = options.Value;
     }
 
 
-    private async Task _rules2Jobs()
+    private async Task _rules2Jobs(HannibalContext context, CancellationToken cancellationToken)
     {
         /*
          * This implementation evaluates per one user.
          */
         DateTime now = DateTime.Now;
 
-        List<Rule> myRules = await _context
+        List<Rule> myRules = await context
             .Rules
             // TXWTODO: .Where(r => r.User == me)
             .ToListAsync();
         
         HashSet<Rule> setRulesToEval = new();
         
-        List<RuleState> myRuleStates = await _context
+        List<RuleState> myRuleStates = await context
             .RuleStates
             // TXWTODO: .Where(r => r.User == me)
             .ToListAsync();
@@ -93,28 +94,32 @@ public class BackofficeService : BackgroundService
                     DestinationEndpoint = r.DestinationEndpoint,
                     Status = 0
                 };
-                await _context.Jobs.AddAsync(job);
+                await context.Jobs.AddAsync(job);
                 rs.ExpiredAfter = now + r.MaxDestinationAge;
             }
 
             if (isNewState)
             {
-                await _context.RuleStates.AddAsync(rs);
+                await context.RuleStates.AddAsync(rs);
             }
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         
         // TXWTODO: Use SignalR to inform about new jobs.
     }
     
     
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
-            await _rules2Jobs();
-            await Task.Delay(1_000, stoppingToken);
+            using IServiceScope scope = _serviceScopeFactory.CreateScope();
+            
+            var context = scope.ServiceProvider.GetRequiredService<HannibalContext>();
+            
+            await _rules2Jobs(context, cancellationToken);
+            await Task.Delay(1_000, cancellationToken);
         }
     }
 }

@@ -32,6 +32,7 @@ public class HannibalContext : DbContext
             Rule ruleTimomp3ToOnedrive = new()
             {
                 Name = "timomp3 to onedrive",
+                Comment = "test rule to sync timomp3",
                 SourceEndpoint = "timo:dropbox:timomp3",
                 DestinationEndpoint = "timo:onedrive:timomp3",
                 Operation = Rule.RuleOperation.Nop,
