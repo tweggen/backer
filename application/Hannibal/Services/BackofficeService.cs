@@ -77,7 +77,7 @@ public class BackofficeService : BackgroundService
                 isNewState = true;
             }
 
-            bool shallCompute = rs.ExpiredAfter >= now;
+            bool shallCompute = rs.ExpiredAfter < now;
 
             if (shallCompute)
             {
@@ -119,7 +119,7 @@ public class BackofficeService : BackgroundService
             var context = scope.ServiceProvider.GetRequiredService<HannibalContext>();
             
             await _rules2Jobs(context, cancellationToken);
-            await Task.Delay(1_000, cancellationToken);
+            await Task.Delay(10_000, cancellationToken);
         }
     }
 }

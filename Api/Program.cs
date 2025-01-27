@@ -197,10 +197,11 @@ app.MapHub<HigginsHub>("/higgins");
 
 app.MapGet("/api/higgins/v1/endpoints", async (
     IHigginsService higginsService,
-    string name,
+    [FromQuery] string name,
     CancellationToken cancellationToken) =>
 {
     var result = await higginsService.GetEndpointAsync(name, cancellationToken);
+    return Results.Ok(result);
 })
 .WithName("GetEndpoint")
 .WithOpenApi();

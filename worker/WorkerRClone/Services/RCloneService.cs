@@ -87,7 +87,7 @@ public class RCloneService : BackgroundService
             var destinationEndpoint = await _higginsClient.GetEndpointAsync(job.DestinationEndpoint);
 
             string sourceUri = $"{sourceEndpoint.Storage.UriSchema}:/{sourceEndpoint.Path}";
-            string destinationUri = $"{sourceEndpoint.Storage.UriSchema}:/{sourceEndpoint.Path}";
+            string destinationUri = $"{destinationEndpoint.Storage.UriSchema}:/{destinationEndpoint.Path}";
             
             _logger.LogInformation($"sourceUri is {sourceUri}");
             _logger.LogInformation($"destinationUri is {destinationUri}");
