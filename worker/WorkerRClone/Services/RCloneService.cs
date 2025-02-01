@@ -92,7 +92,7 @@ public class RCloneService : BackgroundService
             _logger.LogInformation($"sourceUri is {sourceUri}");
             _logger.LogInformation($"destinationUri is {destinationUri}");
             
-            // var res = await rcloneClient.Sync(sourceUri, destinationUri, CancellationToken.None);
+            var res = await rcloneClient.CopyAsync(sourceUri, destinationUri, CancellationToken.None);
             return new() { Status = 0 };
         }
         catch (Exception e)

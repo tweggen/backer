@@ -16,6 +16,34 @@ public class HigginsContext : DbContext
         _logger = logger;
     }
     
+    public async Task InitializeDatabaseAsync()
+    {
+        // This ensures the database is created
+        await Database.EnsureCreatedAsync();
+        
+        // Optionally, you could seed initial data here
+        if (!await Users.AnyAsync())
+        {
+            await _createDevContent();
+        }
+    }
+    
+    
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        // modelBuilder.ApplyConfiguration<HigginsJobConfiguration>(new HigginsJobConfiguration());
+    }
+
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        optionsBuilder
+            .UseLazyLoadingProxies()
+            ;
+    }
+    
+    
     public DbSet<Storage> Storages { get; set; }
     public DbSet<Endpoint> Endpoints { get; set; }
     public DbSet<User> Users { get; set; }
@@ -37,14 +65,14 @@ public class HigginsContext : DbContext
             User = userTimo,
             //Credentials = timosDropboxCredentials,
             Technology = "dropbox",
-            UriSchema = "onedrive"
+            UriSchema = "TimosDropbox"
         };
         Storage timosOnedrive = new()
         {
             User = userTimo,
             //Credentials = timosOnedriveCredentials,
             Technology = "onedrive",
-            UriSchema = "onedrive"
+            UriSchema = "TimosOnedrive"
         };
         Endpoint dropboxTimomp3 = new()
         {
@@ -98,21 +126,4 @@ public class HigginsContext : DbContext
     }
     
     
-    public async Task InitializeDatabaseAsync()
-    {
-        // This ensures the database is created
-        await Database.EnsureCreatedAsync();
-        
-        // Optionally, you could seed initial data here
-        if (!await Users.AnyAsync())
-        {
-            await _createDevContent();
-        }
-    }
-    
-    
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        // modelBuilder.ApplyConfiguration<HigginsJobConfiguration>(new HigginsJobConfiguration());
-    }
 }

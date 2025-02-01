@@ -9,8 +9,9 @@ namespace Higgins.Models;
 public class Credentials
 {
     public int Id { get; set; }
-    
-    public User User { get; set; }
+
+    public int UserId { get; set; }
+    public virtual User User { get; set; }
 
     [NotMapped]
     public Dictionary<string, string> Environment { get; set; } = new();

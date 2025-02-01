@@ -38,14 +38,14 @@ public class BackofficeService : BackgroundService
         List<Rule> myRules = await context
             .Rules
             // TXWTODO: .Where(r => r.User == me)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         
         HashSet<Rule> setRulesToEval = new();
         
         List<RuleState> myRuleStates = await context
             .RuleStates
             // TXWTODO: .Where(r => r.User == me)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         Dictionary<Rule, RuleState> dictRuleStates = new();
 
         foreach (var rs in myRuleStates)
@@ -94,17 +94,17 @@ public class BackofficeService : BackgroundService
                     DestinationEndpoint = r.DestinationEndpoint,
                     Status = 0
                 };
-                await context.Jobs.AddAsync(job);
+                await context.Jobs.AddAsync(job, cancellationToken);
                 rs.ExpiredAfter = now + r.MaxDestinationAge;
             }
 
             if (isNewState)
             {
-                await context.RuleStates.AddAsync(rs);
+                await context.RuleStates.AddAsync(rs, cancellationToken);
             }
         }
 
-        await context.SaveChangesAsync();
+        await context.SaveChangesAsync(cancellationToken);
         
         // TXWTODO: Use SignalR to inform about new jobs.
     }

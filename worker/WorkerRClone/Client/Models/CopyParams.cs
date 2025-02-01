@@ -1,8 +1,11 @@
 namespace WorkerRClone.Client.Models;
 
-public class SyncParams
+public class CopyParams
 {
     public bool _async { get; set; }
     public string srcFs { get; set; }
     public string dstFs { get; set; }
+    
+    public bool createEmptySrcDirs { get; set; }
+    
 }

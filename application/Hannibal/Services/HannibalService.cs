@@ -68,7 +68,10 @@ public class HannibalService : IHannibalService
     {
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
-        var job = await _context.Jobs.FirstOrDefaultAsync(j => j.State == Job.JobState.Ready && j.Owner == "",
+        // TXWTODO: Currently we only have one backend with one technology, so we take everything.
+        var job = await _context.Jobs.FirstOrDefaultAsync(j => 
+                j.State == Job.JobState.Ready 
+                && j.Owner == "",
             cancellationToken);
         if (job != null)
         {
@@ -98,10 +101,12 @@ public class HannibalService : IHannibalService
              */
             if (jobStatus.Status >= 0)
             {
+                _logger.LogInformation("job {jobId} is done", jobStatus.JobId);
                 job.State = Job.JobState.DoneSuccess;
             }
             else
             {
+                _logger.LogInformation("job {jobId} is not done", jobStatus.JobId);
                 /*
                  * Not done. We should check if we should leave it as DoneSuccess or DoneError.
                  */
@@ -113,6 +118,7 @@ public class HannibalService : IHannibalService
         }
         else
         {
+            _logger.LogInformation("job {jobId} not found", jobStatus.JobId);
             throw new KeyNotFoundException($"No job found for jobId {jobStatus.JobId} that is executing.");
         }
 
