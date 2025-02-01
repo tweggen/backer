@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Tools;
 using WorkerRClone.Client;
+using WorkerRClone.Client.Models;
 using WorkerRClone.Configuration;
 using Result = WorkerRClone.Models.Result;
 
@@ -36,6 +37,9 @@ public class RCloneService : BackgroundService
 
     private Process _processRClone;
     private HttpClient _rcloneHttpClient;
+
+    private SortedDictionary<int, Job> _mapRCloneToJob = new();
+    
     
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -56,8 +60,9 @@ public class RCloneService : BackgroundService
         _hannibalClient = hannibalClient;
         _higginsClient = higginsClient;
     }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    
+    
+    protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         /*
          * Initially, we trigger reading all matching todos from hannibal.
@@ -66,14 +71,77 @@ public class RCloneService : BackgroundService
          */
         _triggerFetchJob();
         
-        while (!stoppingToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested)
         {
-            await Task.Delay(1_000, stoppingToken);
+            // using IServiceScope scope = _serviceScopeFactory.CreateScope();
+            
+            // var context = scope.ServiceProvider.GetRequiredService<HannibalContext>();
+            
+            // await _rules2Jobs(context, cancellationToken);
+            
+            await _checkFinishedJobs(cancellationToken);
+            await Task.Delay(5_000, cancellationToken);
         }
     }
 
 
-    private async Task<Result> _startJob(Job job)
+    private async Task _checkFinishedJobs(CancellationToken cancellationToken)
+    {
+        SortedDictionary<int, Job> mapJobs;
+        lock (_lo)
+        {
+            mapJobs = new SortedDictionary<int, Job>(_mapRCloneToJob);
+        }
+
+        var rcloneClient = new RCloneClient(_rcloneHttpClient);
+
+        foreach (var kvp in mapJobs)
+        {
+            var jobStatus = await rcloneClient.GetJobStatusAsync(kvp.Key, cancellationToken);
+            if (jobStatus.finished)
+            {
+                if (jobStatus.success)
+                {
+                    /*
+                     * Report back the job success.
+                     */
+                    var reportRes = await _hannibalClient.ReportJobAsync(new()
+                        { JobId = kvp.Value.Id, Status = 0, Owner = _ownerId });
+                    #if false
+ail: Microsoft.Extensions.Hosting.Internal.Host[9]
+      BackgroundService failed
+      System.Net.Http.HttpRequestException: Response status code does not indicate success: 500 (Internal Server Error).
+         at System.Net.Http.HttpResponseMessage.EnsureSuccessStatusCode()
+         at Hannibal.Client.HannibalServiceClient.ReportJobAsync(JobStatus jobStatus) in C:\Users\timow\coding\github\backer\application\Hannibal\Client\HannibalServiceClient.cs:line 49
+         at WorkerRClone.RCloneService._checkFinishedJobs(CancellationToken cancellationToken) in C:\Users\timow\coding\github\backer\worker\WorkerRClone\Services\RCloneService.cs:line 108
+         at WorkerRClone.RCloneService.ExecuteAsync(CancellationToken cancellationToken) in C:\Users\timow\coding\github\backer\worker\WorkerRClone\Services\RCloneService.cs:line 82
+         at Microsoft.Extensions.Hosting.Internal.Host.TryExecuteBackgroundServiceAsync(BackgroundService backgroundService)
+crit: Microsoft.Extensions.Hosting.Internal.Host[10]
+      The HostOptions.BackgroundServiceExceptionBehavior is configured to StopHost. A BackgroundService has thrown an unhandled exception, and the IHost instance is stopping. To avoid this behavior, configure this to Ignore; however the BackgroundService will not be restarted.
+      System.Net.Http.HttpRequestException: Response status code does not indicate success: 500 (Internal Server Error).
+         at System.Net.Http.HttpResponseMessage.EnsureSuccessStatusCode()
+         at Hannibal.Client.HannibalServiceClient.ReportJobAsync(JobStatus jobStatus) in C:\Users\timow\coding\github\backer\application\Hannibal\Client\HannibalServiceClient.cs:line 49
+         at WorkerRClone.RCloneService._checkFinishedJobs(CancellationToken cancellationToken) in C:\Users\timow\coding\github\backer\worker\WorkerRClone\Services\RCloneService.cs:line 108
+         at WorkerRClone.RCloneService.ExecuteAsync(CancellationToken cancellationToken) in C:\Users\timow\coding\github\backer\worker\WorkerRClone\Services\RCloneService.cs:line 82
+         at Microsoft.Extensions.Hosting.Internal.Host.TryExecuteBackgroundServiceAsync(BackgroundService backgroundService)
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+#endif
+                }
+                else
+                {
+                    /*
+                     * Report back the error.
+                     */
+                    var reportRes = await _hannibalClient.ReportJobAsync(new()
+                        { JobId = kvp.Value.Id, Status = -1, Owner = _ownerId });
+                }
+            }
+        }
+    }
+    
+    
+    private async Task<AsyncResult> _startJob(Job job)
     {
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
         try
@@ -92,13 +160,17 @@ public class RCloneService : BackgroundService
             _logger.LogInformation($"sourceUri is {sourceUri}");
             _logger.LogInformation($"destinationUri is {destinationUri}");
             
-            var res = await rcloneClient.CopyAsync(sourceUri, destinationUri, CancellationToken.None);
-            return new() { Status = 0 };
+            var asyncResult = await rcloneClient.CopyAsync(sourceUri, destinationUri, CancellationToken.None);
+            lock (_lo)
+            {
+                _mapRCloneToJob.Add(asyncResult.jobid, job);
+            }
+            return asyncResult;
         }
         catch (Exception e)
         {
             _logger.LogError($"Exception while sync: {e}");
-            return new() { Status = -1 };
+            throw e;
         }
     }
     
@@ -151,29 +223,24 @@ public class RCloneService : BackgroundService
                 /*
                  * Execute the job.
                  */
-                var status = await _startJob(job);
-                if (status.Status == 0)
-                {
-                    jobResult.Status = 0;
-                    _logger.LogError($"Success executing job {job.Id}");
-                }
-                else
-                {
-                    jobResult.Status = -1;
-                    _logger.LogError($"Error executing job {job.Id}");
-                }
+                var asyncResult = await _startJob(job);
+                _logger.LogError($"Started executing job {job.Id}");
+                
+                /*
+                 * Job is running, we will poll the result-
+                 */
             }
             catch (Exception e)
             {
                 _logger.LogError($"Exception executing job: {e}");
-                jobResult.Status = -1;
+
+                /*
+                 * Report back the error.
+                 */
+                var reportRes = await _hannibalClient.ReportJobAsync(new()
+                    { JobId = job.Id, Status = -1, Owner = _ownerId });
             }
 
-            /*
-             * Report back.
-             */
-            var reportRes = await _hannibalClient.ReportJobAsync(new()
-                { JobId = job.Id, Status = jobResult.Status, Owner = _ownerId });
         }
         catch (Exception e)
         {

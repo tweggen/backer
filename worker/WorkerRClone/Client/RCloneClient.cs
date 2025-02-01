@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using WorkerRClone.Client.Models;
 
 namespace WorkerRClone.Client;
@@ -14,7 +15,30 @@ public class RCloneClient
     }
 
 
-    public async Task<string> SyncAsync(string uriFrom, string uriDest, CancellationToken cancellationToken)
+    public async Task<JobStatusResult> GetJobStatusAsync(int jobId, CancellationToken cancellationToken)
+    {
+        JobStatusParams jobStatusParamsParams = new()
+        {
+            jobid = jobId
+        };
+        
+        JsonContent content = JsonContent.Create(jobStatusParamsParams, typeof(JobStatusParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/job/status", content, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<JobStatusResult>(
+                responseString, 
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+    }
+
+
+    public async Task<AsyncResult> SyncAsync(string uriFrom, string uriDest, CancellationToken cancellationToken)
     {
         /*
          * https://rclone.org/commands/rclone_sync/
@@ -33,7 +57,10 @@ public class RCloneClient
         var response = await _httpClient.PostAsync("/sync/sync", content, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
-            return await response.Content.ReadAsStringAsync(cancellationToken);            
+            string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<AsyncResult>(
+                responseString, 
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
         }
         else
         {
@@ -42,7 +69,7 @@ public class RCloneClient
     }
     
     
-    public async Task<string> CopyAsync(string uriFrom, string uriDest, CancellationToken cancellationToken)
+    public async Task<AsyncResult> CopyAsync(string uriFrom, string uriDest, CancellationToken cancellationToken)
     {
         /*
          * https://rclone.org/commands/rclone_copy/
@@ -62,7 +89,10 @@ public class RCloneClient
         var response = await _httpClient.PostAsync("/sync/copy", content, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
-            return await response.Content.ReadAsStringAsync(cancellationToken);            
+            string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<AsyncResult>(
+                responseString, 
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
         }
         else
         {
