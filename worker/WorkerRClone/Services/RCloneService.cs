@@ -88,6 +88,11 @@ public class RCloneService : BackgroundService
     private async Task _checkFinishedJobs(CancellationToken cancellationToken)
     {
         SortedDictionary<int, Job> mapJobs;
+        /*
+         * We need to create a list of jobs we already reported back to the caller
+         * but that still are in rclone's queue.
+         */
+        List<int> listReportedJobs = new();
         lock (_lo)
         {
             mapJobs = new SortedDictionary<int, Job>(_mapRCloneToJob);
@@ -97,7 +102,11 @@ public class RCloneService : BackgroundService
 
         foreach (var kvp in mapJobs)
         {
-            var jobStatus = await rcloneClient.GetJobStatusAsync(kvp.Key, cancellationToken);
+            int rcloneJobId = kvp.Key;
+            Job job = kvp.Value;
+            int jobId = job.Id;
+            
+            var jobStatus = await rcloneClient.GetJobStatusAsync(rcloneJobId, cancellationToken);
             if (jobStatus.finished)
             {
                 if (jobStatus.success)
@@ -106,7 +115,7 @@ public class RCloneService : BackgroundService
                      * Report back the job success.
                      */
                     var reportRes = await _hannibalClient.ReportJobAsync(new()
-                        { JobId = kvp.Value.Id, Status = 0, Owner = _ownerId });
+                        { JobId = jobId, Status = 0, Owner = _ownerId });
                     #if false
 ail: Microsoft.Extensions.Hosting.Internal.Host[9]
       BackgroundService failed
@@ -126,16 +135,29 @@ crit: Microsoft.Extensions.Hosting.Internal.Host[10]
          at Microsoft.Extensions.Hosting.Internal.Host.TryExecuteBackgroundServiceAsync(BackgroundService backgroundService)
 info: Microsoft.Hosting.Lifetime[0]
       Application is shutting down...
-#endif
+                    #endif
+                    listReportedJobs.Add(rcloneJobId);
                 }
                 else
                 {
+                    _logger.LogWarning("Unable to perform job {jobId} from {sourceEndpoint} to {destEndpoint} : {error}.",
+                        jobId, job.SourceEndpoint, job.DestinationEndpoint, jobStatus.error);
+
                     /*
                      * Report back the error.
                      */
                     var reportRes = await _hannibalClient.ReportJobAsync(new()
-                        { JobId = kvp.Value.Id, Status = -1, Owner = _ownerId });
+                        { JobId = jobId, Status = -1, Owner = _ownerId });
+                    listReportedJobs.Add(rcloneJobId);
                 }
+            }
+        }
+
+        lock (_lo)
+        {
+            foreach (int deadRcloneJobId in listReportedJobs)
+            {
+                _mapRCloneToJob.Remove(deadRcloneJobId);
             }
         }
     }

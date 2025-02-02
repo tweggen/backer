@@ -75,6 +75,7 @@ public class HannibalService : IHannibalService
             cancellationToken);
         if (job != null)
         {
+            _logger.LogInformation("owner {owner} acquired job {jobId}.", acquireParams.Owner, job.Id);
             job.Owner = acquireParams.Owner;
             job.State = Job.JobState.Executing;
             await _context.SaveChangesAsync(cancellationToken);
@@ -115,17 +116,27 @@ public class HannibalService : IHannibalService
 
             job.Owner = "";
             await _context.SaveChangesAsync(cancellationToken);
+            
+            return new Result
+            {
+                Status = 0
+            };
         }
         else
         {
             _logger.LogInformation("job {jobId} not found", jobStatus.JobId);
-            throw new KeyNotFoundException($"No job found for jobId {jobStatus.JobId} that is executing.");
+            
+            /*
+             * We consider it to be non-fatal to receive status reports for non-existing jobs.
+             * This may happen due to restarts.
+             * However, this is an error we reflect.
+             */
+            return new Result
+            {
+                Status = -1
+            };
         }
 
-        return new Result
-        {
-            Status = 0
-        };
     }
 
 
