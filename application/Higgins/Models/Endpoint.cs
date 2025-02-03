@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Routing;
+
 namespace Higgins.Models;
 
 
@@ -7,6 +9,18 @@ namespace Higgins.Models;
  */
 public class Endpoint
 {
+    public Endpoint(User user, Storage storage, string path, string? comment = null)
+    {
+        User = user;
+        Storage = storage;
+        Path = path;
+        Name = $"{User.Username}:{Storage.Technology}:{Path}";
+        if (null != comment)
+        {
+            Comment = comment;
+        }
+    }
+    
     public int Id { get; set; }
     public string Name { get; set; }
     public int UserId { get; set; }

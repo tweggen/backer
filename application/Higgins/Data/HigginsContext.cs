@@ -74,51 +74,32 @@ public class HigginsContext : DbContext
             Technology = "onedrive",
             UriSchema = "TimosOnedrive"
         };
-        Endpoint dropboxTimomp3 = new()
-        {
-            User = userTimo,
-            Storage = timosDropbox,
-            Name = "timo:dropbox:timomp3",
-            Path = "timomp3",
-            Comment = "Originals of timo music"
-        };
-        Endpoint onedriveTimomp3 = new()
-        {
-            User = userTimo,
-            Storage = timosOnedrive,
-            Name = "timo:onedrive:timomp3",
-            Path = "timomp3",
-            Comment = "Shared copy of timo music"
-        };
 
-        Endpoint dropboxZeug = new()
+        List<Endpoint> listEndpoints = new()
         {
-            User = userTimo,
-            Storage = timosDropbox,
-            Name = "timo:dropbox:zeug",
-            Path = "zeug",
-            Comment = "shared copy of esat data"
+            new(userTimo, timosDropbox, "timomp3", "original timomp3"),
+            new(userTimo, timosOnedrive, "timomp3", "shared timomp3"),
+            new(userTimo, timosDropbox, "zeug", "shared esat data"),
+            new(userTimo, timosOnedrive, "zeug", "original esat data"),
+            new (userTimo, timosDropbox, "prof", "original prof"),
+            new (userTimo, timosOnedrive, "prof", "shared prof"),
+            new(userTimo, timosDropbox, "nassau", "original nassau"),
+            new(userTimo, timosOnedrive, "nassau", "shared nassau"),
+            new(userTimo, timosDropbox, "books", "original books"),
+            new(userTimo, timosOnedrive, "books", "shared books")
         };
-        Endpoint onedriveZeug = new()
-        {
-            User = userTimo,
-            Storage = timosOnedrive,
-            Name = "timo:onedrive:zeug",
-            Path = "zeug",
-            Comment = "original esat data"
-        };
-
-
+        
         {
             _logger.LogInformation("Adding test routes.");
-
+            
             await Users.AddAsync(userTimo);
             await Storages.AddAsync(timosDropbox);
             await Storages.AddAsync(timosOnedrive);
-            await Endpoints.AddAsync(dropboxTimomp3);
-            await Endpoints.AddAsync(onedriveTimomp3);
-            await Endpoints.AddAsync(dropboxZeug);
-            await Endpoints.AddAsync(onedriveZeug);
+
+            foreach (var ep in listEndpoints)
+            {
+                await Endpoints.AddAsync(ep);
+            }
 
             await SaveChangesAsync();
         }

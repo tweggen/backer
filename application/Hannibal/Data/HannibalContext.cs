@@ -28,20 +28,65 @@ public class HannibalContext : DbContext
             r => r.Name == "timomp3 to onedrive");
         if (rule == null)
         {
-
-            Rule ruleTimomp3ToOnedrive = new()
+            List<Rule> listRules = new()
             {
-                Name = "timomp3 to onedrive",
-                Comment = "test rule to sync timomp3",
-                SourceEndpoint = "timo:dropbox:timomp3",
-                DestinationEndpoint = "timo:onedrive:timomp3",
-                Operation = Rule.RuleOperation.Nop,
-                MaxDestinationAge = new TimeSpan(24, 0, 0),
-                MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                DailyTriggerTime = new(2, 0, 0)
+                new()
+                {
+                    Name = "timomp3 to onedrive",
+                    SourceEndpoint = "timo:dropbox:timomp3",
+                    DestinationEndpoint = "timo:onedrive:timomp3",
+                    Operation = Rule.RuleOperation.Copy,
+                    MaxDestinationAge = new TimeSpan(24, 0, 0),
+                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
+                    DailyTriggerTime = new(2, 0, 0)
+                },
+                new()
+                {
+                    Name = "prof to onedrive",
+                    SourceEndpoint = "timo:dropbox:prof",
+                    DestinationEndpoint = "timo:onedrive:prof",
+                    Operation = Rule.RuleOperation.Copy,
+                    MaxDestinationAge = new TimeSpan(24, 0, 0),
+                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
+                    DailyTriggerTime = new(2, 0, 0)
+                },
+                new()
+                {
+                    Name = "nassau to onedrive",
+                    SourceEndpoint = "timo:dropbox:nassau",
+                    DestinationEndpoint = "timo:onedrive:nassau",
+                    Operation = Rule.RuleOperation.Copy,
+                    MaxDestinationAge = new TimeSpan(24, 0, 0),
+                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
+                    DailyTriggerTime = new(2, 0, 0)
+                },
+                new()
+                {
+                    Name = "books to onedrive",
+                    SourceEndpoint = "timo:dropbox:books",
+                    DestinationEndpoint = "timo:onedrive:books",
+                    Operation = Rule.RuleOperation.Copy,
+                    MaxDestinationAge = new TimeSpan(24, 0, 0),
+                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
+                    DailyTriggerTime = new(2, 0, 0)
+                },
+                new()
+                {
+                    Name = "zeug to dropbox",
+                    SourceEndpoint = "timo:onedrive:zeug",
+                    DestinationEndpoint = "timo:dropbox:zeug",
+                    Operation = Rule.RuleOperation.Copy,
+                    MaxDestinationAge = new TimeSpan(24, 0, 0),
+                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
+                    DailyTriggerTime = new(2, 0, 0)
+                },
             };
 
-            await Rules.AddAsync(ruleTimomp3ToOnedrive);
+            foreach (var r in listRules)
+            {
+                await Rules.AddAsync(r);
+            }
+
             await SaveChangesAsync();
         }
     }
