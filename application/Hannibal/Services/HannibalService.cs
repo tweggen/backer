@@ -15,7 +15,7 @@ public class HannibalService : IHannibalService
     private readonly HannibalContext _context;
     private readonly ILogger<HannibalService> _logger;
     private readonly HannibalServiceOptions _options;
-
+    private readonly HannibalHub _hannibalHub;
 
     /**
      * Until we have a real database backend, we fake new entries using _nextId.
@@ -25,11 +25,13 @@ public class HannibalService : IHannibalService
     public HannibalService(
         HannibalContext context,
         ILogger<HannibalService> logger,
-        IOptions<HannibalServiceOptions> options)
+        IOptions<HannibalServiceOptions> options,
+        HannibalHub hannibalHub)
     {
         _context = context;
         _logger = logger;
         _options = options.Value;
+        _hannibalHub = hannibalHub;
     }
 
 
@@ -93,6 +95,8 @@ public class HannibalService : IHannibalService
     {
         _logger.LogInformation("job {jobId} reported back status {jobStatus}", jobStatus.JobId, jobStatus.Status);
 
+        int result;
+        
         var job = await _context.Jobs.FirstOrDefaultAsync(
             j => j.State == Job.JobState.Executing && j.Id == jobStatus.JobId, cancellationToken);
         if (job != null)
@@ -116,11 +120,8 @@ public class HannibalService : IHannibalService
 
             job.Owner = "";
             await _context.SaveChangesAsync(cancellationToken);
-            
-            return new Result
-            {
-                Status = 0
-            };
+
+            result = 0;
         }
         else
         {
@@ -131,11 +132,15 @@ public class HannibalService : IHannibalService
              * This may happen due to restarts.
              * However, this is an error we reflect.
              */
-            return new Result
-            {
-                Status = -1
-            };
+            result = -1;
         }
+
+        _hannibalHub.SendMessage(job.Username, "jobdone");
+        
+        return new Result
+        {
+            Status = result
+        };
 
     }
 

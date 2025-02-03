@@ -26,6 +26,9 @@ public class Job
      */
     public int Id { get; set; }
     
+    
+    public string Username { get; set; }
+    
     /**
      * A tag given to the job by the author, derived from a regular backup part
      */
