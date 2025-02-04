@@ -171,7 +171,7 @@ public class RCloneService : BackgroundService
             _logger.LogInformation($"destinationUri is {destinationUri}");
             
             AsyncResult? asyncResult;
-            switch (job.Operation)
+            switch (/* job.Operation */ Rule.RuleOperation.Nop)
             {
                 case Rule.RuleOperation.Copy:
                     asyncResult = await rcloneClient.CopyAsync(sourceUri, destinationUri, CancellationToken.None);
