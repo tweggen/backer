@@ -177,8 +177,10 @@ public class RCloneService : BackgroundService
                     asyncResult = await rcloneClient.CopyAsync(sourceUri, destinationUri, CancellationToken.None);
                     break;
                 default:
-                case Rule.RuleOperation.Nop:
                     asyncResult = new() { jobid = 0 };
+                    break;
+                case Rule.RuleOperation.Nop:
+                    asyncResult = await rcloneClient.NoopAsync(CancellationToken.None);
                     break;
                 case Rule.RuleOperation.Sync:
                     asyncResult = await rcloneClient.SyncAsync(sourceUri, destinationUri, CancellationToken.None);

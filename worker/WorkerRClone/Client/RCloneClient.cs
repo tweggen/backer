@@ -38,6 +38,29 @@ public class RCloneClient
     }
 
 
+    public async Task<AsyncResult> NoopAsync(CancellationToken cancellationToken)
+    {
+        NoopParams noopParams = new()
+        {
+            _async = true,
+        };
+
+        JsonContent content = JsonContent.Create(noopParams, typeof(NoopParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/rc/noop", content, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<AsyncResult>(
+                responseString, 
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+    }
+    
+    
     public async Task<AsyncResult> SyncAsync(string uriFrom, string uriDest, CancellationToken cancellationToken)
     {
         /*
