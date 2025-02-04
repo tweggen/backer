@@ -33,6 +33,7 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "timomp3 to onedrive",
+                    Username = "timo",
                     SourceEndpoint = "timo:dropbox:timomp3",
                     DestinationEndpoint = "timo:onedrive:timomp3",
                     Operation = Rule.RuleOperation.Copy,
@@ -43,6 +44,7 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "prof to onedrive",
+                    Username = "timo",
                     SourceEndpoint = "timo:dropbox:prof",
                     DestinationEndpoint = "timo:onedrive:prof",
                     Operation = Rule.RuleOperation.Copy,
@@ -53,6 +55,7 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "nassau to onedrive",
+                    Username = "timo",
                     SourceEndpoint = "timo:dropbox:nassau",
                     DestinationEndpoint = "timo:onedrive:nassau",
                     Operation = Rule.RuleOperation.Copy,
@@ -63,6 +66,7 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "books to onedrive",
+                    Username = "timo",
                     SourceEndpoint = "timo:dropbox:books",
                     DestinationEndpoint = "timo:onedrive:books",
                     Operation = Rule.RuleOperation.Copy,
@@ -73,6 +77,7 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "zeug to dropbox",
+                    Username = "timo",
                     SourceEndpoint = "timo:onedrive:zeug",
                     DestinationEndpoint = "timo:dropbox:zeug",
                     Operation = Rule.RuleOperation.Copy,

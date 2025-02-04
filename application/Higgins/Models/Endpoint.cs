@@ -9,6 +9,12 @@ namespace Higgins.Models;
  */
 public class Endpoint
 {
+    public Endpoint()
+    {
+        Comment = "";
+    }
+    
+    
     public Endpoint(User user, Storage storage, string path, string? comment = null)
     {
         User = user;
@@ -18,6 +24,10 @@ public class Endpoint
         if (null != comment)
         {
             Comment = comment;
+        }
+        else
+        {
+            Comment = "";
         }
     }
     

@@ -1,6 +1,7 @@
 using Hannibal.Configuration;
 using Hannibal.Data;
 using Hannibal.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,7 +16,7 @@ public class HannibalService : IHannibalService
     private readonly HannibalContext _context;
     private readonly ILogger<HannibalService> _logger;
     private readonly HannibalServiceOptions _options;
-    private readonly HannibalHub _hannibalHub;
+    private readonly IHubContext<HannibalHub> _hannibalHub;
 
     /**
      * Until we have a real database backend, we fake new entries using _nextId.
@@ -26,7 +27,7 @@ public class HannibalService : IHannibalService
         HannibalContext context,
         ILogger<HannibalService> logger,
         IOptions<HannibalServiceOptions> options,
-        HannibalHub hannibalHub)
+        IHubContext<HannibalHub> hannibalHub)
     {
         _context = context;
         _logger = logger;
@@ -138,7 +139,7 @@ public class HannibalService : IHannibalService
         /*
          * Inform all workers there might be a new job available right now.
          */
-        _hannibalHub.SendMessage(job.Username, "NewJobAvailable");
+        await _hannibalHub.Clients.All.SendAsync("NewJobAvailable");
         
         return new Result
         {

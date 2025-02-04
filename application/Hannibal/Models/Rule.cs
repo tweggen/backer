@@ -10,8 +10,10 @@ public class Rule
     public int Id { get; set; }
     
     public string Name { get; set; }
+
+    public string Comment { get; set; } = "";
     
-    public string Comment { get; set; }
+    public string Username { get; set; }
     
     // TXWTODO: Add depends on
     // TXWTODO: Add trigger after finish
