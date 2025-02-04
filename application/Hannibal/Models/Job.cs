@@ -33,6 +33,11 @@ public class Job
      * A tag given to the job by the author, derived from a regular backup part
      */
     public string Tag { get; set; }
+
+    /** 
+     * What shall be executed?
+     */
+    public Rule.RuleOperation Operation { get; set; }
     
     /**
      * If this job was created from applying a rule, this is the rule.

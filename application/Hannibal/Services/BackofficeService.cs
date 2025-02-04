@@ -85,6 +85,7 @@ public class BackofficeService : BackgroundService
                 {
                     Tag = r.Name,
                     FromRule = r,
+                    Operation = r.Operation,
                     Owner = "",
                     State = Job.JobState.Ready,
                     // TXWTODO: Might use preferred starting time

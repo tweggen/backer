@@ -135,7 +135,10 @@ public class HannibalService : IHannibalService
             result = -1;
         }
 
-        _hannibalHub.SendMessage(job.Username, "jobdone");
+        /*
+         * Inform all workers there might be a new job available right now.
+         */
+        _hannibalHub.SendMessage(job.Username, "NewJobAvailable");
         
         return new Result
         {

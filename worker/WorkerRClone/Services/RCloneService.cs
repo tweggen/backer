@@ -62,6 +62,14 @@ public class RCloneService : BackgroundService
     }
     
     
+    public override void Dispose()
+    {
+        _processRClone?.Kill();
+        _processRClone?.Dispose();
+        base.Dispose();
+    }
+
+    
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         /*
@@ -116,26 +124,6 @@ public class RCloneService : BackgroundService
                      */
                     var reportRes = await _hannibalClient.ReportJobAsync(new()
                         { JobId = jobId, Status = 0, Owner = _ownerId });
-                    #if false
-ail: Microsoft.Extensions.Hosting.Internal.Host[9]
-      BackgroundService failed
-      System.Net.Http.HttpRequestException: Response status code does not indicate success: 500 (Internal Server Error).
-         at System.Net.Http.HttpResponseMessage.EnsureSuccessStatusCode()
-         at Hannibal.Client.HannibalServiceClient.ReportJobAsync(JobStatus jobStatus) in C:\Users\timow\coding\github\backer\application\Hannibal\Client\HannibalServiceClient.cs:line 49
-         at WorkerRClone.RCloneService._checkFinishedJobs(CancellationToken cancellationToken) in C:\Users\timow\coding\github\backer\worker\WorkerRClone\Services\RCloneService.cs:line 108
-         at WorkerRClone.RCloneService.ExecuteAsync(CancellationToken cancellationToken) in C:\Users\timow\coding\github\backer\worker\WorkerRClone\Services\RCloneService.cs:line 82
-         at Microsoft.Extensions.Hosting.Internal.Host.TryExecuteBackgroundServiceAsync(BackgroundService backgroundService)
-crit: Microsoft.Extensions.Hosting.Internal.Host[10]
-      The HostOptions.BackgroundServiceExceptionBehavior is configured to StopHost. A BackgroundService has thrown an unhandled exception, and the IHost instance is stopping. To avoid this behavior, configure this to Ignore; however the BackgroundService will not be restarted.
-      System.Net.Http.HttpRequestException: Response status code does not indicate success: 500 (Internal Server Error).
-         at System.Net.Http.HttpResponseMessage.EnsureSuccessStatusCode()
-         at Hannibal.Client.HannibalServiceClient.ReportJobAsync(JobStatus jobStatus) in C:\Users\timow\coding\github\backer\application\Hannibal\Client\HannibalServiceClient.cs:line 49
-         at WorkerRClone.RCloneService._checkFinishedJobs(CancellationToken cancellationToken) in C:\Users\timow\coding\github\backer\worker\WorkerRClone\Services\RCloneService.cs:line 108
-         at WorkerRClone.RCloneService.ExecuteAsync(CancellationToken cancellationToken) in C:\Users\timow\coding\github\backer\worker\WorkerRClone\Services\RCloneService.cs:line 82
-         at Microsoft.Extensions.Hosting.Internal.Host.TryExecuteBackgroundServiceAsync(BackgroundService backgroundService)
-info: Microsoft.Hosting.Lifetime[0]
-      Application is shutting down...
-                    #endif
                     listReportedJobs.Add(rcloneJobId);
                 }
                 else
@@ -182,7 +170,21 @@ info: Microsoft.Hosting.Lifetime[0]
             _logger.LogInformation($"sourceUri is {sourceUri}");
             _logger.LogInformation($"destinationUri is {destinationUri}");
             
-            var asyncResult = await rcloneClient.CopyAsync(sourceUri, destinationUri, CancellationToken.None);
+            AsyncResult? asyncResult;
+            switch (job.Operation)
+            {
+                case Rule.RuleOperation.Copy:
+                    asyncResult = await rcloneClient.CopyAsync(sourceUri, destinationUri, CancellationToken.None);
+                    break;
+                default:
+                case Rule.RuleOperation.Nop:
+                    asyncResult = new() { jobid = 0 };
+                    break;
+                case Rule.RuleOperation.Sync:
+                    asyncResult = await rcloneClient.SyncAsync(sourceUri, destinationUri, CancellationToken.None);
+                    break;
+
+            }
             lock (_lo)
             {
                 _mapRCloneToJob.Add(asyncResult.jobid, job);
@@ -269,6 +271,7 @@ info: Microsoft.Hosting.Lifetime[0]
             _logger.LogError($"Exception getting job: {e}");
         }
     }
+    
 
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -324,15 +327,9 @@ info: Microsoft.Hosting.Lifetime[0]
         
         _hannibalConnection.On<Job>("NewJobAvailable", (message) =>
         {
-            Console.WriteLine($"Received message: {message}");
+            _triggerFetchJob();
         });
 
     }
 
-    public override void Dispose()
-    {
-        _processRClone?.Kill();
-        _processRClone?.Dispose();
-        base.Dispose();
-    }
 }
