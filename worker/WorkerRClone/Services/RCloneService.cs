@@ -327,7 +327,7 @@ public class RCloneService : BackgroundService
         var byteArray = new UTF8Encoding().GetBytes("who:how");
         _rcloneHttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
         
-        _hannibalConnection.On<Job>("NewJobAvailable", (message) =>
+        _hannibalConnection.On("NewJobAvailable", () =>
         {
             _triggerFetchJob();
         });
