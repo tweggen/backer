@@ -28,7 +28,9 @@ public class HannibalContext : DbContext
             r => r.Name == "timomp3 to onedrive");
         if (rule == null)
         {
-            List<Rule> listRules = new()
+            List<Rule> listRules = new();
+            
+            List<Rule> listSyncShares = new()
             {
                 new()
                 {
@@ -87,10 +89,25 @@ public class HannibalContext : DbContext
                 },
             };
 
-            foreach (var r in listRules)
+            Rule ruleMirrorOnedrive = new()
+            {
+                Name = "onedrive to rodrigo",
+                Username = "timo",
+                DependsOn = new List<Rule>(listSyncShares.Select(r => r)),
+                SourceEndpoint = "timo:onedrive:all",
+                DestinationEndpoint = "timo:rodrigo:onedrive_bak",
+                Operation = Rule.RuleOperation.Sync,
+                MaxDestinationAge = new (24,0,0),
+                MaxTimeAfterSourceModification = TimeSpan.MaxValue,
+                DailyTriggerTime = new (2,0,0)
+            };
+
+            foreach (var r in listSyncShares)
             {
                 await Rules.AddAsync(r);
             }
+
+            await Rules.AddAsync(ruleMirrorOnedrive);
 
             await SaveChangesAsync();
         }

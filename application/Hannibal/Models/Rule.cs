@@ -14,10 +14,9 @@ public class Rule
     public string Comment { get; set; } = "";
     
     public string Username { get; set; }
-    
-    // TXWTODO: Add depends on
-    // TXWTODO: Add trigger after finish
-    
+
+    public ICollection<Rule> DependsOn { get; set; } = new List<Rule>();
+ 
     public string SourceEndpoint { get; set; }
     public string DestinationEndpoint { get; set; }
     
