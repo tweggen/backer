@@ -55,7 +55,7 @@ public class HannibalService : IHannibalService
     {
         _logger.LogInformation("Job list requested");
 
-        var list = await _context.Jobs.ToListAsync();
+        var list = await _context.Jobs.ToListAsync(cancellationToken);
         if (null == list)
         {
             return new List<Job>();

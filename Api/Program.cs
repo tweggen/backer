@@ -126,8 +126,15 @@ app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
     int jobId,
     CancellationToken cancellationToken) =>
 {
-    var job = await hannibalService.GetJobAsync(jobId, cancellationToken);
-    return job is not null ? Results.Ok(job) : Results.NotFound();
+    try
+    {
+        var job = await hannibalService.GetJobAsync(jobId, cancellationToken);
+        return Results.Ok(job);
+    }
+    catch (KeyNotFoundException e)
+    {
+        return Results.NotFound();
+    }
 })
 .WithName("GetJob")
 .WithOpenApi();
@@ -152,7 +159,7 @@ app.MapGet("/api/hannibal/v1/jobs", async (
             MaxState = (Job.JobState) (maxState ?? (int)Job.JobState.DoneSuccess)
         }, 
         cancellationToken);
-    return jobs is not null ? Results.Ok(jobs) : Results.NotFound();
+    return jobs is not null ? Results.Ok(jobs) : Results.Ok(new List<Job>());
 })
 .WithName("GetJobs")
 .WithOpenApi();
@@ -163,8 +170,15 @@ app.MapPost("/api/hannibal/v1/acquireNextJob", async (
     AcquireParams acquireParams,
     CancellationToken cancellationToken) =>
 {
-    var result = await hannibalService.AcquireNextJobAsync(acquireParams, cancellationToken);
-    return Results.Ok(result);
+    try
+    {
+        var result = await hannibalService.AcquireNextJobAsync(acquireParams, cancellationToken);
+        return Results.Ok(result);
+    }
+    catch (KeyNotFoundException e)
+    {
+        return Results.NotFound();
+    }
 })
 .WithName("AcquireNextJob")
 .WithOpenApi();
