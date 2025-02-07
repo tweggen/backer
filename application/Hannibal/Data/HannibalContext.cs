@@ -89,11 +89,18 @@ public class HannibalContext : DbContext
                 },
             };
 
+            foreach (var r in listSyncShares)
+            {
+                await Rules.AddAsync(r);
+            }
+
+            
+            #if 0
             Rule ruleMirrorOnedrive = new()
             {
                 Name = "onedrive to rodrigo",
                 Username = "timo",
-                DependsOn = new List<Rule>(listSyncShares.Select(r => r)),
+                DependsOn = new List<string>(listSyncShares.Select(r => r.Name)),
                 SourceEndpoint = "timo:onedrive:all",
                 DestinationEndpoint = "timo:rodrigo:onedrive_bak",
                 Operation = Rule.RuleOperation.Sync,
@@ -102,12 +109,9 @@ public class HannibalContext : DbContext
                 DailyTriggerTime = new (2,0,0)
             };
 
-            foreach (var r in listSyncShares)
-            {
-                await Rules.AddAsync(r);
-            }
-
             await Rules.AddAsync(ruleMirrorOnedrive);
+            #endif
+            
 
             await SaveChangesAsync();
         }

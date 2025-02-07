@@ -15,7 +15,7 @@ public class Rule
     
     public string Username { get; set; }
 
-    public ICollection<Rule> DependsOn { get; set; } = new List<Rule>();
+    public ICollection<string> DependsOn { get; set; } = new List<string>();
  
     public string SourceEndpoint { get; set; }
     public string DestinationEndpoint { get; set; }
