@@ -15,7 +15,8 @@ public class Rule
     
     public string Username { get; set; }
 
-    public ICollection<string> DependsOn { get; set; } = new List<string>();
+    // TXWTODO: THese dependencies are not properly setup.
+    //public ICollection<string> DependsOn { get; set; } = new List<string>();
  
     public string SourceEndpoint { get; set; }
     public string DestinationEndpoint { get; set; }

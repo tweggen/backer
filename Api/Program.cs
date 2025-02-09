@@ -48,6 +48,9 @@ builder.Services
         // Workers
     .AddRCloneService(builder.Configuration)
     .AddHannibalBackofficeService(builder.Configuration)
+        // Razor
+    .AddRazorComponents()
+    .AddInteractiveServerComponents()
     ;
 
 
@@ -109,10 +112,17 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 app.UseHttpLogging();
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+app.MapRazorComponents<Poe.Components.App>()
+    .AddInteractiveServerRenderMode();
 
 // Health check endpoint
 app.MapHealthChecks("/health");

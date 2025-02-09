@@ -24,6 +24,7 @@
     <ItemGroup>
       <ProjectReference Include="..\application\Hannibal\Hannibal.csproj" />
       <ProjectReference Include="..\application\Higgins\Higgins.csproj" />
+      <ProjectReference Include="..\frontend\Poe\Poe.csproj" />
       <ProjectReference Include="..\Tools\Tools.csproj" />
       <ProjectReference Include="..\worker\WorkerRClone\WorkerRClone.csproj" />
     </ItemGroup>

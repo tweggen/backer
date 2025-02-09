@@ -292,14 +292,7 @@ public class RCloneService : BackgroundService
 
         string? urlRClone = null;
         
-        if (_processRClone == null)
-        {
-            _logger.LogWarning("rclone did not start at all, trying to use an already started instance");
-            
-            // TXWTODO: I accept this right now, as long I can reach it
-            urlRClone = "http://localhost:5572";
-        }
-        else
+        if (_processRClone != null)
         {
             StreamReader reader = _processRClone.StandardError;
             string strErrorOutput = "";
@@ -309,7 +302,8 @@ public class RCloneService : BackgroundService
                 if (_processRClone.HasExited)
                 {
                     _logger.LogError($"rclone exited with error {strErrorOutput}" );
-                    throw new InvalidOperationException("rclone exited with error: ");
+                    // throw new InvalidOperationException("rclone exited with error: ");
+                    break;
                 }
                 string? output = await reader.ReadLineAsync();
                 if (null == output)
@@ -331,8 +325,8 @@ public class RCloneService : BackgroundService
 
         if (null == urlRClone)
         {
-            _logger.LogError("UNable to find an rclone url");
-            throw new InvalidOperationException("UNable to get an rclone url.");
+            _logger.LogWarning("rclone did not start at all, trying to use an already started instance");
+            urlRClone = "http://localhost:5572";
         }
         
         _rcloneHttpClient = new HttpClient() { BaseAddress = new Uri($"http://{urlRClone}") };

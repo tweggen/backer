@@ -111,7 +111,6 @@ public class BackofficeService : BackgroundService
         // TXWTODO: Use SignalR to inform about new jobs.
     }
     
-    
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
