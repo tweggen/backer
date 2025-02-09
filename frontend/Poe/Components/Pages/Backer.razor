@@ -1,8 +1,63 @@
 ﻿@page "/backer"
+@using System.Net
+@using Hannibal.Client
+@using Hannibal.Models
+@using Higgins.Client
+@inject HannibalServiceClient HannibalServiceClient
+@inject HigginsServiceClient HigginsServiceClient
+@implements IDisposable
+
 @rendermode InteractiveServer
 
 <h3>Backer</h3>
 
-@code {
+@if (listJobs == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!listJobs.Any())
+{
+    <p>No jobs found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var job in listJobs)
+        {
+            <tr>
+                <td>@job.Id</td>
+                <td>@job.State</td>
+                <td>@job.SourceEndpoint</td>
+                <td>@job.DestinationEndpoint</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
 
+@code {
+    private List<Job> listJobs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        listJobs = new List<Job>(
+            await HannibalServiceClient.GetJobsAsync(
+                new ResultPage() { Offset = 0, Length = 20},
+                new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing}
+                ));
+        
+    }
+
+    public void Dispose()
+    {
+        // Dispose logic if needed
+    }
 }
