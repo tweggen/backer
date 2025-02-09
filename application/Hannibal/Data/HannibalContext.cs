@@ -95,7 +95,7 @@ public class HannibalContext : DbContext
             }
 
             
-            #if 0
+            #if false
             Rule ruleMirrorOnedrive = new()
             {
                 Name = "onedrive to rodrigo",
