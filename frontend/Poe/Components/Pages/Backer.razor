@@ -3,8 +3,8 @@
 @using Hannibal.Client
 @using Hannibal.Models
 @using Higgins.Client
-@inject HannibalServiceClient HannibalServiceClient
-@inject HigginsServiceClient HigginsServiceClient
+@inject IHannibalServiceClient HannibalServiceClient
+
 @implements IDisposable
 
 @rendermode InteractiveServer
@@ -25,8 +25,11 @@ else
         <thead>
         <tr>
             <th>ID</th>
-            <th>Name</th>
-            <th>Description</th>
+            <th>State</th>
+            <th>SourceEndpoint</th>
+            <th>DestinationEndpoint</th>
+            <th>StartFrom</th>
+            <th>Endby</th>
         </tr>
         </thead>
         <tbody>
@@ -37,6 +40,8 @@ else
                 <td>@job.State</td>
                 <td>@job.SourceEndpoint</td>
                 <td>@job.DestinationEndpoint</td>
+                <td>@job.StartFrom</td>
+                <td>@job.EndBy</td>
             </tr>
         }
         </tbody>

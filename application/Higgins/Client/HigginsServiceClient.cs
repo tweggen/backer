@@ -1,5 +1,4 @@
-﻿using System.Net.Http.Json;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Higgins.Client.Configuration;
 using Higgins.Models;
 using Microsoft.Extensions.Options;

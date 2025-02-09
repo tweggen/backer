@@ -24,9 +24,19 @@ public class HannibalServiceClient : IHannibalServiceClient
     }
 
     
-    public Task<IEnumerable<Job>> GetJobsAsync(ResultPage resultPage, JobFilter filter)
+    public async Task<IEnumerable<Job>> GetJobsAsync(ResultPage resultPage, JobFilter filter)
     {
-        throw new NotImplementedException();
+        var response = await _httpClient.GetAsync(
+            $"/api/hannibal/v1/jobs?"
+                +$"page={Uri.EscapeDataString((resultPage.Offset/resultPage.Length).ToString())}"
+                +$"&minState={(int)filter.MinState}"
+                +$"&maxState={(int)filter.MaxState}"
+            );
+        response.EnsureSuccessStatusCode(); 
+        var content = await response.Content.ReadAsStringAsync(); 
+        return JsonSerializer.Deserialize<List<Job>>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+   
     }
 
     
