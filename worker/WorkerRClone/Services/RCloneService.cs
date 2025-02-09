@@ -35,7 +35,7 @@ public class RCloneService : BackgroundService
 
     private readonly RCloneServiceOptions _options;
 
-    private Process _processRClone;
+    private Process? _processRClone;
     private HttpClient _rcloneHttpClient;
 
     private SortedDictionary<int, Job> _mapRCloneToJob = new();
@@ -290,46 +290,58 @@ public class RCloneService : BackgroundService
             }
         );
 
+        string? urlRClone = null;
+        
         if (_processRClone == null)
         {
-            _logger.LogError("rclone did not start at all.");
-            throw new InvalidOperationException("rclone did not start at all.");
+            _logger.LogWarning("rclone did not start at all, trying to use an already started instance");
+            
+            // TXWTODO: I accept this right now, as long I can reach it
+            urlRClone = "http://localhost:5572";
+        }
+        else
+        {
+            StreamReader reader = _processRClone.StandardError;
+            string strErrorOutput = "";
+            Regex reUrl = new("http://(?<url>[1-9][0-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*:[1-9][0-9]*)/");
+            while (true)
+            {
+                if (_processRClone.HasExited)
+                {
+                    _logger.LogError($"rclone exited with error {strErrorOutput}" );
+                    throw new InvalidOperationException("rclone exited with error: ");
+                }
+                string? output = await reader.ReadLineAsync();
+                if (null == output)
+                {
+                    _logger.LogError($"rclone did not start with expected output but {strErrorOutput}" );
+                    throw new InvalidOperationException("rclone did not start with the expected output,");
+                }
+
+                strErrorOutput += output;
+                Match match = reUrl.Match(output);
+                if (match.Success)
+                {
+                    urlRClone = match.Groups["url"].Value;
+                    break;
+                }
+            }
+
+        }
+
+        if (null == urlRClone)
+        {
+            _logger.LogError("UNable to find an rclone url");
+            throw new InvalidOperationException("UNable to get an rclone url.");
         }
         
-        StreamReader reader = _processRClone.StandardError;
-        string? urlRClone = null;
-        string strErrorOutput = "";
-        Regex reUrl = new("http://(?<url>[1-9][0-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*\\.[0-9][1-9]*:[1-9][0-9]*)/");
-        while (true)
-        {
-            if (_processRClone.HasExited)
-            {
-                _logger.LogError($"rclone exited with error {strErrorOutput}" );
-                throw new InvalidOperationException("rclone exited with error: ");
-            }
-            string? output = await reader.ReadLineAsync();
-            if (null == output)
-            {
-                _logger.LogError($"rclone did not start with expected output but {strErrorOutput}" );
-                throw new InvalidOperationException("rclone did not start with the expected output,");
-            }
-
-            strErrorOutput += output;
-            Match match = reUrl.Match(output);
-            if (match.Success)
-            {
-                urlRClone = match.Groups["url"].Value;
-                break;
-            }
-        }
-
         _rcloneHttpClient = new HttpClient() { BaseAddress = new Uri($"http://{urlRClone}") };
         var byteArray = new UTF8Encoding().GetBytes("who:how");
         _rcloneHttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
         
-        _hannibalConnection.On("NewJobAvailable", () =>
+        _hannibalConnection.On("NewJobAvailable", async () =>
         {
-            _triggerFetchJob();
+            await _triggerFetchJob();
         });
 
     }
