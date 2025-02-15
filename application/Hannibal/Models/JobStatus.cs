@@ -15,5 +15,5 @@ public class JobStatus
     /**
      * The status that has been reported.
      */
-    public int Status { get; set; }
+    public Job.JobState State { get; set; }
 }

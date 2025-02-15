@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Hannibal.Configuration;
 using Hannibal.Data;
 using Hannibal.Models;
@@ -67,6 +68,17 @@ public class HannibalService : IHannibalService
     }
 
 
+    /**
+     * Acquire the next job to do.
+     * We remember
+     * - the owner of this job
+     * - that the source endpoint of choice is reading
+     * - that the target endpoint of choice is writing
+     *
+     * We take care that
+     * - nobody is reading from the target endpoint or their parent
+     * - nobody is writing the the source endpoint or any endpoints within.
+     */
     public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken)
     {
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
@@ -92,34 +104,84 @@ public class HannibalService : IHannibalService
     }
 
 
+    /**
+     * Look, how many jobs of one particular user access the given andpoint
+     * either reading or writing.
+     *
+     * This is assuming any given user would not have an excessive number of jobs running.
+     */
+    public async Task<SortedDictionary<string, EndpointState.AccessState>> 
+        _gatherEndpointAccess(string username)
+    {
+        List<Job> listTimedOut = new();
+        SortedDictionary<string, EndpointState.AccessState> mapStates = new();
+
+        var now = DateTime.UtcNow;
+        var timeout = TimeSpan.FromSeconds(120);
+
+        var myOngoingJobs = await _context.Jobs.Where(j => (j.Username == username) && (j.State == Job.JobState.Executing)).ToListAsync();
+        foreach (var job in myOngoingJobs)
+        {
+            var age = now - job.LastReported;
+            if (age > timeout)
+            {
+                // TXWTODO: THis is a race, however, it would have timed out a minute later.
+                listTimedOut.Add(job);
+            }
+            else
+            {
+                mapStates.Add(job.SourceEndpoint, EndpointState.AccessState.Reading);
+                mapStates.Add(job.DestinationEndpoint, EndpointState.AccessState.Writing);
+            }
+        }
+
+        if (listTimedOut.Count > 0)
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        return mapStates;
+    }
+
+    
+    
     public async Task<Result> ReportJobAsync(JobStatus jobStatus, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("job {jobId} reported back status {jobStatus}", jobStatus.JobId, jobStatus.Status);
+        _logger.LogInformation("job {jobId} reported back status {jobStatus}", jobStatus.JobId, jobStatus.State);
 
         int result;
+        bool hasFinished = false;
         
         var job = await _context.Jobs.FirstOrDefaultAsync(
             j => j.State == Job.JobState.Executing && j.Id == jobStatus.JobId, cancellationToken);
         if (job != null)
         {
-            /*
-             * Save back the status to the database.
-             */
-            if (jobStatus.Status >= 0)
+            switch (jobStatus.State)
             {
-                _logger.LogInformation("job {jobId} is done", jobStatus.JobId);
-                job.State = Job.JobState.DoneSuccess;
+                case Job.JobState.Executing:
+                    job.LastReported = DateTime.UtcNow;
+                    break;
+                
+                case Job.JobState.DoneFailure:
+                    _logger.LogInformation("job {jobId} is not done", jobStatus.JobId);
+                    /*
+                     * Job failed. Can be executed once again. We do not remember the
+                     * previous failure of the job.
+                     */
+                    // TXWTODO: Include something like number of retries? To not jam the pipeline with an erranous job?
+                    job.State = Job.JobState.Ready;
+                    job.Owner = "";
+                    hasFinished = true;
+                    break;
+                
+                case Job.JobState.DoneSuccess:
+                    _logger.LogInformation("job {jobId} is done", jobStatus.JobId);
+                    job.State = Job.JobState.DoneSuccess;
+                    job.Owner = "";
+                    hasFinished = true;
+                    break;
             }
-            else
-            {
-                _logger.LogInformation("job {jobId} is not done", jobStatus.JobId);
-                /*
-                 * Not done. We should check if we should leave it as DoneSuccess or DoneError.
-                 */
-                job.State = Job.JobState.Ready;
-            }
-
-            job.Owner = "";
+            
             await _context.SaveChangesAsync(cancellationToken);
 
             result = 0;
@@ -136,11 +198,14 @@ public class HannibalService : IHannibalService
             result = -1;
         }
 
-        /*
-         * Inform all workers there might be a new job available right now.
-         */
-        await _hannibalHub.Clients.All.SendAsync("NewJobAvailable");
-        
+        if (hasFinished)
+        {
+            /*
+             * Inform all workers there might be a new job available right now.
+             */
+            await _hannibalHub.Clients.All.SendAsync("NewJobAvailable");
+        }
+
         return new Result
         {
             Status = result

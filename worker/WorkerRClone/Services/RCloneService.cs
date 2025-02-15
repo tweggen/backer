@@ -100,7 +100,7 @@ public class RCloneService : BackgroundService
          * We need to create a list of jobs we already reported back to the caller
          * but that still are in rclone's queue.
          */
-        List<int> listReportedJobs = new();
+        List<int> listDoneJobs = new();
         lock (_lo)
         {
             mapJobs = new SortedDictionary<int, Job>(_mapRCloneToJob);
@@ -123,8 +123,8 @@ public class RCloneService : BackgroundService
                      * Report back the job success.
                      */
                     var reportRes = await _hannibalClient.ReportJobAsync(new()
-                        { JobId = jobId, Status = 0, Owner = _ownerId });
-                    listReportedJobs.Add(rcloneJobId);
+                        { JobId = jobId, State = Job.JobState.DoneSuccess, Owner = _ownerId });
+                    listDoneJobs.Add(rcloneJobId);
                 }
                 else
                 {
@@ -135,15 +135,22 @@ public class RCloneService : BackgroundService
                      * Report back the error.
                      */
                     var reportRes = await _hannibalClient.ReportJobAsync(new()
-                        { JobId = jobId, Status = -1, Owner = _ownerId });
-                    listReportedJobs.Add(rcloneJobId);
+                        { JobId = jobId, State = Job.JobState.DoneFailure, Owner = _ownerId });
+                    listDoneJobs.Add(rcloneJobId);
                 }
+            }
+            else
+            {
+                // TXWTODO: Throttle the amount of reportjobasync calls.
+                var reportRes = await _hannibalClient.ReportJobAsync(new()
+                    { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId });
+                
             }
         }
 
         lock (_lo)
         {
-            foreach (int deadRcloneJobId in listReportedJobs)
+            foreach (int deadRcloneJobId in listDoneJobs)
             {
                 _mapRCloneToJob.Remove(deadRcloneJobId);
             }
@@ -264,7 +271,7 @@ public class RCloneService : BackgroundService
                  * Report back the error.
                  */
                 var reportRes = await _hannibalClient.ReportJobAsync(new()
-                    { JobId = job.Id, Status = -1, Owner = _ownerId });
+                    { JobId = job.Id, State = Job.JobState.DoneFailure, Owner = _ownerId });
             }
 
         }

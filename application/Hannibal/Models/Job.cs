@@ -26,7 +26,6 @@ public class Job
      */
     public int Id { get; set; }
     
-    
     public string Username { get; set; }
     
     /**
@@ -69,6 +68,12 @@ public class Job
      * This job is supposed to end by that particular date.
      */
     public DateTime EndBy { get; set; }
+    
+    
+    /**
+     * When was this job reported back the last time?
+     */
+    public DateTime LastReported { get; set; }
     
     public string SourceEndpoint { get; set; }
     public string DestinationEndpoint { get; set; }
