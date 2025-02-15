@@ -73,7 +73,11 @@ public class RCloneClient
         {
             _async = true,
             srcFs = uriFrom,
-            dstFs = uriDest
+            dstFs = uriDest,
+            _config = new Config()
+            {
+            Exclude = new() { "_backer" }
+        }
         };
         
         JsonContent content = JsonContent.Create(syncParams, typeof(SyncParams), new MediaTypeHeaderValue("application/json"));
@@ -105,7 +109,11 @@ public class RCloneClient
             _async = true,
             srcFs = uriFrom,
             dstFs = uriDest,
-            createEmptySrcDirs = true
+            createEmptySrcDirs = true,
+            _config = new Config()
+            {
+                Exclude = new() { "_backer" }
+            }
         };
         
         JsonContent content = JsonContent.Create(copyParams, typeof(CopyParams), new MediaTypeHeaderValue("application/json"));

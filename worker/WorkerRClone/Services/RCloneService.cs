@@ -238,7 +238,7 @@ public class RCloneService : BackgroundService
              * Then get the next job.
              */
             var job = await _hannibalClient.AcquireNextJobAsync(
-                new() { Capabilities ="rclone", Owner = _ownerId });
+                new() { Username = "timo", Capabilities ="rclone", Owner = _ownerId });
             if (null == job)
             {
                 /*

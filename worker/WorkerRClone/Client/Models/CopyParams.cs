@@ -7,5 +7,6 @@ public class CopyParams
     public string dstFs { get; set; }
     
     public bool createEmptySrcDirs { get; set; }
-    
+
+    public Config _config { get; set; } = new();
 }

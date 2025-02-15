@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using Hannibal.Configuration;
 using Hannibal.Data;
 using Hannibal.Models;
@@ -83,11 +84,25 @@ public class HannibalService : IHannibalService
     {
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
-        // TXWTODO: Currently we only have one backend with one technology, so we take everything.
-        var job = await _context.Jobs.FirstOrDefaultAsync(j => 
+        var listPossibleJobs = await _context.Jobs
+            .Where(j => 
                 j.State == Job.JobState.Ready 
-                && j.Owner == "",
-            cancellationToken);
+                && j.Owner == "")
+            .OrderBy(j => j.StartFrom)
+            .ToListAsync(cancellationToken);
+
+        Job? job = null;
+        var mapStates = await _gatherEndpointAccess(acquireParams.Username);
+        foreach (var candidate in listPossibleJobs)
+        {
+            if (_mayUseDestinationEndpoint(candidate.DestinationEndpoint, mapStates)
+                && _mayUseSourceEndpoint(candidate.SourceEndpoint, mapStates))
+            {
+                job = candidate;
+                break;
+            }
+        }
+        
         if (job != null)
         {
             _logger.LogInformation("owner {owner} acquired job {jobId}.", acquireParams.Owner, job.Id);
@@ -143,6 +158,57 @@ public class HannibalService : IHannibalService
         return mapStates;
     }
 
+
+    
+    /**
+     * Check, if the given endpoint may be used as a source.
+     *
+     * Any number of jobs may use the endpoint for reading.
+     * However, it must not be in use for writing.
+     */
+    private bool _mayUseSourceEndpoint(
+        string endpoint,
+        SortedDictionary<string, EndpointState.AccessState> mapStates)
+    {
+        foreach (var kvp in mapStates)
+        {
+            bool isWriting = kvp.Value == EndpointState.AccessState.Writing;
+            if (isWriting)
+            {
+                bool isShared = endpoint.Contains(kvp.Key) || kvp.Key.Contains(endpoint);
+                if (isShared)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+    
+    
+    /**
+     * Check, if the given endpoint may be used as a destination.
+     * Destination may only have one user.
+     *
+     * No other job must use it as a destination for writing ot
+     * got reading.
+     */
+    private bool _mayUseDestinationEndpoint(
+        string endpoint,
+        SortedDictionary<string, EndpointState.AccessState> mapStates)
+    {
+        foreach (var kvp in mapStates)
+        {
+            bool isShared = endpoint.Contains(kvp.Key) || kvp.Key.Contains(endpoint);
+            if (isShared)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
     
     
     public async Task<Result> ReportJobAsync(JobStatus jobStatus, CancellationToken cancellationToken)
