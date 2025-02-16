@@ -47,4 +47,13 @@ public class HigginsService : IHigginsService
 
         return endpoint;
     }
+    
+    public async Task<IEnumerable<Endpoint>> GetEndpointsAsync(
+        CancellationToken cancellationToken)
+    {
+        var listEndpoints = await _context.Endpoints.ToListAsync();
+
+        return listEndpoints;
+    }
+
 }

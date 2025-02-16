@@ -333,7 +333,7 @@ public class RCloneService : BackgroundService
         if (null == urlRClone)
         {
             _logger.LogWarning("rclone did not start at all, trying to use an already started instance");
-            urlRClone = "http://localhost:5572";
+            urlRClone = "localhost:5572";
         }
         
         _rcloneHttpClient = new HttpClient() { BaseAddress = new Uri($"http://{urlRClone}") };

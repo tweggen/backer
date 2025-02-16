@@ -26,10 +26,21 @@ public class HigginsServiceClient : IHigginsServiceClient
     public async Task<Endpoint> GetEndpointAsync(string name)
     {
         var response = await _httpClient.GetAsync(
-            $"/api/higgins/v1/endpoints?name={Uri.EscapeDataString(name)}");
+            $"/api/higgins/v1/endpoints/{Uri.EscapeDataString(name)}");
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(); 
         return JsonSerializer.Deserialize<Endpoint>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
+    
+    public async Task<IEnumerable<Endpoint>> GetEndpointsAsync()
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/higgins/v1/endpoints");
+        response.EnsureSuccessStatusCode(); 
+        var content = await response.Content.ReadAsStringAsync(); 
+        return JsonSerializer.Deserialize<List<Endpoint>>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
 }

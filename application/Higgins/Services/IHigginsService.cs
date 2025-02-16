@@ -11,4 +11,7 @@ public interface IHigginsService
     public Task<Endpoint> GetEndpointAsync(
         string name,
         CancellationToken cancellationToken);
+
+    public Task<IEnumerable<Endpoint>> GetEndpointsAsync(
+        CancellationToken cancellationToken);
 }

@@ -13,6 +13,7 @@ using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.FileProviders;
 using Tools;
 
 
@@ -127,6 +128,12 @@ app.MapRazorComponents<Poe.Components.App>()
 // Health check endpoint
 app.MapHealthChecks("/health");
 
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "..", "Frontend", "Poe", "wwwroot")),
+    RequestPath = ""
+});
 
 app.MapHub<HannibalHub>("/hannibal");
 
@@ -221,7 +228,18 @@ app.MapHub<HigginsHub>("/higgins");
 
 app.MapGet("/api/higgins/v1/endpoints", async (
     IHigginsService higginsService,
-    [FromQuery] string name,
+    CancellationToken cancellationToken) =>
+{
+    var result = await higginsService.GetEndpointsAsync(cancellationToken);
+    return Results.Ok(result);
+})
+.WithName("GetEndpoints")
+.WithOpenApi();
+
+    
+app.MapGet("/api/higgins/v1/endpoints/{name}", async (
+    IHigginsService higginsService,
+    string name,
     CancellationToken cancellationToken) =>
 {
     var result = await higginsService.GetEndpointAsync(name, cancellationToken);
