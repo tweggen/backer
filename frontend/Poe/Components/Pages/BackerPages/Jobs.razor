@@ -1,16 +1,9 @@
-﻿@page "/backer"
-@using System.Net
 @using Hannibal.Client
 @using Hannibal.Models
-@using Higgins.Client
+
 @inject IHannibalServiceClient HannibalServiceClient
-@inject IHigginsServiceClient HigginsServiceClient
 
-@implements IDisposable
-
-@rendermode InteractiveServer
-
-<h3>Backer</h3>
+<h3>Jobs</h3>
 
 @if (listJobs == null)
 {
@@ -49,44 +42,8 @@ else
     </table>
 }
 
-@if (listEndpoints == null)
-{
-<p><em>Loading endpoints...</em></p>
-}
-else if (!listEndpoints.Any())
-{
-<p>No endpoints found.</p>
-}
-else
-{
-<table class="table">
-    <thead>
-    <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Storage</th>
-        <th>Path</th>
-        <th>Comment</th>
-    </tr>
-    </thead>
-    <tbody>
-    @foreach (var ep in listEndpoints)
-    {
-    <tr>
-        <td>@ep.Id</td>
-        <td>@ep.Name</td>
-        <td>@ep.Storage.Technology</td>
-        <td>@ep.Path</td>
-        <td>@ep.Comment</td>
-    </tr>
-    }
-    </tbody>
-</table>
-}
-
 @code {
     private List<Job> listJobs;
-    private List<Higgins.Models.Endpoint> listEndpoints;
 
     protected override async Task OnInitializedAsync()
     {
@@ -95,9 +52,6 @@ else
                 new ResultPage() { Offset = 0, Length = 20},
                 new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing}
             ));
-        listEndpoints = new List<Higgins.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync()
-            );
     }
 
     public void Dispose()

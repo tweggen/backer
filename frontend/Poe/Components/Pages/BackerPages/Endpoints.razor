@@ -1,0 +1,58 @@
+@using Higgins.Client
+@using System.Net
+@inject IHigginsServiceClient HigginsServiceClient
+
+@implements IDisposable
+
+<h3>Endpoints</h3>
+
+@if (listEndpoints == null)
+{
+    <p><em>Loading endpoints...</em></p>
+}
+else if (!listEndpoints.Any())
+{
+    <p>No endpoints found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Storage</th>
+            <th>Path</th>
+            <th>Comment</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var ep in listEndpoints)
+        {
+            <tr>
+                <td>@ep.Id</td>
+                <td>@ep.Name</td>
+                <td>@ep.Storage.Technology</td>
+                <td>@ep.Path</td>
+                <td>@ep.Comment</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Higgins.Models.Endpoint> listEndpoints;
+
+    public void Dispose()
+    {
+        // Dispose logic if needed
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        listEndpoints = new List<Higgins.Models.Endpoint>(
+            await HigginsServiceClient.GetEndpointsAsync()
+        );
+    }
+}
