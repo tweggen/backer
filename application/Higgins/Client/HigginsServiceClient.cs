@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Net.Http.Json;
+using System.Text.Json;
 using Higgins.Client.Configuration;
 using Higgins.Models;
 using Microsoft.Extensions.Options;
@@ -19,7 +20,12 @@ public class HigginsServiceClient : IHigginsServiceClient
     
     public async Task<CreateEndpointResult> CreateEndpointAsync(Endpoint endpoint)
     {
-        throw new NotImplementedException();
+        var response = await _httpClient.PostAsJsonAsync(
+            $"/api/higgins/v1/endpoints/create", endpoint);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<CreateEndpointResult>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
     
@@ -32,6 +38,7 @@ public class HigginsServiceClient : IHigginsServiceClient
         return JsonSerializer.Deserialize<Endpoint>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
+    
     
     public async Task<IEnumerable<Endpoint>> GetEndpointsAsync()
     {

@@ -1,8 +1,7 @@
 @page "/backer/endpoints"
 @using Higgins.Client
-@using System.Net
 @inject IHigginsServiceClient HigginsServiceClient
-
+@inject NavigationManager NavigationManager
 @implements IDisposable
 
 <h3>Endpoints</h3>
@@ -42,18 +41,55 @@ else
     </table>
 }
 
+<div class="row">
+    <div class="col-md-4">
+        <EditForm method="post" Model="Endpoint" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+            <div class="mb-3">
+                <label for="name" class="form-label">Name:</label>
+                <InputText id="name" @bind-Value="Endpoint.Name" class="form-control" />
+                <ValidationMessage For="() => Endpoint.Name" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <label for="path" class="form-label">Path:</label>
+                <InputText id="path" @bind-Value="Endpoint.Path" class="form-control" />
+                <ValidationMessage For="() => Endpoint.Path" class="text-danger" />
+            </div>
+            <div class="mb-3">
+                <label for="comment" class="form-label">Comment:</label>
+                <InputText id="comment" @bind-Value="Endpoint.Comment" class="form-control" />
+                <ValidationMessage For="() => Endpoint.Comment" class="text-danger" />
+            </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
 @code {
     private List<Higgins.Models.Endpoint> listEndpoints;
+    
+    [SupplyParameterFromForm]
+    private Higgins.Models.Endpoint Endpoint { get; set; } = new();
+
 
     public void Dispose()
     {
         // Dispose logic if needed
     }
 
+    
     protected override async Task OnInitializedAsync()
     {
         listEndpoints = new List<Higgins.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync()
         );
+    }
+    
+    
+    private async Task AddEndpoint()
+    {
+        await HigginsServiceClient.CreateEndpointAsync(Endpoint);
+        NavigationManager.NavigateTo("/backer/endpoints");
     }
 }
