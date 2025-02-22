@@ -82,4 +82,9 @@ public class HigginsServiceClient : IHigginsServiceClient
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
+    public async Task DeleteEndpointAsync(int id)
+    {
+        var response = await _httpClient.DeleteAsync($"/api/higgins/v1/endpoints/{id}");
+        response.EnsureSuccessStatusCode();
+    }
 }

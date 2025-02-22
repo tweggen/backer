@@ -26,4 +26,7 @@ public interface IHigginsService
     public Task<IEnumerable<Storage>> GetStoragesAsync(
         CancellationToken cancellationToken);
 
+    public Task DeleteEndpointAsync(
+        int id,
+        CancellationToken cancellationToken);
 }

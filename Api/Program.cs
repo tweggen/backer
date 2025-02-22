@@ -296,6 +296,25 @@ app.MapPost("/api/higgins/v1/endpoints/create", async (
 .WithOpenApi();
 
 
+app.MapDelete("/api/higgins/v1/endpoints/{id}", async (
+    IHigginsService higginsService,
+    int id,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        await higginsService.DeleteEndpointAsync(id, cancellationToken);
+        return Results.Ok();
+    }
+    catch (KeyNotFoundException)
+    {
+        return Results.NotFound();
+    }
+})
+.WithName("DeleteEndpoint")
+.WithOpenApi();
+
+
 // Global error handler
 app.Use(async (context, next) =>
 {
@@ -336,4 +355,3 @@ using (var scope = app.Services.CreateScope())
 
 await app.StartAsync();
 await app.WaitForShutdownAsync();
-

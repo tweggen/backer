@@ -37,10 +37,7 @@ else
                 <td>@ep.Path</td>
                 <td>@ep.Comment</td>
                 <td>
-                    <form method="post" @onsubmit="_onDelete">
-                        <button type="submit">🗙</button>
-                        <input type="hidden" value="@ep.Id"/>
-                    </form>
+                    <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">🗑️</button>
                 </td>
             </tr>
         }
@@ -99,12 +96,11 @@ else
 
 
 @code {
-    private List<Higgins.Models.Endpoint> _listEndpoints;
-    private List<Higgins.Models.Storage> _listStorages;
-    private Higgins.Models.User _user;
-    
-    [SupplyParameterFromForm]
-    private Higgins.Models.Endpoint _endpoint { get; set; }
+    private List<Higgins.Models.Endpoint>? _listEndpoints = null;
+    private List<Higgins.Models.Storage>? _listStorages = null;
+    private Higgins.Models.User? _user = null;
+
+    [SupplyParameterFromForm] private Higgins.Models.Endpoint? _endpoint { get; set; } = null;
 
     private int _selectedStorageId { get; set; } = -1;
     private Higgins.Models.Storage? _selectedStorage = null;
@@ -118,6 +114,10 @@ else
     
     private void _handleStorageChanged()
     {
+        if (null == _listStorages || null == _endpoint)
+        {
+            return;
+        }
         _selectedStorage = _listStorages.First(storage => (storage.Id == (int)_selectedStorageId));
 
         _endpoint.StorageId = _selectedStorageId;
@@ -125,9 +125,13 @@ else
     }
 
 
-    private void _onDelete()
+    private async Task _onDelete(Higgins.Models.Endpoint ep)
     {
-        int a = 1;
+        await HigginsServiceClient.DeleteEndpointAsync(ep.Id);
+        _listEndpoints = new List<Higgins.Models.Endpoint>(
+            await HigginsServiceClient.GetEndpointsAsync()
+        );
+        await InvokeAsync(StateHasChanged);      
     }
     
     
@@ -159,6 +163,5 @@ else
             await HigginsServiceClient.GetEndpointsAsync()
         );
         await InvokeAsync(StateHasChanged);      
-        // NavigationManager.NavigateTo("/backer/endpoints");
     }
 }

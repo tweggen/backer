@@ -106,4 +106,19 @@ public class HigginsService : IHigginsService
 
         return listStorages;
     }
+    
+
+    public async Task DeleteEndpointAsync(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var endpoint = await _context.Endpoints.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        if (endpoint == null)
+        {
+            throw new KeyNotFoundException($"No endpoint found for id {id}");
+        }
+
+        _context.Endpoints.Remove(endpoint);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }
