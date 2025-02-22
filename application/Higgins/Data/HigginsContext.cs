@@ -51,7 +51,7 @@ public class HigginsContext : DbContext
     
     private async Task _createDevContent()
     {
-        User userTimo = new() { Username = "timo" };
+        User userTimo = new() { Username = "timo", Id=1 };
         Credentials timosOnedriveCredentials = new()
         {
             // TXWTODO: We just use a locally configured rclone.

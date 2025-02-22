@@ -3,14 +3,16 @@
 @inject IHigginsServiceClient HigginsServiceClient
 @inject NavigationManager NavigationManager
 @implements IDisposable
+@rendermode InteractiveServer
+
 
 <h3>Endpoints</h3>
 
-@if (listEndpoints == null)
+@if (_listEndpoints == null)
 {
     <p><em>Loading endpoints...</em></p>
 }
-else if (!listEndpoints.Any())
+else if (!_listEndpoints.Any())
 {
     <p>No endpoints found.</p>
 }
@@ -27,7 +29,7 @@ else
         </tr>
         </thead>
         <tbody>
-        @foreach (var ep in listEndpoints)
+        @foreach (var ep in _listEndpoints)
         {
             <tr>
                 <td>@ep.Id</td>
@@ -41,36 +43,66 @@ else
     </table>
 }
 
-<div class="row">
-    <div class="col-md-4">
-        <EditForm method="post" Model="Endpoint" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
-            <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" />
-            <div class="mb-3">
-                <label for="name" class="form-label">Name:</label>
-                <InputText id="name" @bind-Value="Endpoint.Name" class="form-control" />
-                <ValidationMessage For="() => Endpoint.Name" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <label for="path" class="form-label">Path:</label>
-                <InputText id="path" @bind-Value="Endpoint.Path" class="form-control" />
-                <ValidationMessage For="() => Endpoint.Path" class="text-danger" />
-            </div>
-            <div class="mb-3">
-                <label for="comment" class="form-label">Comment:</label>
-                <InputText id="comment" @bind-Value="Endpoint.Comment" class="form-control" />
-                <ValidationMessage For="() => Endpoint.Comment" class="text-danger" />
-            </div>
-            <button type="submit" class="btn btn-primary">Create</button>
-        </EditForm>
+@if (_listStorages == null)
+{
+    <p><em>Loading storages</em></p>
+} else if (!_listStorages.Any())
+{
+    <p>No storages defined. Please define storages before defining endpoints inside them.</p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="_endpoint" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
+                <DataAnnotationsValidator/>
+                <ValidationSummary class="text-danger"/>
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name:</label>
+                    <InputText id="name" class="form-control" @bind-Value="_endpoint.Name" />
+                    <ValidationMessage For="() => _endpoint.Name" class="text-danger"/>
+                </div>
+                <div class="mb-3">
+                    <label for="storage" class="form-label">Storage:</label>
+                    <InputSelect id="storage"
+                                 placeholder="Storage"
+                                 class="form-control"
+                                 @bind-Value="_selectedStorageId" 
+                                 @bind-Value:after="_handleStorageChanged" 
+                                 >
+                        @foreach (var storage in _listStorages)
+                        {
+                            <option value="@storage.Id">@storage.Technology</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="mb-3">
+                    <label for="path" class="form-label">Path:</label>
+                    <InputText id="path" @bind-Value="_endpoint.Path" class="form-control"/>
+                    <ValidationMessage For="() => _endpoint.Path" class="text-danger"/>
+                </div>
+                <div class="mb-3">
+                    <label for="comment" class="form-label">Comment:</label>
+                    <InputText id="comment" @bind-Value="_endpoint.Comment" class="form-control"/>
+                    <ValidationMessage For="() => _endpoint.Comment" class="text-danger"/>
+                </div>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </EditForm>
+        </div>
     </div>
-</div>
+}
+
 
 @code {
-    private List<Higgins.Models.Endpoint> listEndpoints;
+    private List<Higgins.Models.Endpoint> _listEndpoints;
+    private List<Higgins.Models.Storage> _listStorages;
+    private Higgins.Models.User _user;
     
     [SupplyParameterFromForm]
-    private Higgins.Models.Endpoint Endpoint { get; set; } = new();
+    private Higgins.Models.Endpoint _endpoint { get; set; }
+
+    private int _selectedStorageId { get; set; } = -1;
+    private Higgins.Models.Storage? _selectedStorage = null;
 
 
     public void Dispose()
@@ -79,17 +111,43 @@ else
     }
 
     
+    private void _handleStorageChanged()
+    {
+        _selectedStorage = _listStorages.First(storage => (storage.Id == (int)_selectedStorageId));
+
+        _endpoint.StorageId = _selectedStorageId;
+        _endpoint.Storage = _selectedStorage;
+    }
+    
+    
     protected override async Task OnInitializedAsync()
     {
-        listEndpoints = new List<Higgins.Models.Endpoint>(
+        _user = await HigginsServiceClient.GetUserAsync(1);
+        _endpoint = new() { User = _user, UserId = _user.Id };
+        
+        _listEndpoints = new List<Higgins.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync()
+        );
+        _listStorages = new List<Higgins.Models.Storage>(
+            await HigginsServiceClient.GetStoragesAsync()
         );
     }
     
     
     private async Task AddEndpoint()
     {
-        await HigginsServiceClient.CreateEndpointAsync(Endpoint);
-        NavigationManager.NavigateTo("/backer/endpoints");
+        // TXWTODO: Where to actually validate before submiit?
+
+        if (null == _endpoint.Storage || string.IsNullOrWhiteSpace(_endpoint.Name))
+        {
+            return;
+        }
+        
+        await HigginsServiceClient.CreateEndpointAsync(_endpoint);
+        _listEndpoints = new List<Higgins.Models.Endpoint>(
+            await HigginsServiceClient.GetEndpointsAsync()
+        );
+        await InvokeAsync(StateHasChanged);      
+        // NavigationManager.NavigateTo("/backer/endpoints");
     }
 }

@@ -226,6 +226,41 @@ app.MapPost("/api/hannibal/v1/shutdown", async (
 app.MapHub<HigginsHub>("/higgins");
 
 
+app.MapGet("/api/higgins/v1/users/{id}", async (
+        IHigginsService higginsService,
+        int id,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await higginsService.GetUserAsync(id, cancellationToken);
+        return Results.Ok(result);
+    })
+    .WithName("GetUser")
+    .WithOpenApi();
+
+    
+app.MapGet("/api/higgins/v1/storages", async (
+        IHigginsService higginsService,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await higginsService.GetStoragesAsync(cancellationToken);
+        return Results.Ok(result);
+    })
+    .WithName("GetStorages")
+    .WithOpenApi();
+
+    
+app.MapGet("/api/higgins/v1/storages/{id}", async (
+        IHigginsService higginsService,
+        int id,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await higginsService.GetStorageAsync(id, cancellationToken);
+        return Results.Ok(result);
+    })
+    .WithName("GetStorage")
+    .WithOpenApi();
+
+    
 app.MapGet("/api/higgins/v1/endpoints", async (
     IHigginsService higginsService,
     CancellationToken cancellationToken) =>

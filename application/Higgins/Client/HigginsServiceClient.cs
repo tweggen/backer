@@ -18,6 +18,17 @@ public class HigginsServiceClient : IHigginsServiceClient
     }
     
     
+    public async Task<User> GetUserAsync(int id)
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/higgins/v1/users/{id}");
+        response.EnsureSuccessStatusCode(); 
+        var content = await response.Content.ReadAsStringAsync(); 
+        return JsonSerializer.Deserialize<User>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+    
+    
     public async Task<CreateEndpointResult> CreateEndpointAsync(Endpoint endpoint)
     {
         var response = await _httpClient.PostAsJsonAsync(
@@ -47,6 +58,27 @@ public class HigginsServiceClient : IHigginsServiceClient
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(); 
         return JsonSerializer.Deserialize<List<Endpoint>>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+    public async Task<Storage> GetStorageAsync(int id)
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/higgins/v1/storages/{id}");
+        response.EnsureSuccessStatusCode(); 
+        var content = await response.Content.ReadAsStringAsync(); 
+        return JsonSerializer.Deserialize<Storage>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+    
+    
+    public async Task<IEnumerable<Storage>> GetStoragesAsync()
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/higgins/v1/storages");
+        response.EnsureSuccessStatusCode(); 
+        var content = await response.Content.ReadAsStringAsync(); 
+        return JsonSerializer.Deserialize<List<Storage>>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 

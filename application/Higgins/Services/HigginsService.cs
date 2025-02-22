@@ -25,11 +25,38 @@ public class HigginsService : IHigginsService
     }
 
 
+    public async Task<User> GetUserAsync(int id, CancellationToken cancellationToken)
+    {
+        User? user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+        if (null == user)
+        {
+            throw new KeyNotFoundException($"No user found for id {id}");
+        }
+
+        return user;
+    }
+
     public async Task<CreateEndpointResult> CreateEndpointAsync(
         Endpoint endpoint,
         CancellationToken cancellationToken)
     {
-        await _context.Endpoints.AddAsync(endpoint);
+        var user = await _context.Users.FirstAsync(u => u.Id == endpoint.UserId, cancellationToken);
+        if (null == user)
+        {
+            throw new KeyNotFoundException($"No user found for userid {endpoint.UserId}");
+        }
+        endpoint.User = user;
+        
+        var storage = await _context.Storages.FirstAsync(s => s.Id == endpoint.StorageId, cancellationToken);
+        if (null == storage)
+        {
+            throw new KeyNotFoundException($"No storage found for storageid {endpoint.StorageId}");
+        }
+        endpoint.Storage = storage;
+
+        
+        
+        await _context.Endpoints.AddAsync(endpoint, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
         return new CreateEndpointResult() { Id = endpoint.Id };
     }
@@ -39,7 +66,7 @@ public class HigginsService : IHigginsService
         string name,
         CancellationToken cancellationToken)
     {
-        Endpoint? endpoint = await _context.Endpoints.FirstOrDefaultAsync(e => e.Name == name);
+        Endpoint? endpoint = await _context.Endpoints.FirstOrDefaultAsync(e => e.Name == name, cancellationToken);
         if (null == endpoint)
         {
             throw new KeyNotFoundException($"No endpoint found for name {name}");
@@ -48,12 +75,35 @@ public class HigginsService : IHigginsService
         return endpoint;
     }
     
+
     public async Task<IEnumerable<Endpoint>> GetEndpointsAsync(
         CancellationToken cancellationToken)
     {
-        var listEndpoints = await _context.Endpoints.ToListAsync();
+        var listEndpoints = await _context.Endpoints.ToListAsync(cancellationToken);
 
         return listEndpoints;
     }
 
+
+    public async Task<Storage> GetStorageAsync(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        Storage? storage = await _context.Storages.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        if (null == storage)
+        {
+            throw new KeyNotFoundException($"No storage found for name {id}");
+        }
+
+        return storage;
+    }
+    
+    
+    public async Task<IEnumerable<Storage>> GetStoragesAsync(
+        CancellationToken cancellationToken)
+    {
+        var listStorages = await _context.Storages.ToListAsync(cancellationToken);
+
+        return listStorages;
+    }
 }
