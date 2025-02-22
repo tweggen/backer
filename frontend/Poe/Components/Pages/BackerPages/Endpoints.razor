@@ -18,31 +18,51 @@ else if (!_listEndpoints.Any())
 }
 else
 {
-    <table class="table">
-        <thead>
-        <tr>
-            <th>Name</th>
-            <th>Storage</th>
-            <th>Path</th>
-            <th>Comment</th>
-            <th>&nbsp;</th>
-        </tr>
-        </thead>
-        <tbody>
-        @foreach (var ep in _listEndpoints)
-        {
+    <EditForm method="post" Model="_editingEndpoint" OnValidSubmit="_onEditEndpointSubmit" FormName="edit" Enhance>
+        <table class="table">
+            <thead>
             <tr>
-                <td>@ep.Name</td>
-                <td>@ep.Storage.Technology</td>
-                <td>@ep.Path</td>
-                <td>@ep.Comment</td>
-                <td>
-                    <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">🗑️</button>
-                </td>
+                <th>&nbsp;</th>
+                <th>Name</th>
+                <th>Storage</th>
+                <th>Path</th>
+                <th>Comment</th>
+                <th>&nbsp;</th>
             </tr>
-        }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            @foreach (var ep in _listEndpoints)
+            {
+                @if (_editingEndpointId == ep.Id)
+                {
+                        <tr>
+                            <td><button type="submit" class="close">✔</button></td>
+                            <td><InputText id="name" class="form-control" @bind-Value="_editingEndpoint.Name" /></td>
+                            <td>@ep.Storage.Technology</td>
+                            <td><InputText id="path" @bind-Value="_editingEndpoint.Path" class="form-control"/></td>
+                            <td><InputText id="comment" @bind-Value="_editingEndpoint.Comment" class="form-control"/></td>
+                            <td>
+                                <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">❌️</button>
+                            </td>
+                        </tr>
+                    
+                } else
+                {
+                    <tr>
+                        <td><button @onclick="() => _onEdit(ep)" aria-label="edit">✏</button></td>
+                        <td>@ep.Name</td>
+                        <td>@ep.Storage.Technology</td>
+                        <td>@ep.Path</td>
+                        <td>@ep.Comment</td>
+                        <td>
+                            <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">🗑️</button>
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </EditForm>
 }
 
 @if (_listStorages == null)
@@ -56,13 +76,13 @@ else
 {
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="_endpoint" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
+            <EditForm method="post" Model="_newEndpoint" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
                 <DataAnnotationsValidator/>
                 <ValidationSummary class="text-danger"/>
                 <div class="mb-3">
                     <label for="name" class="form-label">Name:</label>
-                    <InputText id="name" class="form-control" @bind-Value="_endpoint.Name" />
-                    <ValidationMessage For="() => _endpoint.Name" class="text-danger"/>
+                    <InputText id="name" class="form-control" @bind-Value="_newEndpoint.Name" />
+                    <ValidationMessage For="() => _newEndpoint.Name" class="text-danger"/>
                 </div>
                 <div class="mb-3">
                     <label for="storage" class="form-label">Storage:</label>
@@ -80,13 +100,13 @@ else
                 </div>
                 <div class="mb-3">
                     <label for="path" class="form-label">Path:</label>
-                    <InputText id="path" @bind-Value="_endpoint.Path" class="form-control"/>
-                    <ValidationMessage For="() => _endpoint.Path" class="text-danger"/>
+                    <InputText id="path" @bind-Value="_newEndpoint.Path" class="form-control"/>
+                    <ValidationMessage For="() => _newEndpoint.Path" class="text-danger"/>
                 </div>
                 <div class="mb-3">
                     <label for="comment" class="form-label">Comment:</label>
-                    <InputText id="comment" @bind-Value="_endpoint.Comment" class="form-control"/>
-                    <ValidationMessage For="() => _endpoint.Comment" class="text-danger"/>
+                    <InputText id="comment" @bind-Value="_newEndpoint.Comment" class="form-control"/>
+                    <ValidationMessage For="() => _newEndpoint.Comment" class="text-danger"/>
                 </div>
                 <button type="submit" class="btn btn-primary">Create</button>
             </EditForm>
@@ -100,11 +120,14 @@ else
     private List<Higgins.Models.Storage>? _listStorages = null;
     private Higgins.Models.User? _user = null;
 
-    [SupplyParameterFromForm] private Higgins.Models.Endpoint? _endpoint { get; set; } = null;
+    [SupplyParameterFromForm] private Higgins.Models.Endpoint? _editingEndpoint { get; set; } = new() { Id = -1 };
+
+    [SupplyParameterFromForm] private Higgins.Models.Endpoint? _newEndpoint { get; set; } = null;
 
     private int _selectedStorageId { get; set; } = -1;
     private Higgins.Models.Storage? _selectedStorage = null;
 
+    private int _editingEndpointId { get; set; } = -1;
 
     public void Dispose()
     {
@@ -114,14 +137,31 @@ else
     
     private void _handleStorageChanged()
     {
-        if (null == _listStorages || null == _endpoint)
+        if (null == _listStorages || null == _newEndpoint)
         {
             return;
         }
         _selectedStorage = _listStorages.First(storage => (storage.Id == (int)_selectedStorageId));
 
-        _endpoint.StorageId = _selectedStorageId;
-        _endpoint.Storage = _selectedStorage;
+        _newEndpoint.StorageId = _selectedStorageId;
+        _newEndpoint.Storage = _selectedStorage;
+    }
+
+
+    private async Task _onEdit(Higgins.Models.Endpoint? ep)
+    {
+        if (ep != null)
+        {
+            _editingEndpointId = ep.Id;
+            _editingEndpoint = ep;
+        }
+        else
+        {
+            _editingEndpointId = -1;
+            _editingEndpoint = new() { Id = -1};
+        }
+
+        await InvokeAsync(StateHasChanged);      
     }
 
 
@@ -138,7 +178,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _user = await HigginsServiceClient.GetUserAsync(1);
-        _endpoint = new() { User = _user, UserId = _user.Id };
+        _newEndpoint = new() { User = _user, UserId = _user.Id };
         
         _listEndpoints = new List<Higgins.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync()
@@ -147,18 +187,26 @@ else
             await HigginsServiceClient.GetStoragesAsync()
         );
     }
+
+
+    private async Task _onEditEndpointSubmit()
+    {
+        _editingEndpointId = -1;
+        _editingEndpoint = new() { Id = -1};
+        await InvokeAsync(StateHasChanged);      
+    }
     
     
     private async Task AddEndpoint()
     {
         // TXWTODO: Where to actually validate before submiit?
 
-        if (null == _endpoint.Storage || string.IsNullOrWhiteSpace(_endpoint.Name))
+        if (null == _newEndpoint.Storage || string.IsNullOrWhiteSpace(_newEndpoint.Name))
         {
             return;
         }
         
-        await HigginsServiceClient.CreateEndpointAsync(_endpoint);
+        await HigginsServiceClient.CreateEndpointAsync(_newEndpoint);
         _listEndpoints = new List<Higgins.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync()
         );
