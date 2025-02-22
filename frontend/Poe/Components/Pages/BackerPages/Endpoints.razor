@@ -21,22 +21,27 @@ else
     <table class="table">
         <thead>
         <tr>
-            <th>ID</th>
             <th>Name</th>
             <th>Storage</th>
             <th>Path</th>
             <th>Comment</th>
+            <th>&nbsp;</th>
         </tr>
         </thead>
         <tbody>
         @foreach (var ep in _listEndpoints)
         {
             <tr>
-                <td>@ep.Id</td>
                 <td>@ep.Name</td>
                 <td>@ep.Storage.Technology</td>
                 <td>@ep.Path</td>
                 <td>@ep.Comment</td>
+                <td>
+                    <form method="post" @onsubmit="_onDelete">
+                        <button type="submit">🗙</button>
+                        <input type="hidden" value="@ep.Id"/>
+                    </form>
+                </td>
             </tr>
         }
         </tbody>
@@ -117,6 +122,12 @@ else
 
         _endpoint.StorageId = _selectedStorageId;
         _endpoint.Storage = _selectedStorage;
+    }
+
+
+    private void _onDelete()
+    {
+        int a = 1;
     }
     
     
