@@ -87,4 +87,14 @@ public class HigginsServiceClient : IHigginsServiceClient
         var response = await _httpClient.DeleteAsync($"/api/higgins/v1/endpoints/{id}");
         response.EnsureSuccessStatusCode();
     }
+
+    public async Task<Endpoint> UpdateEndpointAsync(int id, Endpoint endpoint)
+    {
+        var response = await _httpClient.PutAsJsonAsync(
+            $"/api/higgins/v1/endpoints/{id}", endpoint);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<Endpoint>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
 }

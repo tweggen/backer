@@ -18,51 +18,50 @@ else if (!_listEndpoints.Any())
 }
 else
 {
-    <EditForm method="post" Model="_editingEndpoint" OnValidSubmit="_onEditEndpointSubmit" FormName="edit" Enhance>
-        <table class="table">
-            <thead>
-            <tr>
-                <th>&nbsp;</th>
-                <th>Name</th>
-                <th>Storage</th>
-                <th>Path</th>
-                <th>Comment</th>
-                <th>&nbsp;</th>
-            </tr>
-            </thead>
-            <tbody>
-            @foreach (var ep in _listEndpoints)
+    <table class="table">
+        <thead>
+        <tr>
+            <th>&nbsp;</th>
+            <th>Name</th>
+            <th>Storage</th>
+            <th>Path</th>
+            <th>Comment</th>
+            <th>&nbsp;</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var ep in _listEndpoints)
+        {
+            @if (_editingEndpointId == ep.Id)
             {
-                @if (_editingEndpointId == ep.Id)
-                {
-                        <tr>
-                            <td><button type="submit" class="close">✔</button></td>
-                            <td><InputText id="name" class="form-control" @bind-Value="_editingEndpoint.Name" /></td>
-                            <td>@ep.Storage.Technology</td>
-                            <td><InputText id="path" @bind-Value="_editingEndpoint.Path" class="form-control"/></td>
-                            <td><InputText id="comment" @bind-Value="_editingEndpoint.Comment" class="form-control"/></td>
-                            <td>
-                                <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">❌️</button>
-                            </td>
-                        </tr>
-                    
-                } else
-                {
                     <tr>
-                        <td><button @onclick="() => _onEdit(ep)" aria-label="edit">✏</button></td>
-                        <td>@ep.Name</td>
+                        <td>&nbsp;</td>
+                        <td><InputText id="name" class="form-control" @bind-Value="_editingEndpoint.Name" /></td>
                         <td>@ep.Storage.Technology</td>
-                        <td>@ep.Path</td>
-                        <td>@ep.Comment</td>
+                        <td><InputText id="path" @bind-Value="_editingEndpoint.Path" class="form-control"/></td>
+                        <td><InputText id="comment" @bind-Value="_editingEndpoint.Comment" class="form-control"/></td>
                         <td>
-                            <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">🗑️</button>
+                            <button @onclick="_onEditEndpointSubmit" id="submiteditendpoint" class="close">✔</button>
+                            <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">❌️</button>
                         </td>
                     </tr>
-                }
+                
+            } else
+            {
+                <tr>
+                    <td><button id="starteditendpoint" @onclick="() => _onEdit(ep)" aria-label="edit">✏</button></td>
+                    <td>@ep.Name</td>
+                    <td>@ep.Storage.Technology</td>
+                    <td>@ep.Path</td>
+                    <td>@ep.Comment</td>
+                    <td>
+                        <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">🗑️</button>
+                    </td>
+                </tr>
             }
-            </tbody>
-        </table>
-    </EditForm>
+        }
+        </tbody>
+    </table>
 }
 
 @if (_listStorages == null)
@@ -191,6 +190,10 @@ else
 
     private async Task _onEditEndpointSubmit()
     {
+        if (_editingEndpoint != null)
+        {
+            await HigginsServiceClient.UpdateEndpointAsync(_editingEndpoint.Id, _editingEndpoint);
+        }
         _editingEndpointId = -1;
         _editingEndpoint = new() { Id = -1};
         await InvokeAsync(StateHasChanged);      

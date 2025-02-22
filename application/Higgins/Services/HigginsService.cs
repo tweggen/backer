@@ -121,4 +121,53 @@ public class HigginsService : IHigginsService
         _context.Endpoints.Remove(endpoint);
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    
+    public async Task<Endpoint> UpdateEndpointAsync(
+        int id,
+        Endpoint updatedEndpoint,
+        CancellationToken cancellationToken)
+    {
+        var endpoint = await _context.Endpoints
+            .Include(e => e.User)
+            .Include(e => e.Storage)
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+            
+        if (endpoint == null)
+        {
+            throw new KeyNotFoundException($"No endpoint found for id {id}");
+        }
+
+        // Verify the new user exists if it's being changed
+        if (updatedEndpoint.UserId != endpoint.UserId)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == updatedEndpoint.UserId, cancellationToken);
+            if (user == null)
+            {
+                throw new KeyNotFoundException($"No user found for userid {updatedEndpoint.UserId}");
+            }
+            endpoint.User = user;
+            endpoint.UserId = updatedEndpoint.UserId;
+        }
+
+        // Verify the new storage exists if it's being changed
+        if (updatedEndpoint.StorageId != endpoint.StorageId)
+        {
+            var storage = await _context.Storages.FirstOrDefaultAsync(s => s.Id == updatedEndpoint.StorageId, cancellationToken);
+            if (storage == null)
+            {
+                throw new KeyNotFoundException($"No storage found for storageid {updatedEndpoint.StorageId}");
+            }
+            endpoint.Storage = storage;
+            endpoint.StorageId = updatedEndpoint.StorageId;
+        }
+
+        // Update other properties
+        endpoint.Name = updatedEndpoint.Name;
+        endpoint.Path = updatedEndpoint.Path;
+        endpoint.Comment = updatedEndpoint.Comment;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return endpoint;
+    }
 }

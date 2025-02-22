@@ -11,4 +11,5 @@ public interface IHigginsServiceClient
     public Task<IEnumerable<Storage>> GetStoragesAsync();
     public Task<Storage> GetStorageAsync(int id);
     public Task DeleteEndpointAsync(int id);
+    public Task<Endpoint> UpdateEndpointAsync(int id, Endpoint endpoint);
 }

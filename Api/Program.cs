@@ -284,6 +284,26 @@ app.MapGet("/api/higgins/v1/endpoints/{name}", async (
 .WithOpenApi();
 
     
+app.MapPut("/api/higgins/v1/endpoints/{id}", async (
+    IHigginsService higginsService,
+    int id,
+    Higgins.Models.Endpoint endpoint,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var result = await higginsService.UpdateEndpointAsync(id, endpoint, cancellationToken);
+        return Results.Ok(result);
+    }
+    catch (KeyNotFoundException)
+    {
+        return Results.NotFound();
+    }
+})
+.WithName("UpdateEndpoint")
+.WithOpenApi();
+
+
 app.MapPost("/api/higgins/v1/endpoints/create", async (
     IHigginsService higginsService,
     Higgins.Models.Endpoint endpoint,

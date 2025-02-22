@@ -29,4 +29,9 @@ public interface IHigginsService
     public Task DeleteEndpointAsync(
         int id,
         CancellationToken cancellationToken);
+
+    public Task<Endpoint> UpdateEndpointAsync(
+        int id,
+        Endpoint endpoint,
+        CancellationToken cancellationToken);
 }
