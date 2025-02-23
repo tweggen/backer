@@ -42,7 +42,7 @@ else
                         <td><InputText id="comment" @bind-Value="_editingEndpoint.Comment" class="form-control"/></td>
                         <td>
                             <button @onclick="_onEditEndpointSubmit" id="submiteditendpoint" class="close">✔</button>
-                            <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">❌️</button>
+                            <button @onclick="() => _onEditEndpointCancel(ep)" class="close" aria-label="delete">❌️</button>
                         </td>
                     </tr>
                 
@@ -188,19 +188,27 @@ else
     }
 
 
-    private async Task _onEditEndpointSubmit()
+    private async Task _onEditEndpointCancel()
     {
-        if (_editingEndpoint != null)
-        {
-            await HigginsServiceClient.UpdateEndpointAsync(_editingEndpoint.Id, _editingEndpoint);
-        }
         _editingEndpointId = -1;
         _editingEndpoint = new() { Id = -1};
         await InvokeAsync(StateHasChanged);      
     }
-    
-    
-    private async Task AddEndpoint()
+
+
+private async Task _onEditEndpointSubmit()
+{
+if (_editingEndpoint != null)
+{
+await HigginsServiceClient.UpdateEndpointAsync(_editingEndpoint.Id, _editingEndpoint);
+}
+_editingEndpointId = -1;
+_editingEndpoint = new() { Id = -1};
+await InvokeAsync(StateHasChanged);
+}
+
+
+private async Task AddEndpoint()
     {
         // TXWTODO: Where to actually validate before submiit?
 
