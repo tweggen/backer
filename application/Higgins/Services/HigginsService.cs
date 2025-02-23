@@ -79,7 +79,9 @@ public class HigginsService : IHigginsService
     public async Task<IEnumerable<Endpoint>> GetEndpointsAsync(
         CancellationToken cancellationToken)
     {
-        var listEndpoints = await _context.Endpoints.ToListAsync(cancellationToken);
+        var listEndpoints = await _context.Endpoints
+            .OrderBy(e => e.Name)
+            .ToListAsync(cancellationToken);
 
         return listEndpoints;
     }

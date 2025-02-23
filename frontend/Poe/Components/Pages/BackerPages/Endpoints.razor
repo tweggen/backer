@@ -42,7 +42,7 @@ else
                         <td><InputText id="comment" @bind-Value="_editingEndpoint.Comment" class="form-control"/></td>
                         <td>
                             <button @onclick="_onEditEndpointSubmit" id="submiteditendpoint" class="close">✔</button>
-                            <button @onclick="() => _onEditEndpointCancel(ep)" class="close" aria-label="delete">❌️</button>
+                            <button @onclick="_onEditEndpointCancel" class="close" aria-label="delete">❌️</button>
                         </td>
                     </tr>
                 
@@ -73,6 +73,7 @@ else
 }
 else
 {
+    <h2>Create new endpoint</h2>
     <div class="row">
         <div class="col-md-4">
             <EditForm method="post" Model="_newEndpoint" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
@@ -80,7 +81,10 @@ else
                 <ValidationSummary class="text-danger"/>
                 <div class="mb-3">
                     <label for="name" class="form-label">Name:</label>
-                    <InputText id="name" class="form-control" @bind-Value="_newEndpoint.Name" />
+                    <InputText id="name"
+                               placeholder="Name"
+                               class="form-control"
+                               @bind-Value="_newEndpoint.Name" />
                     <ValidationMessage For="() => _newEndpoint.Name" class="text-danger"/>
                 </div>
                 <div class="mb-3">
@@ -99,12 +103,18 @@ else
                 </div>
                 <div class="mb-3">
                     <label for="path" class="form-label">Path:</label>
-                    <InputText id="path" @bind-Value="_newEndpoint.Path" class="form-control"/>
+                    <InputText id="path"
+                               placeholder="Path"
+                               class="form-control"
+                               @bind-Value="_newEndpoint.Path"/>
                     <ValidationMessage For="() => _newEndpoint.Path" class="text-danger"/>
                 </div>
                 <div class="mb-3">
                     <label for="comment" class="form-label">Comment:</label>
-                    <InputText id="comment" @bind-Value="_newEndpoint.Comment" class="form-control"/>
+                    <InputText id="comment"
+                               placeholder="Comment"
+                               class="form-control"
+                               @bind-Value="_newEndpoint.Comment" />
                     <ValidationMessage For="() => _newEndpoint.Comment" class="text-danger"/>
                 </div>
                 <button type="submit" class="btn btn-primary">Create</button>
@@ -196,19 +206,20 @@ else
     }
 
 
-private async Task _onEditEndpointSubmit()
-{
-if (_editingEndpoint != null)
-{
-await HigginsServiceClient.UpdateEndpointAsync(_editingEndpoint.Id, _editingEndpoint);
-}
-_editingEndpointId = -1;
-_editingEndpoint = new() { Id = -1};
-await InvokeAsync(StateHasChanged);
-}
+    private async Task _onEditEndpointSubmit()
+    {
+        if (_editingEndpoint != null)
+        {
+            await HigginsServiceClient.UpdateEndpointAsync(_editingEndpoint.Id, _editingEndpoint);
+        }
+
+        _editingEndpointId = -1;
+        _editingEndpoint = new() { Id = -1 };
+        await InvokeAsync(StateHasChanged);
+    }
 
 
-private async Task AddEndpoint()
+    private async Task AddEndpoint()
     {
         // TXWTODO: Where to actually validate before submiit?
 
