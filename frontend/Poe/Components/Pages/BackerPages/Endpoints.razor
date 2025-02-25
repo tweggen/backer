@@ -176,9 +176,9 @@ else
 
     private async Task _onDelete(Higgins.Models.Endpoint ep)
     {
-        await HigginsServiceClient.DeleteEndpointAsync(ep.Id);
+        await HigginsServiceClient.DeleteEndpointAsync(ep.Id, CancellationToken.None);
         _listEndpoints = new List<Higgins.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync()
+            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
         await InvokeAsync(StateHasChanged);      
     }
@@ -186,14 +186,14 @@ else
     
     protected override async Task OnInitializedAsync()
     {
-        _user = await HigginsServiceClient.GetUserAsync(1);
+        _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
         _newEndpoint = new() { User = _user, UserId = _user.Id };
         
         _listEndpoints = new List<Higgins.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync()
+            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
         _listStorages = new List<Higgins.Models.Storage>(
-            await HigginsServiceClient.GetStoragesAsync()
+            await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
         );
     }
 
@@ -210,7 +210,7 @@ else
     {
         if (_editingEndpoint != null)
         {
-            await HigginsServiceClient.UpdateEndpointAsync(_editingEndpoint.Id, _editingEndpoint);
+            await HigginsServiceClient.UpdateEndpointAsync(_editingEndpoint.Id, _editingEndpoint, CancellationToken.None);
         }
 
         _editingEndpointId = -1;
@@ -228,9 +228,9 @@ else
             return;
         }
         
-        await HigginsServiceClient.CreateEndpointAsync(_newEndpoint);
+        await HigginsServiceClient.CreateEndpointAsync(_newEndpoint, CancellationToken.None);
         _listEndpoints = new List<Higgins.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync()
+            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
         await InvokeAsync(StateHasChanged);      
     }

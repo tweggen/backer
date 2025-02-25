@@ -138,6 +138,87 @@ app.UseStaticFiles(new StaticFileOptions
 app.MapHub<HannibalHub>("/hannibal");
 
 
+app.MapGet("/api/hannibal/v1/rules/{ruleId}", async (
+    IHannibalService hannibalService,
+    int ruleId,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var rule = await hannibalService.GetRuleAsync(ruleId, cancellationToken);
+        return Results.Ok(rule);
+    }
+    catch (KeyNotFoundException e)
+    {
+        return Results.NotFound();
+    }
+})
+.WithName("GetRule")
+.WithOpenApi();
+
+
+app.MapGet("/api/hannibal/v1/rules", async (
+    IHannibalService hannibalService,
+    [FromQuery] int? page,
+    [FromQuery] int? minState,
+    [FromQuery] int? maxState,
+    CancellationToken cancellationToken) =>
+{
+    var rules = await hannibalService.GetRulesAsync(
+        new ResultPage
+        {
+            Offset = 20*(page ?? 0), 
+            Length = 20
+        }, 
+        new RuleFilter
+        {
+        }, 
+        cancellationToken);
+    return rules is not null ? Results.Ok(rules) : Results.Ok(new List<Rule>());
+})
+.WithName("GetRules")
+.WithOpenApi();
+
+
+app.MapPut("/api/hannibal/v1/rules/{id}", async (
+        IHannibalService hannibalService,
+        int id,
+        Hannibal.Models.Rule rule,
+        CancellationToken cancellationToken) =>
+    {
+        try
+        {
+            var result = await hannibalService.UpdateRuleAsync(id, rule, cancellationToken);
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound();
+        }
+    })
+    .WithName("UpdateRule")
+    .WithOpenApi();
+
+
+app.MapDelete("/api/hannibal/v1/rules/{id}", async (
+        IHannibalService hannibalService,
+        int id,
+        CancellationToken cancellationToken) =>
+    {
+        try
+        {
+            await hannibalService.DeleteRuleAsync(id, cancellationToken);
+            return Results.Ok();
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound();
+        }
+    })
+    .WithName("DeleteRule")
+    .WithOpenApi();
+
+
 app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
     IHannibalService hannibalService,
     int jobId,
@@ -304,7 +385,7 @@ app.MapPut("/api/higgins/v1/endpoints/{id}", async (
 .WithOpenApi();
 
 
-app.MapPost("/api/higgins/v1/endpoints/create", async (
+app.MapPost("/api/higgins/v1/endpoints", async (
     IHigginsService higginsService,
     Higgins.Models.Endpoint endpoint,
     CancellationToken cancellationToken) =>

@@ -47,8 +47,8 @@ else
                         <td>source</td>
                         <td>op</td>
                         <td>dest</td>
-                        <td><InputText id="maxDestAge" @bind-Value="_maxDestAge" class="form-control"/></td>
-                        <td><InputText id="dailyTriggerTime" @bind-Value="_dailyTriggerTime" class="form-control"/></td>
+                        <td><InputNumber id="maxDestAge" @bind-Value="_maxDestAge" class="form-control"/></td>
+                        <td><InputNumber id="dailyTriggerTime" @bind-Value="_dailyTriggerTime" class="form-control"/></td>
                         <td><InputText id="comment" @bind-Value="_editingRule.Comment" class="form-control"/></td>
                         <td>
                             <button @onclick="_onEditRuleSubmit" id="submiteditrule" class="close">✔</button>
@@ -64,9 +64,9 @@ else
                     <td>@ru.SourceEndpoint</td>
                     <td>@ru.Operation.ToString()</td>
                     <td>@ru.DestinationEndpoint</td>
-                    <td>@ru.Ma</td>
+                    <td>@ru.MaxDestinationAge</td>
                     <td>
-                        <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">🗑️</button>
+                        <button @onclick="() => _onDelete(ru)" class="close" aria-label="delete">🗑️</button>
                     </td>
                 </tr>
             }
@@ -178,7 +178,7 @@ else
 
     [SupplyParameterFromForm] private float _maxDestAge { get; set; } = 36 * 3600;
     [SupplyParameterFromForm] private float _dailyTriggerTime { get; set; } = 2*3600;
-    [SupplyParameterFromForm] private Hannibal.Models.Rule? _editingRule { get; set; } = new() { Id = -1 };
+    [SupplyParameterFromForm] private Hannibal.Models.Rule _editingRule { get; set; } = new() { Id = -1 };
     [SupplyParameterFromForm] private Hannibal.Models.Rule? _newRule { get; set; } = null;
 
     private int _selectedSourceEndpointId { get; set; } = -1;
@@ -255,34 +255,43 @@ else
     }
 
 
+    private async void _reloadRulePage(CancellationToken cancellationToken)
+    {
+        _listRules = new List<Hannibal.Models.Rule>(
+            await HannibalServiceClient.GetRulesAsync(new ResultPage()
+                {
+                    Length = 20, Offset = 0
+                },
+                new RuleFilter {},
+                CancellationToken.None)
+        );
+    }
+    
+
     private async Task _onDelete(Hannibal.Models.Rule ru)
     {
-        await HannibalServiceClient.DeleteRuleAsync(ru.Id);
-        _listRules = new List<Hannibal.Models.Rule>(
-            await HannibalServiceClient.GetRulesAsync()
-        );
+        await HannibalServiceClient.DeleteRuleAsync(ru.Id, CancellationToken.None);
+        _reloadRulePage(CancellationToken.None);
         await InvokeAsync(StateHasChanged);      
     }
     
     
     protected override async Task OnInitializedAsync()
     {
-        _user = await HigginsServiceClient.GetUserAsync(1);
+        _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
         _newRule = new() { Username = _user.Username };
         
         _listEndpoints = new List<Higgins.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync()
+            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
-        _listRules = new List<Hannibal.Models.Rule>(
-            await HannibalServiceClient.GetRulesAsync()
-        );
+        _reloadRulePage(CancellationToken.None);
     }
 
 
     private async Task _onEditRuleCancel()
     {
         _editingRuleId = -1;
-        _editingRule = new() { Id = -1};
+        _editingRule = new() { Id = -1 };
         await InvokeAsync(StateHasChanged);      
     }
 
@@ -291,7 +300,7 @@ else
     {
         if (_editingRule != null)
         {
-            await HigginsServiceClient.UpdateEndpointAsync(_editingRule.Id, _editingRule);
+            await HannibalServiceClient.UpdateRuleAsync(_editingRule.Id, _editingRule, CancellationToken.None);
         }
 
         _editingRuleId = -1;
@@ -311,10 +320,8 @@ else
             return;
         }
         
-        await HannibalServiceClient.CreateRuleAsync(_newRule);
-        _listRules = new List<Hannibal.Models.Rule>(
-            await HannibalServiceClient.GetRulesAsync()
-        );
+        await HannibalServiceClient.CreateRuleAsync(_newRule, CancellationToken.None);
+        _reloadRulePage(CancellationToken.None);
         await InvokeAsync(StateHasChanged);      
     }
 }

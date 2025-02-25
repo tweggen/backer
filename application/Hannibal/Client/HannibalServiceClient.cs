@@ -16,54 +16,98 @@ public class HannibalServiceClient : IHannibalServiceClient
     {
         _httpClient = httpClient;
     }
-    
-    
-    public Task<Job> GetJobAsync(int jobId)
+
+
+    public async Task<CreateRuleResult> CreateRuleAsync(Rule rule, CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            $"/api/hannibal/v1/rules", rule,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        return JsonSerializer.Deserialize<CreateRuleResult>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+    public async Task<Rule> GetRuleAsync(int ruleId, CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/hannibal/v1/rules/{ruleId}",
+            cancellationToken);
+        response.EnsureSuccessStatusCode(); 
+        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
+        return JsonSerializer.Deserialize<Rule>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+    public Task<IEnumerable<Rule>> GetRulesAsync(ResultPage resultPage, RuleFilter filter, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
+    public Task<Rule> UpdateRuleAsync(int id, Rule updatedRule, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task DeleteRuleAsync(int id, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<Job> GetJobAsync(int jobId, CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/hannibal/v1/jobs/{jobId}",
+            cancellationToken);
+        response.EnsureSuccessStatusCode(); 
+        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
+        return JsonSerializer.Deserialize<Job>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
     
-    public async Task<IEnumerable<Job>> GetJobsAsync(ResultPage resultPage, JobFilter filter)
+    public async Task<IEnumerable<Job>> GetJobsAsync(ResultPage resultPage, JobFilter filter, CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
             $"/api/hannibal/v1/jobs?"
                 +$"page={Uri.EscapeDataString((resultPage.Offset/resultPage.Length).ToString())}"
                 +$"&minState={(int)filter.MinState}"
-                +$"&maxState={(int)filter.MaxState}"
-            );
+                +$"&maxState={(int)filter.MaxState}",
+            cancellationToken);
         response.EnsureSuccessStatusCode(); 
-        var content = await response.Content.ReadAsStringAsync(); 
+        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
         return JsonSerializer.Deserialize<List<Job>>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
    
     }
 
     
-    public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams)
+    public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken)
     {
         var response = await _httpClient.PostAsJsonAsync(
-            "/api/hannibal/v1/acquireNextJob", acquireParams);
+            "/api/hannibal/v1/acquireNextJob", acquireParams,
+            cancellationToken);
         response.EnsureSuccessStatusCode(); 
-        var content = await response.Content.ReadAsStringAsync(); 
+        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
         return JsonSerializer.Deserialize<Job>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
     
-    public async Task<Result> ReportJobAsync(JobStatus jobStatus)
+    public async Task<Result> ReportJobAsync(JobStatus jobStatus, CancellationToken cancellationToken)
     {
         var response = await _httpClient.PostAsJsonAsync(
             "/api/hannibal/v1/reportJob",
-            jobStatus);
+            jobStatus, cancellationToken);
         response.EnsureSuccessStatusCode(); 
-        var content = await response.Content.ReadAsStringAsync(); 
+        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
         return JsonSerializer.Deserialize<Result>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
     
-    public Task<ShutdownResult> ShutdownAsync()
+    public Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }

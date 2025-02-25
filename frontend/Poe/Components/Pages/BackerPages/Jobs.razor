@@ -51,7 +51,8 @@ else
         listJobs = new List<Job>(
             await HannibalServiceClient.GetJobsAsync(
                 new ResultPage() { Offset = 0, Length = 20},
-                new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing}
+                new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing},
+                CancellationToken.None
             ));
     }
 

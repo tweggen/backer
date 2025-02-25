@@ -123,7 +123,8 @@ public class RCloneService : BackgroundService
                      * Report back the job success.
                      */
                     var reportRes = await _hannibalClient.ReportJobAsync(new()
-                        { JobId = jobId, State = Job.JobState.DoneSuccess, Owner = _ownerId });
+                        { JobId = jobId, State = Job.JobState.DoneSuccess, Owner = _ownerId },
+                        cancellationToken);
                     listDoneJobs.Add(rcloneJobId);
                 }
                 else
@@ -135,7 +136,8 @@ public class RCloneService : BackgroundService
                      * Report back the error.
                      */
                     var reportRes = await _hannibalClient.ReportJobAsync(new()
-                        { JobId = jobId, State = Job.JobState.DoneFailure, Owner = _ownerId });
+                        { JobId = jobId, State = Job.JobState.DoneFailure, Owner = _ownerId },
+                        cancellationToken);
                     listDoneJobs.Add(rcloneJobId);
                 }
             }
@@ -143,7 +145,8 @@ public class RCloneService : BackgroundService
             {
                 // TXWTODO: Throttle the amount of reportjobasync calls.
                 var reportRes = await _hannibalClient.ReportJobAsync(new()
-                    { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId });
+                    { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId },
+                    cancellationToken);
                 
             }
         }
@@ -158,7 +161,7 @@ public class RCloneService : BackgroundService
     }
     
     
-    private async Task<AsyncResult> _startJob(Job job)
+    private async Task<AsyncResult> _startJob(Job job, CancellationToken cancellationToken)
     {
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
         try
@@ -168,8 +171,8 @@ public class RCloneService : BackgroundService
             /*
              * Resolve the endpoints.
              */
-            var sourceEndpoint = await _higginsClient.GetEndpointAsync(job.SourceEndpoint);
-            var destinationEndpoint = await _higginsClient.GetEndpointAsync(job.DestinationEndpoint);
+            var sourceEndpoint = await _higginsClient.GetEndpointAsync(job.SourceEndpoint, cancellationToken);
+            var destinationEndpoint = await _higginsClient.GetEndpointAsync(job.DestinationEndpoint, cancellationToken);
 
             string sourceUri = $"{sourceEndpoint.Storage.UriSchema}:/{sourceEndpoint.Path}";
             string destinationUri = $"{destinationEndpoint.Storage.UriSchema}:/{destinationEndpoint.Path}";
@@ -215,7 +218,7 @@ public class RCloneService : BackgroundService
     }
     
 
-    private async Task _triggerFetchJob()
+    private async Task _triggerFetchJob(CancellationToken cancellationToken)
     {
         try
         {
@@ -238,7 +241,8 @@ public class RCloneService : BackgroundService
              * Then get the next job.
              */
             var job = await _hannibalClient.AcquireNextJobAsync(
-                new() { Username = "timo", Capabilities ="rclone", Owner = _ownerId });
+                new() { Username = "timo", Capabilities ="rclone", Owner = _ownerId },
+                cancellationToken);
             if (null == job)
             {
                 /*
@@ -256,7 +260,7 @@ public class RCloneService : BackgroundService
                 /*
                  * Execute the job.
                  */
-                var asyncResult = await _startJob(job);
+                var asyncResult = await _startJob(job, cancellationToken);
                 _logger.LogError($"Started executing job {job.Id}");
                 
                 /*
@@ -271,7 +275,8 @@ public class RCloneService : BackgroundService
                  * Report back the error.
                  */
                 var reportRes = await _hannibalClient.ReportJobAsync(new()
-                    { JobId = job.Id, State = Job.JobState.DoneFailure, Owner = _ownerId });
+                    { JobId = job.Id, State = Job.JobState.DoneFailure, Owner = _ownerId },
+                    cancellationToken);
             }
 
         }
@@ -312,7 +317,7 @@ public class RCloneService : BackgroundService
                     // throw new InvalidOperationException("rclone exited with error: ");
                     break;
                 }
-                string? output = await reader.ReadLineAsync();
+                string? output = await reader.ReadLineAsync(cancellationToken);
                 if (null == output)
                 {
                     _logger.LogError($"rclone did not start with expected output but {strErrorOutput}" );
@@ -338,11 +343,13 @@ public class RCloneService : BackgroundService
         
         _rcloneHttpClient = new HttpClient() { BaseAddress = new Uri($"http://{urlRClone}") };
         var byteArray = new UTF8Encoding().GetBytes("who:how");
-        _rcloneHttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        _rcloneHttpClient.DefaultRequestHeaders.Authorization = 
+            new AuthenticationHeaderValue(
+                "Basic", Convert.ToBase64String(byteArray));
         
         _hannibalConnection.On("NewJobAvailable", async () =>
         {
-            await _triggerFetchJob();
+            await _triggerFetchJob(CancellationToken.None);
         });
 
     }
