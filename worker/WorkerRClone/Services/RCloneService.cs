@@ -77,7 +77,7 @@ public class RCloneService : BackgroundService
          * Whatever we got we execute.
          * If we have nothing, we sleep until receiving an signalr update.
          */
-        _triggerFetchJob();
+        _triggerFetchJob(cancellationToken);
         
         while (!cancellationToken.IsCancellationRequested)
         {
