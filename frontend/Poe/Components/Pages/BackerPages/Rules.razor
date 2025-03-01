@@ -2,7 +2,6 @@
 @using Higgins.Client
 @using Hannibal.Client
 @using Hannibal.Models
-@using Hannibal.Services
 @inject IHigginsServiceClient HigginsServiceClient
 @inject IHannibalServiceClient HannibalServiceClient
 @inject NavigationManager NavigationManager
@@ -10,7 +9,7 @@
 @rendermode InteractiveServer
 
 
-<h3>Endpoints</h3>
+<h3>Rules</h3>
 
 @if (_listRules == null)
 {
@@ -18,7 +17,7 @@
 }
 else if (!_listRules.Any())
 {
-    <p>No endpoints found.</p>
+    <p>No rules found.</p>
 }
 else
 {
@@ -39,17 +38,58 @@ else
         <tbody>
         @foreach (var ru in _listRules)
         {
-            @if (_editingRuleId == ru.Id)
+            @if (_editRuleId == ru.Id && _listEndpoints != null)
             {
                     <tr>
                         <td>&nbsp;</td>
-                        <td><InputText id="name" class="form-control" @bind-Value="_editingRule.Name" /></td>
-                        <td>source</td>
-                        <td>op</td>
-                        <td>dest</td>
-                        <td><InputNumber id="maxDestAge" @bind-Value="_maxDestAge" class="form-control"/></td>
-                        <td><InputNumber id="dailyTriggerTime" @bind-Value="_dailyTriggerTime" class="form-control"/></td>
-                        <td><InputText id="comment" @bind-Value="_editingRule.Comment" class="form-control"/></td>
+                        <td><InputText id="name" class="form-control" @bind-Value="_editRule.Name" /></td>
+                        <td>
+                            <InputSelect id="source" 
+                                         placeholder="Source Endpoint"
+                                         class="form-control"
+                                         @bind-Value="_editSourceEndpointId"
+                                         @bind-Value:after="_onEditSourceEndpointChanged">
+                                @foreach (var ep in _listEndpoints)
+                                {
+                                    <option value="@ep.Id">@ep.Name</option>
+                                }
+                            </InputSelect>
+                        </td>
+                        <td>
+                            <InputSelect id="operation"
+                                         placeholder="Operation"
+                                         class="form-control"
+                                         @bind-Value="_editRule.Operation">
+                                @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
+                                {
+                                    <option value="@op">@op</option>
+                                }
+                            </InputSelect>
+                        </td>
+                        <td>
+                            <InputSelect id="destination"
+                                         placeholder="Destination Endpoint"
+                                         class="form-control"
+                                         @bind-Value="_editDestinationEndpointId"
+                                         @bind-Value:after="_onEditDestinationEndpointChanged">
+                                @foreach (var ep in _listEndpoints)
+                                {
+                                    <option value="@ep.Id">@ep.Name</option>
+                                }
+                            </InputSelect>
+                        </td>
+                        <td>
+                            
+                            <InputNumber id="maxDestAge"
+                                         @bind-Value="_editMaxDestAge"
+                                         class="form-control"/>
+                        </td>
+                        <td>
+                            <InputNumber id="dailyTriggerTime"
+                                         @bind-Value="_editDailyTriggerTime"
+                                         class="form-control"/>
+                        </td>
+                        <td><InputText id="comment" @bind-Value="_editRule.Comment" class="form-control"/></td>
                         <td>
                             <button @onclick="_onEditRuleSubmit" id="submiteditrule" class="close">✔</button>
                             <button @onclick="_onEditRuleCancel" class="close" aria-label="delete">❌️</button>
@@ -64,7 +104,9 @@ else
                     <td>@ru.SourceEndpoint</td>
                     <td>@ru.Operation.ToString()</td>
                     <td>@ru.DestinationEndpoint</td>
-                    <td>@ru.MaxDestinationAge</td>
+                    <td>@ru.MaxDestinationAge.TotalSeconds</td>
+                    <td>@ru.DailyTriggerTime.TotalSeconds</td>
+                    <td>@ru.Comment</td>
                     <td>
                         <button @onclick="() => _onDelete(ru)" class="close" aria-label="delete">🗑️</button>
                     </td>
@@ -87,7 +129,7 @@ else
     <h2>Create new rule</h2>
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="_newRule" OnValidSubmit="AddRule" FormName="create" Enhance>
+            <EditForm method="post" Model="_newRule" OnValidSubmit="_onNewRuleSubmit" FormName="create" Enhance>
                 <DataAnnotationsValidator/>
                 <ValidationSummary class="text-danger"/>
                 <div class="mb-3">
@@ -103,8 +145,8 @@ else
                     <InputSelect id="sourceEndpoint"
                                  placeholder="Source"
                                  class="form-control"
-                                 @bind-Value="_selectedSourceEndpoint" 
-                                 @bind-Value:after="_handleSourceEndpointChanged" 
+                                 @bind-Value="_newSourceEndpointId" 
+                                 @bind-Value:after="_onNewSourceEndpointChanged" 
                                  >
                         @foreach (var ep in _listEndpoints)
                         {
@@ -117,12 +159,11 @@ else
                     <InputSelect id="operation"
                                  placeholder="Operation"
                                  class="form-control"
-                                 @bind-Value="_selectedOperation"
-                                 @bind-Value:after="_handleOperationChanged"
-                    >
-                        <option value="0">Nop</option>
-                        <option value="1">Copy</option>
-                        <option value="2">Sync</option>
+                                 @bind-Value="_newRule.Operation">
+                        @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
+                        {
+                            <option value="@op">@op</option>
+                        }
                     </InputSelect>
                 </div>
                 <div class="mb-3">
@@ -130,8 +171,8 @@ else
                     <InputSelect id="destinationEndpoint"
                                  placeholder="Dest"
                                  class="form-control"
-                                 @bind-Value="_selectedDestinationEndpoint"
-                                 @bind-Value:after="_handleDestinationEndpointChanged"
+                                 @bind-Value="_newDestinationEndpointId"
+                                 @bind-Value:after="_onNewDestinationEndpointChanged"
                     >
                         @foreach (var ep in _listEndpoints)
                         {
@@ -144,7 +185,7 @@ else
                     <InputNumber id="maxDestAge"
                                placeholder="max dest age (sec)"
                                class="form-control"
-                               @bind-Value="_maxDestAge"/>
+                               @bind-Value="_newMaxDestAge"/>
                     <ValidationMessage For="() => _newRule.MaxDestinationAge" class="text-danger"/>
                 </div>
                 <div class="mb-3">
@@ -152,7 +193,7 @@ else
                     <InputNumber id="dailyTriggerTime"
                                  placeholder="daily trigger time (sec)"
                                  class="form-control"
-                                 @bind-Value="_dailyTriggerTime"/>
+                                 @bind-Value="_newDailyTriggerTime"/>
                     <ValidationMessage For="() => _newRule.DailyTriggerTime" class="text-danger"/>
                 </div>
                 <div class="mb-3">
@@ -173,22 +214,25 @@ else
 @code {
     private List<Hannibal.Models.Rule>? _listRules = null;
     private List<Higgins.Models.Endpoint>? _listEndpoints = null;
-    // private List<Higgins.Models.Storage>? _listStorages = null;
     private Higgins.Models.User? _user = null;
 
-    [SupplyParameterFromForm] private float _maxDestAge { get; set; } = 36 * 3600;
-    [SupplyParameterFromForm] private float _dailyTriggerTime { get; set; } = 2*3600;
-    [SupplyParameterFromForm] private Hannibal.Models.Rule _editingRule { get; set; } = new() { Id = -1 };
+    [SupplyParameterFromForm] private Hannibal.Models.Rule _editRule { get; set; } = new() { Id = -1 };
     [SupplyParameterFromForm] private Hannibal.Models.Rule? _newRule { get; set; } = null;
 
-    private int _selectedSourceEndpointId { get; set; } = -1;
-    private Higgins.Models.Endpoint? _selectedSourceEndpoint = null;
-    private int _selectedDestinationEndpointId { get; set; } = -1;
-    private Higgins.Models.Endpoint? _selectedDestinationEndpoint = null;
+    [SupplyParameterFromForm] private double _editMaxDestAge { get; set; }
+    [SupplyParameterFromForm] private double _editDailyTriggerTime { get; set; }
+    private int _editSourceEndpointId { get; set; } = -1;
+    private Higgins.Models.Endpoint? _editSourceEndpoint = null;
+    private int _editDestinationEndpointId { get; set; } = -1;
+    private Higgins.Models.Endpoint? _editDestinationEndpoint = null;
+    private int _editRuleId { get; set; } = -1;
 
-    private int _selectedOperation { get; set; } = 1;
-
-    private int _editingRuleId { get; set; } = -1;
+    [SupplyParameterFromForm] private float _newMaxDestAge { get; set; } = 36 * 3600;
+    [SupplyParameterFromForm] private double _newDailyTriggerTime { get; set; } = 2 * 3600;
+    private int _newSourceEndpointId { get; set; } = -1;
+    private Higgins.Models.Endpoint? _newSourceEndpoint = null;
+    private int _newDestinationEndpointId { get; set; } = -1;
+    private Higgins.Models.Endpoint? _newDestinationEndpoint = null;
 
     public void Dispose()
     {
@@ -196,66 +240,29 @@ else
     }
 
     
-    private void _handleOperationChanged()
+    private void _onEditSourceEndpointChanged()
     {
-        switch (_selectedOperation)
-        {
-            default:
-            case 0:
-                _newRule.Operation = Rule.RuleOperation.Nop;
-                break;
-            case 1:
-                _newRule.Operation = Rule.RuleOperation.Copy;
-                break;
-            case 2:
-                _newRule.Operation = Rule.RuleOperation.Sync;
-                break;
-        }
-    }
-
-    
-    private void _handleSourceEndpointChanged()
-    {
-        if (null == _listEndpoints || null == _newRule)
+        if (null == _listEndpoints || null == _editRule)
         {
             return;
         }
-        _selectedSourceEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_selectedSourceEndpointId));
-
-        _newRule.SourceEndpoint = _selectedSourceEndpoint.Name;
+        _editSourceEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_editSourceEndpointId));
+        _editRule.SourceEndpoint = _editSourceEndpoint.Name;
     }
 
 
-    private void _handleDestinationEndpointChanged()
+    private void _onEditDestinationEndpointChanged()
     {
-        if (null == _listEndpoints || null == _newRule)
+        if (null == _listEndpoints || null == _editRule)
         {
             return;
         }
-        _selectedDestinationEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_selectedDestinationEndpointId));
-
-        _newRule.DestinationEndpoint = _selectedDestinationEndpoint.Name;
+        _editDestinationEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_editDestinationEndpointId));
+        _editRule.DestinationEndpoint = _editDestinationEndpoint.Name;
     }
 
 
-    private async Task _onEdit(Hannibal.Models.Rule? ru)
-    {
-        if (ru != null)
-        {
-            _editingRuleId = ru.Id;
-            _editingRule = ru;
-        }
-        else
-        {
-            _editingRuleId = -1;
-            _editingRule = new() { Id = -1};
-        }
-
-        await InvokeAsync(StateHasChanged);      
-    }
-
-
-    private async void _reloadRulePage(CancellationToken cancellationToken)
+    private async Task _reloadRulePage(CancellationToken cancellationToken)
     {
         _listRules = new List<Hannibal.Models.Rule>(
             await HannibalServiceClient.GetRulesAsync(new ResultPage()
@@ -268,60 +275,119 @@ else
     }
     
 
-    private async Task _onDelete(Hannibal.Models.Rule ru)
-    {
-        await HannibalServiceClient.DeleteRuleAsync(ru.Id, CancellationToken.None);
-        _reloadRulePage(CancellationToken.None);
-        await InvokeAsync(StateHasChanged);      
-    }
-    
-    
-    protected override async Task OnInitializedAsync()
-    {
-        _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
-        _newRule = new() { Username = _user.Username };
-        
-        _listEndpoints = new List<Higgins.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
-        );
-        _reloadRulePage(CancellationToken.None);
-    }
-
-
     private async Task _onEditRuleCancel()
     {
-        _editingRuleId = -1;
-        _editingRule = new() { Id = -1 };
+        _editRuleId = -1;
+        _editRule = new() { Id = -1 };
         await InvokeAsync(StateHasChanged);      
     }
 
 
     private async Task _onEditRuleSubmit()
     {
-        if (_editingRule != null)
+        if (_editRule != null)
         {
-            await HannibalServiceClient.UpdateRuleAsync(_editingRule.Id, _editingRule, CancellationToken.None);
+            _editRule.MaxDestinationAge = TimeSpan.FromSeconds(_editMaxDestAge);
+            _editRule.DailyTriggerTime = TimeSpan.FromSeconds(_editDailyTriggerTime);
+            await HannibalServiceClient.UpdateRuleAsync(_editRule.Id, _editRule, CancellationToken.None);
         }
 
-        _editingRuleId = -1;
-        _editingRule = new() { Id = -1 };
+        _editRuleId = -1;
+        _editRule = new() { Id = -1 };
         await InvokeAsync(StateHasChanged);
     }
 
-
-    private async Task AddRule()
+    
+    private async Task _onEdit(Hannibal.Models.Rule? ru)
     {
-        // TXWTODO: Where to actually validate before submiit?
+        if (ru != null || _listEndpoints != null)
+        {
+            _editRuleId = ru.Id;
+            _editRule = ru;
+            _editSourceEndpoint = _listEndpoints.FirstOrDefault(ep => ep.Name == _editRule.SourceEndpoint);
+            _editSourceEndpointId = (_editSourceEndpoint!=null)?_editSourceEndpoint.Id:-1;
+            _editDestinationEndpoint = _listEndpoints.FirstOrDefault(ep => ep.Name == _editRule.DestinationEndpoint);
+            _editDestinationEndpointId = (_editDestinationEndpoint!=null)?_editDestinationEndpoint.Id:-1;
+            _editMaxDestAge = ru.MaxDestinationAge.TotalSeconds;
+            _editDailyTriggerTime = ru.DailyTriggerTime.TotalSeconds;
+        }
+        else
+        {
+            _editRuleId = -1;
+            _editRule = new() { Id = -1};
+        }
 
-        if (string.IsNullOrWhiteSpace(_newRule.SourceEndpoint)
-            || string.IsNullOrWhiteSpace(_newRule.DestinationEndpoint)
-            || string.IsNullOrWhiteSpace(_newRule.Name))
+        await InvokeAsync(StateHasChanged);      
+    }
+
+
+    private void _onNewSourceEndpointChanged()
+    {
+        if (null == _listEndpoints || null == _newRule)
         {
             return;
         }
+        _newSourceEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_newSourceEndpointId));
+        _newRule.SourceEndpoint = _newSourceEndpoint.Name;
+    }
+
+
+    private void _onNewDestinationEndpointChanged()
+    {
+        if (null == _listEndpoints || null == _newRule)
+        {
+            return;
+        }
+        _newDestinationEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_newDestinationEndpointId));
+        _newRule.DestinationEndpoint = _newDestinationEndpoint.Name;
+    }
+    
+
+    private async Task _onNewRuleSubmit()
+    {
+        // TXWTODO: Where to actually validate before submit?
+
+        if (string.IsNullOrWhiteSpace(_newRule.SourceEndpoint)
+            || string.IsNullOrWhiteSpace(_newRule.DestinationEndpoint)
+            // || string.IsNullOrWhiteSpace(_newRule.Name)
+            || _newRule.SourceEndpoint == _newRule.DestinationEndpoint)
+        {
+            return;
+        }
+
+        _newRule.DailyTriggerTime = TimeSpan.FromSeconds(_newDailyTriggerTime);
+        _newRule.MaxDestinationAge = TimeSpan.FromSeconds(_newMaxDestAge);
         
         await HannibalServiceClient.CreateRuleAsync(_newRule, CancellationToken.None);
-        _reloadRulePage(CancellationToken.None);
+        await _reloadRulePage(CancellationToken.None);
         await InvokeAsync(StateHasChanged);      
     }
+    
+    
+    private async Task _onDelete(Hannibal.Models.Rule ru)
+    {
+        await HannibalServiceClient.DeleteRuleAsync(ru.Id, CancellationToken.None);
+        await _reloadRulePage(CancellationToken.None);
+        await InvokeAsync(StateHasChanged);      
+    }
+
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+
+        _listEndpoints = new List<Higgins.Models.Endpoint>(
+            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
+        );
+
+        _newRule = new() { Username = _user.Username };
+        _newSourceEndpoint = _listEndpoints.FirstOrDefault(ep => true);
+        _newSourceEndpointId = (_newSourceEndpoint!=null)?_newSourceEndpoint.Id:-1;
+        _newDestinationEndpoint = _listEndpoints.First(ep => true);
+        _newDestinationEndpointId = (_newDestinationEndpoint!=null)?_newDestinationEndpoint.Id:-1;
+
+        await _reloadRulePage(CancellationToken.None);
+    }
+
+
 }

@@ -37,7 +37,18 @@ else
                     <tr>
                         <td>&nbsp;</td>
                         <td><InputText id="name" class="form-control" @bind-Value="_editingEndpoint.Name" /></td>
-                        <td>@ep.Storage.Technology</td>
+                        <td>
+                            <InputSelect id="storage"
+                                         placeholder="Storage"
+                                         class="form-control"
+                                         @bind-Value="_editingEndpointStorageId"
+                                         @bind-Value:after="_handleEditStorageChanged">
+                                @foreach (var st in _listStorages)
+                                {
+                                    <option value="@st.Id">@st.Technology</option>
+                                }
+                            </InputSelect>
+                        </td>
                         <td><InputText id="path" @bind-Value="_editingEndpoint.Path" class="form-control"/></td>
                         <td><InputText id="comment" @bind-Value="_editingEndpoint.Comment" class="form-control"/></td>
                         <td>
@@ -92,8 +103,8 @@ else
                     <InputSelect id="storage"
                                  placeholder="Storage"
                                  class="form-control"
-                                 @bind-Value="_selectedStorageId" 
-                                 @bind-Value:after="_handleStorageChanged" 
+                                 @bind-Value="_newEndpointStorageId" 
+                                 @bind-Value:after="handleNewStorageChanged" 
                                  >
                         @foreach (var storage in _listStorages)
                         {
@@ -129,14 +140,16 @@ else
     private List<Higgins.Models.Storage>? _listStorages = null;
     private Higgins.Models.User? _user = null;
 
+    private int _editingEndpointId { get; set; } = -1;
+    private int _editingEndpointStorageId { get; set; } = -1;
+
     [SupplyParameterFromForm] private Higgins.Models.Endpoint? _editingEndpoint { get; set; } = new() { Id = -1 };
 
+    private int _newEndpointStorageId { get; set; } = -1;
     [SupplyParameterFromForm] private Higgins.Models.Endpoint? _newEndpoint { get; set; } = null;
 
-    private int _selectedStorageId { get; set; } = -1;
     private Higgins.Models.Storage? _selectedStorage = null;
 
-    private int _editingEndpointId { get; set; } = -1;
 
     public void Dispose()
     {
@@ -144,16 +157,28 @@ else
     }
 
     
-    private void _handleStorageChanged()
+    private void handleNewStorageChanged()
     {
         if (null == _listStorages || null == _newEndpoint)
         {
             return;
         }
-        _selectedStorage = _listStorages.First(storage => (storage.Id == (int)_selectedStorageId));
+        _selectedStorage = _listStorages.First(storage => (storage.Id == (int)_newEndpointStorageId));
 
-        _newEndpoint.StorageId = _selectedStorageId;
+        _newEndpoint.StorageId = _newEndpointStorageId;
         _newEndpoint.Storage = _selectedStorage;
+    }
+
+
+
+    private void _handleEditStorageChanged()
+    {
+        if (null == _listStorages || null == _editingEndpoint)
+        {
+            return;
+        }
+        _editingEndpoint.Storage = _listStorages.First(storage => (storage.Id == _editingEndpointStorageId));
+        _editingEndpoint.StorageId = _editingEndpoint.Storage.Id;
     }
 
 
@@ -163,13 +188,15 @@ else
         {
             _editingEndpointId = ep.Id;
             _editingEndpoint = ep;
+            _editingEndpointStorageId = ep.StorageId;
         }
         else
         {
             _editingEndpointId = -1;
-            _editingEndpoint = new() { Id = -1};
+            _editingEndpoint = new() { Id = -1 };
+            _editingEndpointStorageId = -1;
         }
-
+        
         await InvokeAsync(StateHasChanged);      
     }
 

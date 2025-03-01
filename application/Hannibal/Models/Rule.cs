@@ -31,7 +31,7 @@ public class Rule
         Sync
     }
 
-    public RuleOperation Operation;
+    public RuleOperation Operation { get; set; }
     
     /**
      * What is the maximal age of the most recent object in the

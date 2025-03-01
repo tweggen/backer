@@ -41,7 +41,7 @@ public class HannibalContext : DbContext
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(2, 0, 0)
+                    DailyTriggerTime = new(0,0,0,2, 0, 0)
                 },
                 new()
                 {
@@ -52,7 +52,7 @@ public class HannibalContext : DbContext
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(2, 0, 0)
+                    DailyTriggerTime = new(0,0,0,2, 0, 0)
                 },
                 new()
                 {
@@ -63,7 +63,7 @@ public class HannibalContext : DbContext
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(2, 0, 0)
+                    DailyTriggerTime = new(0,0,0,2, 0, 0)
                 },
                 new()
                 {
@@ -74,7 +74,7 @@ public class HannibalContext : DbContext
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(2, 0, 0)
+                    DailyTriggerTime = new(0,0,0,2, 0, 0)
                 },
                 new()
                 {
@@ -85,7 +85,7 @@ public class HannibalContext : DbContext
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(2, 0, 0)
+                    DailyTriggerTime = new(0,0,0,2, 0, 0)
                 },
             };
 

@@ -29,6 +29,7 @@ public class HannibalServiceClient : IHannibalServiceClient
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
+    
     public async Task<Rule> GetRuleAsync(int ruleId, CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
@@ -40,21 +41,32 @@ public class HannibalServiceClient : IHannibalServiceClient
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
-    public Task<IEnumerable<Rule>> GetRulesAsync(ResultPage resultPage, RuleFilter filter, CancellationToken cancellationToken)
+    
+    public async Task<IEnumerable<Rule>> GetRulesAsync(ResultPage resultPage, RuleFilter filter, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var response = await _httpClient.GetAsync(
+            $"/api/hannibal/v1/rules?"
+            +$"page={Uri.EscapeDataString((resultPage.Offset/resultPage.Length).ToString())}",
+            cancellationToken);
+        response.EnsureSuccessStatusCode(); 
+        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
+        return JsonSerializer.Deserialize<List<Rule>>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
+    
 
     public Task<Rule> UpdateRuleAsync(int id, Rule updatedRule, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
+    
     public Task DeleteRuleAsync(int id, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
+    
     public async Task<Job> GetJobAsync(int jobId, CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
@@ -79,7 +91,6 @@ public class HannibalServiceClient : IHannibalServiceClient
         var content = await response.Content.ReadAsStringAsync(cancellationToken); 
         return JsonSerializer.Deserialize<List<Job>>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-   
     }
 
     

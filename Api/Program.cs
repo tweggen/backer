@@ -157,6 +157,18 @@ app.MapGet("/api/hannibal/v1/rules/{ruleId}", async (
 .WithOpenApi();
 
 
+app.MapPost("/api/hannibal/v1/rules", async (
+    IHannibalService hannibalService,
+    Hannibal.Models.Rule rule,
+    CancellationToken cancellationToken) =>
+{
+    var result = await hannibalService.CreateRuleAsync(rule, cancellationToken);
+    return Results.Ok(result);
+})
+.WithName("CreateRule")
+.WithOpenApi();
+
+
 app.MapGet("/api/hannibal/v1/rules", async (
     IHannibalService hannibalService,
     [FromQuery] int? page,
