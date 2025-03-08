@@ -28,6 +28,11 @@ public class BackofficeService : BackgroundService
     }
 
 
+    /**
+     * Compute all available jobs from the list of rules.
+     *
+     * TXWTODO: How do I know that all jobs already had been created?
+     */
     private async Task _rules2Jobs(HannibalContext context, CancellationToken cancellationToken)
     {
         /*
@@ -81,6 +86,13 @@ public class BackofficeService : BackgroundService
 
             if (shallCompute)
             {
+                /*
+                * OK, we need a new job, Can we do it in one step or do we need an
+                * intermediate copy?
+                * 
+                * TXWTODO: Ask the source endpoint if it is source only.
+                */
+                #error continue heree
                 Job job = new()
                 {
                     Tag = r.Name,
@@ -110,6 +122,7 @@ public class BackofficeService : BackgroundService
         
         // TXWTODO: Use SignalR to inform about new jobs.
     }
+    
     
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {

@@ -248,6 +248,7 @@ public class HannibalService : IHannibalService
                 bool isShared = endpoint.Contains(kvp.Key) || kvp.Key.Contains(endpoint);
                 if (isShared)
                 {
+                    _logger.LogInformation($"Cannot use source endpoint {kvp.Key} because it already is in use.");
                     return false;
                 }
             }
@@ -273,6 +274,7 @@ public class HannibalService : IHannibalService
             bool isShared = endpoint.Contains(kvp.Key) || kvp.Key.Contains(endpoint);
             if (isShared)
             {
+                _logger.LogInformation($"Cannot use destination endpoint {kvp.Key} because it already is in use.");
                 return false;
             }
         }
