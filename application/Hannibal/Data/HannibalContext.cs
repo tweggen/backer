@@ -1,20 +1,32 @@
 using Hannibal.Data.Configurations;
 using Hannibal.Models;
+using Higgins.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Hannibal.Data;
 
 public class HannibalContext : DbContext
 {
-    public HannibalContext(DbContextOptions<HannibalContext> options)
+    private ILogger<HannibalContext> _logger;
+
+    public HannibalContext(
+        DbContextOptions<HannibalContext> options,
+        ILogger<HannibalContext> logger)
         : base(options)
     {
+        _logger = logger; 
     }
     
     
     public DbSet<Job> Jobs { get; set; }
     public DbSet<Rule> Rules { get; set; }
     public DbSet<RuleState> RuleStates { get; set; }
+    public DbSet<Storage> Storages { get; set; }
+    public DbSet<Endpoint> Endpoints { get; set; }
+    public DbSet<User> Users { get; set; }
+
+
 
     
     private async Task _ensureTestRule()
@@ -130,6 +142,12 @@ public class HannibalContext : DbContext
         {
             _ensureTestRule();
         }
+        
+        // Optionally, you could seed initial data here
+        if (!await Users.AnyAsync())
+        {
+            await _createDevContent();
+        }
     }
     
     
@@ -137,4 +155,72 @@ public class HannibalContext : DbContext
     {   
         // modelBuilder.ApplyConfiguration<HannibalJobConfiguration>(new HannibalJobConfiguration());
     }
+    
+    
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        optionsBuilder
+            .UseLazyLoadingProxies()
+            ;
+    }
+
+    private async Task _createDevContent()
+    {
+        User userTimo = new() { Username = "timo", Id=1 };
+        Credentials timosOnedriveCredentials = new()
+        {
+            // TXWTODO: We just use a locally configured rclone.
+        };
+        Credentials timosDropboxCredentials = new()
+        {
+            // TXWTODO: We just use a locally configured rclone.
+        };
+        Storage timosDropbox = new()
+        {
+            User = userTimo,
+            //Credentials = timosDropboxCredentials,
+            Technology = "dropbox",
+            UriSchema = "TimosDropbox"
+        };
+        Storage timosOnedrive = new()
+        {
+            User = userTimo,
+            //Credentials = timosOnedriveCredentials,
+            Technology = "onedrive",
+            UriSchema = "TimosOnedrive"
+        };
+
+        List<Endpoint> listEndpoints = new()
+        {
+            new(userTimo, timosDropbox, "timomp3", "original timomp3"),
+            new(userTimo, timosOnedrive, "timomp3", "shared timomp3"),
+            new(userTimo, timosDropbox, "zeug", "shared esat data"),
+            new(userTimo, timosOnedrive, "zeug", "original esat data"),
+            new (userTimo, timosDropbox, "prof", "original prof"),
+            new (userTimo, timosOnedrive, "prof", "shared prof"),
+            new(userTimo, timosDropbox, "nassau", "original nassau"),
+            new(userTimo, timosOnedrive, "nassau", "shared nassau"),
+            new(userTimo, timosDropbox, "books", "original books"),
+            new(userTimo, timosOnedrive, "books", "shared books")
+        };
+        
+        {
+            _logger.LogInformation("Adding test routes.");
+            
+            await Users.AddAsync(userTimo);
+            await Storages.AddAsync(timosDropbox);
+            await Storages.AddAsync(timosOnedrive);
+
+            foreach (var ep in listEndpoints)
+            {
+                await Endpoints.AddAsync(ep);
+            }
+
+            await SaveChangesAsync();
+        }
+        
+    }
+
+
 }

@@ -24,4 +24,13 @@
       <ProjectReference Include="..\Hannibal\Hannibal.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Client\Configuration\" />
+      <Folder Include="Configuration\" />
+      <Folder Include="Data\Configurations\" />
+      <Folder Include="Data\Repositories\" />
+      <Folder Include="Models\" />
+      <Folder Include="Services\" />
+    </ItemGroup>
+
 </Project>

@@ -5,6 +5,15 @@ namespace Hannibal.Client;
 
 public interface IHannibalServiceClient
 {
+    public Task<User> GetUserAsync(int id, CancellationToken cancellationToken);
+    public Task<CreateEndpointResult> CreateEndpointAsync(Endpoint endpoint, CancellationToken cancellationToken);
+    public Task<IEnumerable<Endpoint>> GetEndpointsAsync(CancellationToken cancellationToken);
+    public Task<Endpoint> GetEndpointAsync(string name, CancellationToken cancellationToken);
+    public Task<IEnumerable<Storage>> GetStoragesAsync(CancellationToken cancellationToken);
+    public Task<Storage> GetStorageAsync(int id, CancellationToken cancellationToken);
+    public Task DeleteEndpointAsync(int id, CancellationToken cancellationToken);
+    public Task<Endpoint> UpdateEndpointAsync(int id, Endpoint endpoint, CancellationToken cancellationToken);
+
     public Task<CreateRuleResult> CreateRuleAsync(Rule rule, CancellationToken cancellationToken);
 
     public Task<Rule> GetRuleAsync(int ruleId, CancellationToken cancellationToken);
