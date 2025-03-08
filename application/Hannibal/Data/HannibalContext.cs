@@ -133,22 +133,18 @@ public class HannibalContext : DbContext
 
     public async Task InitializeDatabaseAsync()
     {
-        // This ensures the database is created
         await Database.EnsureCreatedAsync();
         
-        /*
-         * Let's insert some test data.
-         */
-        if (!await Rules.AnyAsync())
-        {
-            _ensureTestRule();
-        }
-        
-        // Optionally, you could seed initial data here
         if (!await Users.AnyAsync())
         {
             await _createDevContent();
         }
+
+        if (!await Rules.AnyAsync())
+        {
+            await _ensureTestRule();
+        }
+        
     }
     
     
