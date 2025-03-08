@@ -1,8 +1,9 @@
 using Hannibal.Data.Configurations;
 using Hannibal.Models;
-using Higgins.Models;
+using Hannibal.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore.Proxies;
 
 namespace Hannibal.Data;
 

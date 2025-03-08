@@ -1,8 +1,8 @@
 @page "/backer/rules"
-@using Higgins.Client
+@using Hannibal.Client
 @using Hannibal.Client
 @using Hannibal.Models
-@inject IHigginsServiceClient HigginsServiceClient
+@inject IHannibalServiceClient HigginsServiceClient
 @inject IHannibalServiceClient HannibalServiceClient
 @inject NavigationManager NavigationManager
 @implements IDisposable
@@ -213,8 +213,8 @@ else
 
 @code {
     private List<Hannibal.Models.Rule>? _listRules = null;
-    private List<Higgins.Models.Endpoint>? _listEndpoints = null;
-    private Higgins.Models.User? _user = null;
+    private List<Hannibal.Models.Endpoint>? _listEndpoints = null;
+    private Hannibal.Models.User? _user = null;
 
     [SupplyParameterFromForm] private Hannibal.Models.Rule _editRule { get; set; } = new() { Id = -1 };
     [SupplyParameterFromForm] private Hannibal.Models.Rule? _newRule { get; set; } = null;
@@ -222,17 +222,17 @@ else
     [SupplyParameterFromForm] private double _editMaxDestAge { get; set; }
     [SupplyParameterFromForm] private double _editDailyTriggerTime { get; set; }
     private int _editSourceEndpointId { get; set; } = -1;
-    private Higgins.Models.Endpoint? _editSourceEndpoint = null;
+    private Hannibal.Models.Endpoint? _editSourceEndpoint = null;
     private int _editDestinationEndpointId { get; set; } = -1;
-    private Higgins.Models.Endpoint? _editDestinationEndpoint = null;
+    private Hannibal.Models.Endpoint? _editDestinationEndpoint = null;
     private int _editRuleId { get; set; } = -1;
 
     [SupplyParameterFromForm] private float _newMaxDestAge { get; set; } = 36 * 3600;
     [SupplyParameterFromForm] private double _newDailyTriggerTime { get; set; } = 2 * 3600;
     private int _newSourceEndpointId { get; set; } = -1;
-    private Higgins.Models.Endpoint? _newSourceEndpoint = null;
+    private Hannibal.Models.Endpoint? _newSourceEndpoint = null;
     private int _newDestinationEndpointId { get; set; } = -1;
-    private Higgins.Models.Endpoint? _newDestinationEndpoint = null;
+    private Hannibal.Models.Endpoint? _newDestinationEndpoint = null;
 
     public void Dispose()
     {
@@ -376,7 +376,7 @@ else
     {
         _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
 
-        _listEndpoints = new List<Higgins.Models.Endpoint>(
+        _listEndpoints = new List<Hannibal.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
 

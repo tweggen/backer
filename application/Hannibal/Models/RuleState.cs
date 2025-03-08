@@ -4,10 +4,13 @@ public class RuleState
 {
     public int Id { get; set; }
     
+    
+    public int RuleId { get; set; }
+    
     /**
      * The state of which rule am I reflecting here?
      */
-    public Rule Rule { get; set; }
+    public virtual Rule Rule { get; set; }
     
     // TXWTODO: allow inactive rules etc.
     

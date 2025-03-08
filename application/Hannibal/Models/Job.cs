@@ -38,10 +38,13 @@ public class Job
      */
     public Rule.RuleOperation Operation { get; set; }
     
+    
+    public int FromRuleId { get; set; }
+    
     /**
      * If this job was created from applying a rule, this is the rule.
      */
-    public Rule? FromRule { get; set; }
+    public virtual Rule? FromRule { get; set; }
     
     /**
      * The textural owner of the job as reported. 

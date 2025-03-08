@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Hannibal.Client;
 using Hannibal.Models;
-using Higgins.Client;
+using Hannibal.Client;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -31,7 +31,7 @@ public class RCloneService : BackgroundService
     private ProcessManager _processManager;
     private HubConnection _hannibalConnection;
     private IHannibalServiceClient _hannibalClient;
-    private IHigginsServiceClient _higginsClient;
+    private IHannibalServiceClient _higginsClient;
 
     private readonly RCloneServiceOptions _options;
 
@@ -47,7 +47,7 @@ public class RCloneService : BackgroundService
         IOptions<RCloneServiceOptions> options,
         Dictionary<string, HubConnection> connections,
         IHannibalServiceClient hannibalClient,
-        IHigginsServiceClient higginsClient)
+        IHannibalServiceClient higginsClient)
     {
         lock (_classLock)
         {
@@ -285,6 +285,29 @@ public class RCloneService : BackgroundService
             _logger.LogError($"Exception getting job: {e}");
         }
     }
+
+    private string _decodePath(string orgPath)
+    {
+        if (orgPath.Length > 2)
+        {
+            if (orgPath.StartsWith("~/") || orgPath.StartsWith("~\\"))
+            {
+                return _decodePath(
+                    Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                        orgPath.Substring(2)
+                    ));
+            }
+            else
+            {
+                return orgPath;
+            }
+        }
+        else
+        {
+            return orgPath;
+        }
+    }
     
 
     public override async Task StartAsync(CancellationToken cancellationToken)
@@ -293,7 +316,7 @@ public class RCloneService : BackgroundService
 
         _processRClone = _processManager.StartManagedProcess(new ProcessStartInfo()
             {
-                FileName = _options.RClonePath,
+                FileName = _decodePath(_options.RClonePath),
                 Arguments = _options.RCloneOptions,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

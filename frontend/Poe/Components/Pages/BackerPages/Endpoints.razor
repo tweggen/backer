@@ -1,6 +1,6 @@
 @page "/backer/endpoints"
-@using Higgins.Client
-@inject IHigginsServiceClient HigginsServiceClient
+@using Hannibal.Client
+@inject IHannibalServiceClient HigginsServiceClient
 @inject NavigationManager NavigationManager
 @implements IDisposable
 @rendermode InteractiveServer
@@ -136,19 +136,19 @@ else
 
 
 @code {
-    private List<Higgins.Models.Endpoint>? _listEndpoints = null;
-    private List<Higgins.Models.Storage>? _listStorages = null;
-    private Higgins.Models.User? _user = null;
+    private List<Hannibal.Models.Endpoint>? _listEndpoints = null;
+    private List<Hannibal.Models.Storage>? _listStorages = null;
+    private Hannibal.Models.User? _user = null;
 
     private int _editingEndpointId { get; set; } = -1;
     private int _editingEndpointStorageId { get; set; } = -1;
 
-    [SupplyParameterFromForm] private Higgins.Models.Endpoint? _editingEndpoint { get; set; } = new() { Id = -1 };
+    [SupplyParameterFromForm] private Hannibal.Models.Endpoint? _editingEndpoint { get; set; } = new() { Id = -1 };
 
     private int _newEndpointStorageId { get; set; } = -1;
-    [SupplyParameterFromForm] private Higgins.Models.Endpoint? _newEndpoint { get; set; } = null;
+    [SupplyParameterFromForm] private Hannibal.Models.Endpoint? _newEndpoint { get; set; } = null;
 
-    private Higgins.Models.Storage? _selectedStorage = null;
+    private Hannibal.Models.Storage? _selectedStorage = null;
 
 
     public void Dispose()
@@ -182,7 +182,7 @@ else
     }
 
 
-    private async Task _onEdit(Higgins.Models.Endpoint? ep)
+    private async Task _onEdit(Hannibal.Models.Endpoint? ep)
     {
         if (ep != null)
         {
@@ -201,10 +201,10 @@ else
     }
 
 
-    private async Task _onDelete(Higgins.Models.Endpoint ep)
+    private async Task _onDelete(Hannibal.Models.Endpoint ep)
     {
         await HigginsServiceClient.DeleteEndpointAsync(ep.Id, CancellationToken.None);
-        _listEndpoints = new List<Higgins.Models.Endpoint>(
+        _listEndpoints = new List<Hannibal.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
         await InvokeAsync(StateHasChanged);      
@@ -216,10 +216,10 @@ else
         _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
         _newEndpoint = new() { User = _user, UserId = _user.Id };
         
-        _listEndpoints = new List<Higgins.Models.Endpoint>(
+        _listEndpoints = new List<Hannibal.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
-        _listStorages = new List<Higgins.Models.Storage>(
+        _listStorages = new List<Hannibal.Models.Storage>(
             await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
         );
     }
@@ -256,7 +256,7 @@ else
         }
         
         await HigginsServiceClient.CreateEndpointAsync(_newEndpoint, CancellationToken.None);
-        _listEndpoints = new List<Higgins.Models.Endpoint>(
+        _listEndpoints = new List<Hannibal.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
         await InvokeAsync(StateHasChanged);      

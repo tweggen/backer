@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
-namespace Higgins.Models;
+namespace Hannibal.Models;
 
 /**
  * Describes generic credentials/config for an entity.

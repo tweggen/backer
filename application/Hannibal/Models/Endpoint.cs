@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Routing;
 
-namespace Higgins.Models;
+namespace Hannibal.Models;
 
 
 /**

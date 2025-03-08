@@ -5,10 +5,10 @@ using Hannibal.Client;
 using Hannibal.Data;
 using Hannibal.Models;
 using Hannibal.Services;
-using Higgins;
-using Higgins.Client;
-using Higgins.Data;
-using Higgins.Services;
+using Hannibal;
+using Hannibal.Client;
+using Hannibal.Data;
+using Hannibal.Services;
 using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
@@ -42,10 +42,8 @@ builder.Services
     .AddProcessManager()
         // Application
     .AddHannibalService(builder.Configuration)
-    .AddHigginsService(builder.Configuration)
         // Clients
     .AddHannibalServiceClient(builder.Configuration)
-    .AddHigginsServiceClient(builder.Configuration)
         // Workers
     .AddRCloneService(builder.Configuration)
     .AddHannibalBackofficeService(builder.Configuration)
@@ -65,11 +63,9 @@ builder.Services.AddSingleton(provider =>
     
     var factory = provider.GetRequiredService<HubConnectionFactory>();
     var hannibalConnection = factory.CreateConnection($"{apiOptions.UrlSignalR}/hannibal");
-    var higginsConnection = factory.CreateConnection($"{apiOptions.UrlSignalR}/higgins");
     return new Dictionary<string, HubConnection>
     {
-        { "hannibal", hannibalConnection },
-        { "higgins", higginsConnection }
+        { "hannibal", hannibalConnection }
     };
 });
 
@@ -316,11 +312,8 @@ app.MapPost("/api/hannibal/v1/shutdown", async (
 .WithOpenApi();
 
 
-app.MapHub<HigginsHub>("/higgins");
-
-
 app.MapGet("/api/higgins/v1/users/{id}", async (
-        IHigginsService higginsService,
+        IHannibalService higginsService,
         int id,
         CancellationToken cancellationToken) =>
     {
@@ -332,7 +325,7 @@ app.MapGet("/api/higgins/v1/users/{id}", async (
 
     
 app.MapGet("/api/higgins/v1/storages", async (
-        IHigginsService higginsService,
+        IHannibalService higginsService,
         CancellationToken cancellationToken) =>
     {
         var result = await higginsService.GetStoragesAsync(cancellationToken);
@@ -343,7 +336,7 @@ app.MapGet("/api/higgins/v1/storages", async (
 
     
 app.MapGet("/api/higgins/v1/storages/{id}", async (
-        IHigginsService higginsService,
+        IHannibalService higginsService,
         int id,
         CancellationToken cancellationToken) =>
     {
@@ -355,7 +348,7 @@ app.MapGet("/api/higgins/v1/storages/{id}", async (
 
     
 app.MapGet("/api/higgins/v1/endpoints", async (
-    IHigginsService higginsService,
+    IHannibalService higginsService,
     CancellationToken cancellationToken) =>
 {
     var result = await higginsService.GetEndpointsAsync(cancellationToken);
@@ -366,7 +359,7 @@ app.MapGet("/api/higgins/v1/endpoints", async (
 
     
 app.MapGet("/api/higgins/v1/endpoints/{name}", async (
-    IHigginsService higginsService,
+    IHannibalService higginsService,
     string name,
     CancellationToken cancellationToken) =>
 {
@@ -378,9 +371,9 @@ app.MapGet("/api/higgins/v1/endpoints/{name}", async (
 
     
 app.MapPut("/api/higgins/v1/endpoints/{id}", async (
-    IHigginsService higginsService,
+    IHannibalService higginsService,
     int id,
-    Higgins.Models.Endpoint endpoint,
+    Hannibal.Models.Endpoint endpoint,
     CancellationToken cancellationToken) =>
 {
     try
@@ -398,8 +391,8 @@ app.MapPut("/api/higgins/v1/endpoints/{id}", async (
 
 
 app.MapPost("/api/higgins/v1/endpoints", async (
-    IHigginsService higginsService,
-    Higgins.Models.Endpoint endpoint,
+    IHannibalService higginsService,
+    Hannibal.Models.Endpoint endpoint,
     CancellationToken cancellationToken) =>
 {
     var result = await higginsService.CreateEndpointAsync(endpoint, cancellationToken);
@@ -410,7 +403,7 @@ app.MapPost("/api/higgins/v1/endpoints", async (
 
 
 app.MapDelete("/api/higgins/v1/endpoints/{id}", async (
-    IHigginsService higginsService,
+    IHannibalService higginsService,
     int id,
     CancellationToken cancellationToken) =>
 {
@@ -458,10 +451,6 @@ using (var scope = app.Services.CreateScope())
     {
         var hannibalContext = scope.ServiceProvider.GetRequiredService<HannibalContext>();
         await hannibalContext.InitializeDatabaseAsync();
-    }
-    {
-        var higginsContext = scope.ServiceProvider.GetRequiredService<HigginsContext>();
-        await higginsContext.InitializeDatabaseAsync();
     }
 }
 

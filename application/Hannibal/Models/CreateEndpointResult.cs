@@ -1,4 +1,4 @@
-namespace Higgins.Models;
+namespace Hannibal.Models;
 
 public class CreateEndpointResult
 {
