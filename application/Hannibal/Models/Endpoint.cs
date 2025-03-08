@@ -14,8 +14,6 @@ public class Endpoint
         Comment = "";
     }
     
-
-    
     internal Endpoint(User user, Storage storage, string path, string? comment = null)
     {
         User = user;

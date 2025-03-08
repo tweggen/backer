@@ -2,7 +2,6 @@
 @using Hannibal.Client
 @using Hannibal.Client
 @using Hannibal.Models
-@inject IHannibalServiceClient HigginsServiceClient
 @inject IHannibalServiceClient HannibalServiceClient
 @inject NavigationManager NavigationManager
 @implements IDisposable
@@ -247,7 +246,7 @@ else
             return;
         }
         _editSourceEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_editSourceEndpointId));
-        _editRule.SourceEndpoint = _editSourceEndpoint.Name;
+        _editRule.SourceEndpoint = _editSourceEndpoint;
     }
 
 
@@ -258,7 +257,7 @@ else
             return;
         }
         _editDestinationEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_editDestinationEndpointId));
-        _editRule.DestinationEndpoint = _editDestinationEndpoint.Name;
+        _editRule.DestinationEndpoint = _editDestinationEndpoint;
     }
 
 
@@ -304,17 +303,17 @@ else
         {
             _editRuleId = ru.Id;
             _editRule = ru;
-            _editSourceEndpoint = _listEndpoints.FirstOrDefault(ep => ep.Name == _editRule.SourceEndpoint);
-            _editSourceEndpointId = (_editSourceEndpoint!=null)?_editSourceEndpoint.Id:-1;
-            _editDestinationEndpoint = _listEndpoints.FirstOrDefault(ep => ep.Name == _editRule.DestinationEndpoint);
-            _editDestinationEndpointId = (_editDestinationEndpoint!=null)?_editDestinationEndpoint.Id:-1;
+            _editSourceEndpoint = ru.SourceEndpoint;
+            _editSourceEndpointId = ru.SourceEndpointId;
+            _editDestinationEndpoint = ru.DestinationEndpoint;
+            _editDestinationEndpointId = ru.DestinationEndpointId;
             _editMaxDestAge = ru.MaxDestinationAge.TotalSeconds;
             _editDailyTriggerTime = ru.DailyTriggerTime.TotalSeconds;
         }
         else
         {
             _editRuleId = -1;
-            _editRule = new() { Id = -1};
+            _editRule = new() { Id = -1 };
         }
 
         await InvokeAsync(StateHasChanged);      
@@ -328,7 +327,7 @@ else
             return;
         }
         _newSourceEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_newSourceEndpointId));
-        _newRule.SourceEndpoint = _newSourceEndpoint.Name;
+        _newRule.SourceEndpoint = _newSourceEndpoint;
     }
 
 
@@ -339,7 +338,7 @@ else
             return;
         }
         _newDestinationEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_newDestinationEndpointId));
-        _newRule.DestinationEndpoint = _newDestinationEndpoint.Name;
+        _newRule.DestinationEndpoint = _newDestinationEndpoint;
     }
     
 
@@ -347,8 +346,8 @@ else
     {
         // TXWTODO: Where to actually validate before submit?
 
-        if (string.IsNullOrWhiteSpace(_newRule.SourceEndpoint)
-            || string.IsNullOrWhiteSpace(_newRule.DestinationEndpoint)
+        if (_newRule.SourceEndpoint == null
+            || _newRule.DestinationEndpoint == null
             // || string.IsNullOrWhiteSpace(_newRule.Name)
             || _newRule.SourceEndpoint == _newRule.DestinationEndpoint)
         {
@@ -374,13 +373,13 @@ else
     
     protected override async Task OnInitializedAsync()
     {
-        _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+        _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
 
         _listEndpoints = new List<Hannibal.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
+            await HannibalServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
 
-        _newRule = new() { Username = _user.Username };
+        _newRule = new() { User = _user };
         _newSourceEndpoint = _listEndpoints.FirstOrDefault(ep => true);
         _newSourceEndpointId = (_newSourceEndpoint!=null)?_newSourceEndpoint.Id:-1;
         _newDestinationEndpoint = _listEndpoints.First(ep => true);

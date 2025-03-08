@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Hannibal.Configuration;
 using Hannibal.Data;
 using Hannibal.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -287,6 +288,9 @@ public class HannibalService : IHannibalService
     }
 
 
+    private string _endpointKey(Endpoint endpoint) => $"{endpoint.StorageId}:{endpoint.Path}";
+    
+
     /**
      * Acquire the next job to do.
      * We remember
@@ -296,21 +300,22 @@ public class HannibalService : IHannibalService
      *
      * We take care that
      * - nobody is reading from the target endpoint or their parent
-     * - nobody is writing the the source endpoint or any endpoints within.
+     * - nobody is writing the source endpoint or any endpoints within.
      */
     public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken)
     {
+        var user = await _context.Users.FirstAsync(u => u.Username == acquireParams.Username, cancellationToken); 
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
         var listPossibleJobs = await _context.Jobs
-            .Where(j => 
-                j.State == Job.JobState.Ready 
-                && j.Owner == "")
+            .Where(j => j.State == Job.JobState.Ready && j.Owner == "")
+            .Include(j => j.SourceEndpoint)
+            .Include(j => j.DestinationEndpoint)
             .OrderBy(j => j.StartFrom)
             .ToListAsync(cancellationToken);
 
         Job? job = null;
-        var mapStates = await _gatherEndpointAccess(acquireParams.Username);
+        var mapStates = await _gatherEndpointAccess(user);
         foreach (var candidate in listPossibleJobs)
         {
             if (_mayUseDestinationEndpoint(candidate.DestinationEndpoint, mapStates)
@@ -344,7 +349,7 @@ public class HannibalService : IHannibalService
      * This is assuming any given user would not have an excessive number of jobs running.
      */
     public async Task<SortedDictionary<string, EndpointState.AccessState>> 
-        _gatherEndpointAccess(string username)
+        _gatherEndpointAccess(User user)
     {
         List<Job> listTimedOut = new();
         SortedDictionary<string, EndpointState.AccessState> mapStates = new();
@@ -352,19 +357,60 @@ public class HannibalService : IHannibalService
         var now = DateTime.UtcNow;
         var timeout = TimeSpan.FromSeconds(120);
 
-        var myOngoingJobs = await _context.Jobs.Where(j => (j.Username == username) && (j.State == Job.JobState.Executing)).ToListAsync();
+        var myOngoingJobs = await _context.Jobs
+            .Where(j =>(j.User == user)&& (j.State == Job.JobState.Executing))
+            .Include(j => j.SourceEndpoint)
+            .Include(j => j.DestinationEndpoint)
+            .ToListAsync();
         foreach (var job in myOngoingJobs)
         {
             var age = now - job.LastReported;
             if (age > timeout)
             {
-                // TXWTODO: THis is a race, however, it would have timed out a minute later.
+                _logger.LogInformation($"Timing out job {job.Tag}");
                 listTimedOut.Add(job);
             }
             else
             {
-                mapStates.Add(job.SourceEndpoint, EndpointState.AccessState.Reading);
-                mapStates.Add(job.DestinationEndpoint, EndpointState.AccessState.Writing);
+                string jobSourceEndpointKey = _endpointKey(job.SourceEndpoint);
+                if (mapStates.TryGetValue(jobSourceEndpointKey, out var sourceState))
+                {
+                    if (sourceState == EndpointState.AccessState.Writing)
+                    {
+                        _logger.LogWarning($"Warning: Endpoint {jobSourceEndpointKey} is in use for both reading and writing.");
+                    }
+                    else
+                    {
+                        /*
+                         * In use for reading twice or idle.
+                         */
+                        mapStates[jobSourceEndpointKey] = EndpointState.AccessState.Reading;
+                    }
+                }
+                else
+                {
+                    mapStates.Add(jobSourceEndpointKey, EndpointState.AccessState.Reading);
+                }
+
+                string jobDestinationEndpointKey = _endpointKey(job.DestinationEndpoint);
+                if (mapStates.TryGetValue(jobDestinationEndpointKey, out var destState))
+                {
+                    if (destState != EndpointState.AccessState.Idle)
+                    {
+                        _logger.LogWarning($"Warning: Endpoint {jobDestinationEndpointKey} is in use for both {destState.ToString()}.");
+                    }
+                    else
+                    {
+                        /*
+                         * That's ok.
+                         */
+                        mapStates[jobDestinationEndpointKey] = EndpointState.AccessState.Writing;
+                    }
+                }
+                else
+                {
+                    mapStates.Add(jobDestinationEndpointKey, EndpointState.AccessState.Writing);
+                }
             }
         }
 
@@ -385,18 +431,19 @@ public class HannibalService : IHannibalService
      * However, it must not be in use for writing.
      */
     private bool _mayUseSourceEndpoint(
-        string endpoint,
+        Endpoint endpoint,
         SortedDictionary<string, EndpointState.AccessState> mapStates)
     {
+        string endpointKey = _endpointKey(endpoint);
         foreach (var kvp in mapStates)
         {
             bool isWriting = kvp.Value == EndpointState.AccessState.Writing;
             if (isWriting)
             {
-                bool isShared = endpoint.Contains(kvp.Key) || kvp.Key.Contains(endpoint);
+                bool isShared = endpointKey.StartsWith(kvp.Key) || kvp.Key.StartsWith(endpointKey);
                 if (isShared)
                 {
-                    _logger.LogInformation($"Cannot use source endpoint {kvp.Key} because it already is in use.");
+                    _logger.LogInformation($"Cannot use source endpoint {endpointKey} because it already is in use.");
                     return false;
                 }
             }
@@ -414,15 +461,16 @@ public class HannibalService : IHannibalService
      * got reading.
      */
     private bool _mayUseDestinationEndpoint(
-        string endpoint,
+        Endpoint endpoint,
         SortedDictionary<string, EndpointState.AccessState> mapStates)
     {
+        string endpointKey = _endpointKey(endpoint);
         foreach (var kvp in mapStates)
         {
-            bool isShared = endpoint.Contains(kvp.Key) || kvp.Key.Contains(endpoint);
+            bool isShared = endpointKey.StartsWith(kvp.Key) || kvp.Key.StartsWith(endpointKey);
             if (isShared)
             {
-                _logger.LogInformation($"Cannot use destination endpoint {kvp.Key} because it already is in use.");
+                _logger.LogInformation($"Cannot use destination endpoint {endpointKey} because it already is in use.");
                 return false;
             }
         }

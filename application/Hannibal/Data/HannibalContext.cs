@@ -48,9 +48,9 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "timomp3 to onedrive",
-                    Username = "timo",
-                    SourceEndpoint = "timo:dropbox:timomp3",
-                    DestinationEndpoint = "timo:onedrive:timomp3",
+                    User = await Users.FirstAsync(u => u.Username=="timo"),
+                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:timomp3"),
+                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:timomp3"),
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
@@ -59,9 +59,9 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "prof to onedrive",
-                    Username = "timo",
-                    SourceEndpoint = "timo:dropbox:prof",
-                    DestinationEndpoint = "timo:onedrive:prof",
+                    User = await Users.FirstAsync(u => u.Username=="timo"),
+                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:prof"),
+                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:prof"),
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
@@ -70,9 +70,9 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "nassau to onedrive",
-                    Username = "timo",
-                    SourceEndpoint = "timo:dropbox:nassau",
-                    DestinationEndpoint = "timo:onedrive:nassau",
+                    User = await Users.FirstAsync(u => u.Username=="timo"),
+                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:nassau"),
+                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:nassau"),
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
@@ -81,9 +81,9 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "books to onedrive",
-                    Username = "timo",
-                    SourceEndpoint = "timo:dropbox:books",
-                    DestinationEndpoint = "timo:onedrive:books",
+                    User = await Users.FirstAsync(u => u.Username=="timo"),
+                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:books"),
+                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:books"),
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
@@ -92,9 +92,9 @@ public class HannibalContext : DbContext
                 new()
                 {
                     Name = "zeug to dropbox",
-                    Username = "timo",
-                    SourceEndpoint = "timo:onedrive:zeug",
-                    DestinationEndpoint = "timo:dropbox:zeug",
+                    User = await Users.FirstAsync(u => u.Username=="timo"),
+                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:zeug"),
+                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:zeug"),
                     Operation = Rule.RuleOperation.Copy,
                     MaxDestinationAge = new TimeSpan(24, 0, 0),
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,

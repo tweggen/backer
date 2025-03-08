@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Hannibal.Client;
 using Hannibal.Models;
-using Hannibal.Client;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -171,8 +170,8 @@ public class RCloneService : BackgroundService
             /*
              * Resolve the endpoints.
              */
-            var sourceEndpoint = await _higginsClient.GetEndpointAsync(job.SourceEndpoint, cancellationToken);
-            var destinationEndpoint = await _higginsClient.GetEndpointAsync(job.DestinationEndpoint, cancellationToken);
+            var sourceEndpoint = job.SourceEndpoint;
+            var destinationEndpoint = job.DestinationEndpoint;
 
             string sourceUri = $"{sourceEndpoint.Storage.UriSchema}:/{sourceEndpoint.Path}";
             string destinationUri = $"{destinationEndpoint.Storage.UriSchema}:/{destinationEndpoint.Path}";

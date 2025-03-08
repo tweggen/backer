@@ -96,7 +96,7 @@ public class BackofficeService : BackgroundService
                 Job job = new()
                 {
                     Tag = r.Name,
-                    Username = r.Username,
+                    User = r.User,
                     FromRule = r,
                     Operation = r.Operation,
                     Owner = "",

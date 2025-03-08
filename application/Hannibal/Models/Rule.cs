@@ -8,18 +8,19 @@
 public class Rule
 {
     public int Id { get; set; }
-    
-    public string Name { get; set; }
+
+    public string Name { get; set; } = "";
 
     public string Comment { get; set; } = "";
     
-    public string Username { get; set; }
+    public int UserId { get; set; }
+    public virtual User User { get; set; }
 
-    // TXWTODO: THese dependencies are not properly setup.
-    //public ICollection<string> DependsOn { get; set; } = new List<string>();
- 
-    public string SourceEndpoint { get; set; }
-    public string DestinationEndpoint { get; set; }
+    public int SourceEndpointId { get; set; }
+    public virtual Endpoint SourceEndpoint { get; set; }
+    
+    public int DestinationEndpointId { get; set; }
+    public virtual Endpoint DestinationEndpoint { get; set; }
     
     /**
      * The operation that shall be executed.

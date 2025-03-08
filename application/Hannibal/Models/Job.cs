@@ -26,7 +26,9 @@ public class Job
      */
     public int Id { get; set; }
     
-    public string Username { get; set; }
+    
+    public int UserId { get; set; }
+    public virtual User User { get; set; }
     
     /**
      * A tag given to the job by the author, derived from a regular backup part
@@ -78,8 +80,11 @@ public class Job
      */
     public DateTime LastReported { get; set; }
     
-    public string SourceEndpoint { get; set; }
-    public string DestinationEndpoint { get; set; }
+    public int SourceEndpointId { get; set; }
+    public virtual Endpoint SourceEndpoint { get; set; }
+    
+    public int DestinationEndpointId { get; set; }
+    public virtual Endpoint DestinationEndpoint { get; set; }
     
     /**
      * The most recent status of the job.
