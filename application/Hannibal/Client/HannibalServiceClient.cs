@@ -145,9 +145,15 @@ public class HannibalServiceClient : IHannibalServiceClient
     }
     
 
-    public Task<Rule> UpdateRuleAsync(int id, Rule updatedRule, CancellationToken cancellationToken)
+    public async Task<Rule> UpdateRuleAsync(int id, Rule updatedRule, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var response = await _httpClient.PutAsJsonAsync(
+            $"/api/hannibal/v1/rules/{id}", updatedRule,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        return JsonSerializer.Deserialize<Rule>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
     
