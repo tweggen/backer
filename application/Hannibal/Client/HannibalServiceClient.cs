@@ -87,6 +87,7 @@ public class HannibalServiceClient : IHannibalServiceClient
         return JsonSerializer.Deserialize<List<Storage>>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
+    
 
     public async Task DeleteEndpointAsync(int id, CancellationToken cancellationToken)
     {
@@ -94,6 +95,7 @@ public class HannibalServiceClient : IHannibalServiceClient
         response.EnsureSuccessStatusCode();
     }
 
+    
     public async Task<Endpoint> UpdateEndpointAsync(int id, Endpoint endpoint, CancellationToken cancellationToken)
     {
         var response = await _httpClient.PutAsJsonAsync(
@@ -149,9 +151,10 @@ public class HannibalServiceClient : IHannibalServiceClient
     }
 
     
-    public Task DeleteRuleAsync(int id, CancellationToken cancellationToken)
+    public async Task DeleteRuleAsync(int id, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var response = await _httpClient.DeleteAsync($"/api/hannibal/v1/rules/{id}", cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 
     

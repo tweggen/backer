@@ -100,9 +100,9 @@ else
                 <tr>
                     <td><button id="starteditrule" @onclick="() => _onEdit(ru)" aria-label="edit">✏</button></td>
                     <td>@ru.Name</td>
-                    <td>@ru.SourceEndpoint</td>
+                    <td>@ru.SourceEndpoint.Name</td>
                     <td>@ru.Operation.ToString()</td>
-                    <td>@ru.DestinationEndpoint</td>
+                    <td>@ru.DestinationEndpoint.Name</td>
                     <td>@ru.MaxDestinationAge.TotalSeconds</td>
                     <td>@ru.DailyTriggerTime.TotalSeconds</td>
                     <td>@ru.Comment</td>
@@ -246,7 +246,9 @@ else
             return;
         }
         _editSourceEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_editSourceEndpointId));
+        _editSourceEndpointId = _editSourceEndpoint.Id;
         _editRule.SourceEndpoint = _editSourceEndpoint;
+        _editRule.SourceEndpointId = _editSourceEndpointId;
     }
 
 
@@ -257,7 +259,9 @@ else
             return;
         }
         _editDestinationEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_editDestinationEndpointId));
+        _editDestinationEndpointId = _editDestinationEndpoint.Id;
         _editRule.DestinationEndpoint = _editDestinationEndpoint;
+        _editRule.DestinationEndpointId = _editDestinationEndpointId;
     }
 
 
@@ -327,7 +331,9 @@ else
             return;
         }
         _newSourceEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_newSourceEndpointId));
+        _newSourceEndpointId = _newSourceEndpoint.Id;
         _newRule.SourceEndpoint = _newSourceEndpoint;
+        _newRule.SourceEndpointId = _newSourceEndpointId;
     }
 
 
@@ -338,7 +344,9 @@ else
             return;
         }
         _newDestinationEndpoint = _listEndpoints.First(storage => (storage.Id == (int)_newDestinationEndpointId));
+        _newDestinationEndpointId = _newDestinationEndpoint.Id;
         _newRule.DestinationEndpoint = _newDestinationEndpoint;
+        _newRule.DestinationEndpointId = _newDestinationEndpointId;
     }
     
 
@@ -382,7 +390,7 @@ else
         _newRule = new() { User = _user, UserId = _user.Id };
         _newSourceEndpoint = _listEndpoints.FirstOrDefault(ep => true);
         _newSourceEndpointId = (_newSourceEndpoint!=null)?_newSourceEndpoint.Id:-1;
-        _newDestinationEndpoint = _listEndpoints.First(ep => true);
+        _newDestinationEndpoint = _listEndpoints.FirstOrDefault(ep => true);
         _newDestinationEndpointId = (_newDestinationEndpoint!=null)?_newDestinationEndpoint.Id:-1;
         _newRule.SourceEndpoint = _newSourceEndpoint;
         _newRule.SourceEndpointId = _newSourceEndpointId;

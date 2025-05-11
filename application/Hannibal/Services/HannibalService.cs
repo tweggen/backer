@@ -204,14 +204,16 @@ public class HannibalService : IHannibalService
             throw new KeyNotFoundException($"No source endpoint found for endpointid {sourceEndpoint.Id}");
         }
         rule.SourceEndpoint = sourceEndpoint;
+        rule.SourceEndpointId = sourceEndpoint.Id;
         
-        var destEndpoint =
+        var destinationEndpoint =
             await _context.Endpoints.FirstAsync(e => e.Id == rule.DestinationEndpointId, cancellationToken);
-        if (null == destEndpoint)
+        if (null == destinationEndpoint)
         {
-            throw new KeyNotFoundException($"No destination endpoint found for endpointid {destEndpoint.Id}");
+            throw new KeyNotFoundException($"No destination endpoint found for endpointid {destinationEndpoint.Id}");
         }
-        rule.DestinationEndpoint = destEndpoint;
+        rule.DestinationEndpoint = destinationEndpoint;
+        rule.DestinationEndpointId = destinationEndpoint.Id;
             
         await _context.Rules.AddAsync(rule, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
@@ -231,12 +233,37 @@ public class HannibalService : IHannibalService
             throw new KeyNotFoundException($"No rule found for id {id}");
         }
 
+        var user = await _context.Users.FirstAsync(u => u.Id == rule.UserId, cancellationToken);
+        if (null == user)
+        {
+            throw new KeyNotFoundException($"No user found for userid {rule.UserId}");
+        }
+        rule.User = user;
+
+        var sourceEndpoint = await _context.Endpoints.FirstAsync(e => e.Id == rule.SourceEndpointId, cancellationToken);
+        if (null == sourceEndpoint)
+        {
+            throw new KeyNotFoundException($"No source endpoint found for endpointid {sourceEndpoint.Id}");
+        }
+        rule.SourceEndpoint = sourceEndpoint;
+        
+        var destinationEndpoint =
+            await _context.Endpoints.FirstAsync(e => e.Id == rule.DestinationEndpointId, cancellationToken);
+        if (null == destinationEndpoint)
+        {
+            throw new KeyNotFoundException($"No destination endpoint found for endpointid {destinationEndpoint.Id}");
+        }
+        rule.DestinationEndpoint = destinationEndpoint;
+            
+
         // Update other properties
         rule.Name = updatedRule.Name;
         rule.Comment = updatedRule.Comment;
         // We do not allow to change the username
-        rule.SourceEndpoint = updatedRule.SourceEndpoint;
-        rule.DestinationEndpoint = updatedRule.DestinationEndpoint;
+        rule.SourceEndpoint = sourceEndpoint;
+        rule.SourceEndpointId = sourceEndpoint.Id;
+        rule.DestinationEndpoint = destinationEndpoint;
+        rule.DestinationEndpointId = destinationEndpoint.Id;
         rule.Operation = updatedRule.Operation;
         rule.MaxDestinationAge = updatedRule.MaxDestinationAge;
         rule.MaxTimeAfterSourceModification = updatedRule.MaxTimeAfterSourceModification;
