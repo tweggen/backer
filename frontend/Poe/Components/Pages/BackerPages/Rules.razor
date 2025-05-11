@@ -379,11 +379,15 @@ else
             await HannibalServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
 
-        _newRule = new() { User = _user };
+        _newRule = new() { User = _user, UserId = _user.Id };
         _newSourceEndpoint = _listEndpoints.FirstOrDefault(ep => true);
         _newSourceEndpointId = (_newSourceEndpoint!=null)?_newSourceEndpoint.Id:-1;
         _newDestinationEndpoint = _listEndpoints.First(ep => true);
         _newDestinationEndpointId = (_newDestinationEndpoint!=null)?_newDestinationEndpoint.Id:-1;
+        _newRule.SourceEndpoint = _newSourceEndpoint;
+        _newRule.SourceEndpointId = _newSourceEndpointId;
+        _newRule.DestinationEndpoint = _newDestinationEndpoint;
+        _newRule.DestinationEndpointId = _newDestinationEndpointId; 
 
         await _reloadRulePage(CancellationToken.None);
     }

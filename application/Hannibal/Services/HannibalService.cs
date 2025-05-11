@@ -191,6 +191,28 @@ public class HannibalService : IHannibalService
         Rule rule,
         CancellationToken cancellationToken)
     {
+        var user = await _context.Users.FirstAsync(u => u.Id == rule.UserId, cancellationToken);
+        if (null == user)
+        {
+            throw new KeyNotFoundException($"No user found for userid {rule.UserId}");
+        }
+        rule.User = user;
+
+        var sourceEndpoint = await _context.Endpoints.FirstAsync(e => e.Id == rule.SourceEndpointId, cancellationToken);
+        if (null == sourceEndpoint)
+        {
+            throw new KeyNotFoundException($"No source endpoint found for endpointid {sourceEndpoint.Id}");
+        }
+        rule.SourceEndpoint = sourceEndpoint;
+        
+        var destEndpoint =
+            await _context.Endpoints.FirstAsync(e => e.Id == rule.DestinationEndpointId, cancellationToken);
+        if (null == destEndpoint)
+        {
+            throw new KeyNotFoundException($"No destination endpoint found for endpointid {destEndpoint.Id}");
+        }
+        rule.DestinationEndpoint = destEndpoint;
+            
         await _context.Rules.AddAsync(rule, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
         return new CreateRuleResult() { Id = rule.Id };

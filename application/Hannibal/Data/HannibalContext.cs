@@ -45,6 +45,7 @@ public class HannibalContext : DbContext
             
             List<Rule> listSyncShares = new()
             {
+                #if false
                 new()
                 {
                     Name = "timomp3 to onedrive",
@@ -100,6 +101,7 @@ public class HannibalContext : DbContext
                     MaxTimeAfterSourceModification = TimeSpan.MaxValue,
                     DailyTriggerTime = new(0,0,0,2, 0, 0)
                 },
+#endif
             };
 
             foreach (var r in listSyncShares)
@@ -187,9 +189,18 @@ public class HannibalContext : DbContext
             Technology = "onedrive",
             UriSchema = "TimosOnedrive"
         };
+        Storage localFilesystem = new()
+        {
+            User = userTimo,
+            Technology = "file",
+            UriSchema = "LocalFilesystem"
+        };
 
         List<Endpoint> listEndpoints = new()
         {
+            new(userTimo, localFilesystem, "//rodrigo/public", "original public media"),
+            new (userTimo, timosOnedrive, "public", "onedrive public media")
+#if false
             new(userTimo, timosDropbox, "timomp3", "original timomp3"),
             new(userTimo, timosOnedrive, "timomp3", "shared timomp3"),
             new(userTimo, timosDropbox, "zeug", "shared esat data"),
@@ -200,6 +211,7 @@ public class HannibalContext : DbContext
             new(userTimo, timosOnedrive, "nassau", "shared nassau"),
             new(userTimo, timosDropbox, "books", "original books"),
             new(userTimo, timosOnedrive, "books", "shared books")
+#endif
         };
         
         {
@@ -208,6 +220,7 @@ public class HannibalContext : DbContext
             await Users.AddAsync(userTimo);
             await Storages.AddAsync(timosDropbox);
             await Storages.AddAsync(timosOnedrive);
+            await Storages.AddAsync(localFilesystem);
 
             foreach (var ep in listEndpoints)
             {
