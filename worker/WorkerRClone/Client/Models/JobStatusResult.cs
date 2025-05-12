@@ -10,4 +10,10 @@ public class JobStatusResult
     public string startTime { get; set; }
     public bool success { get; set; }
     // output
+
+    public override string ToString()
+    {
+        return
+            $"{{ duration: {duration}, endTime: {endTime}, error: {error}, finished: {finished}, id: {id}, startTime: {startTime}, success: {success} }}";
+    }
 }

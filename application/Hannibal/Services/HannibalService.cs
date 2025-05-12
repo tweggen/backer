@@ -217,6 +217,7 @@ public class HannibalService : IHannibalService
             
         await _context.Rules.AddAsync(rule, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
+
         return new CreateRuleResult() { Id = rule.Id };
     }
     
@@ -270,6 +271,12 @@ public class HannibalService : IHannibalService
         rule.DailyTriggerTime = updatedRule.DailyTriggerTime;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        /*
+         * There might be a new job available right now.
+         */
+        await _hannibalHub.Clients.All.SendAsync("NewJobAvailable");
+
         return rule;
     }
     

@@ -112,7 +112,8 @@ public class RCloneClient
             createEmptySrcDirs = true,
             _config = new Config()
             {
-                Exclude = new() { "_backer" }
+                Exclude = new() { "_backer" },
+                CheckSum = true
             }
         };
         

@@ -189,16 +189,16 @@ public class HannibalContext : DbContext
             Technology = "onedrive",
             UriSchema = "TimosOnedrive"
         };
-        Storage localFilesystem = new()
+        Storage timosRodrigo = new()
         {
             User = userTimo,
-            Technology = "file",
-            UriSchema = "LocalFilesystem"
+            Technology = "smb",
+            UriSchema = "TimosRodrigo"
         };
 
         List<Endpoint> listEndpoints = new()
         {
-            new(userTimo, localFilesystem, "//rodrigo/public", "original public media"),
+            new(userTimo, timosRodrigo, "/public", "original public media"),
             new (userTimo, timosOnedrive, "public", "onedrive public media")
 #if false
             new(userTimo, timosDropbox, "timomp3", "original timomp3"),
@@ -220,7 +220,7 @@ public class HannibalContext : DbContext
             await Users.AddAsync(userTimo);
             await Storages.AddAsync(timosDropbox);
             await Storages.AddAsync(timosOnedrive);
-            await Storages.AddAsync(localFilesystem);
+            await Storages.AddAsync(timosRodrigo);
 
             foreach (var ep in listEndpoints)
             {

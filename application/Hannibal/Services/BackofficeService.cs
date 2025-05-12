@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Linq;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Hannibal.Services;
@@ -15,16 +16,19 @@ public class BackofficeService : BackgroundService
     private ILogger<BackofficeService> _logger;
     private IServiceScopeFactory _serviceScopeFactory;
     private HannibalServiceOptions _options;
-    
+    private readonly IHubContext<HannibalHub> _hannibalHub;
+
     
     public BackofficeService(
         ILogger<BackofficeService> logger,
         IServiceScopeFactory serviceScopeFactory,
-        IOptions<HannibalServiceOptions> options)
+        IOptions<HannibalServiceOptions> options,
+        IHubContext<HannibalHub> hannibalHub)
     {
         _logger = logger;
         _serviceScopeFactory = serviceScopeFactory;
         _options = options.Value;
+        _hannibalHub = hannibalHub;
     }
 
 
@@ -120,7 +124,10 @@ public class BackofficeService : BackgroundService
 
         await context.SaveChangesAsync(cancellationToken);
         
-        // TXWTODO: Use SignalR to inform about new jobs.
+        /*
+         * There might be a new job available right now.
+         */
+        await _hannibalHub.Clients.All.SendAsync("NewJobAvailable");
     }
     
     

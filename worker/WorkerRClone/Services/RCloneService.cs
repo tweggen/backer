@@ -118,6 +118,9 @@ public class RCloneService : BackgroundService
             {
                 if (jobStatus.success)
                 {
+                    _logger.LogInformation("job success {jobId} from {sourceEndpoint} to {destEndpoint} : {jobStatus}.",
+                        jobId, job.SourceEndpoint, job.DestinationEndpoint, jobStatus);
+
                     /*
                      * Report back the job success.
                      */
@@ -142,6 +145,8 @@ public class RCloneService : BackgroundService
             }
             else
             {
+                _logger.LogInformation($"Job Status for {jobId} is {jobStatus}.");
+
                 // TXWTODO: Throttle the amount of reportjobasync calls.
                 var reportRes = await _hannibalClient.ReportJobAsync(new()
                     { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId },
@@ -180,7 +185,7 @@ public class RCloneService : BackgroundService
             _logger.LogInformation($"destinationUri is {destinationUri}");
             
             AsyncResult? asyncResult;
-            switch (/* job.Operation */ Rule.RuleOperation.Nop)
+            switch (job.Operation /* Rule.RuleOperation.Nop */)
             {
                 case Rule.RuleOperation.Copy:
                     asyncResult = await rcloneClient.CopyAsync(sourceUri, destinationUri, CancellationToken.None);
@@ -307,6 +312,22 @@ public class RCloneService : BackgroundService
             return orgPath;
         }
     }
+
+
+    private async void _readPrintLog(StreamReader readerStdErr, CancellationToken cancellationToken)
+    {
+        while (!_processRClone.HasExited)
+        {
+            string? message = await readerStdErr.ReadLineAsync(cancellationToken);
+            if (null == message)
+            {
+                _logger.LogInformation("rclone log terminates.");
+                break;
+            }
+            _logger.LogInformation($"rclone: {message}");
+        }
+        _logger.LogInformation("rclone terminates.");
+    }
     
 
     public override async Task StartAsync(CancellationToken cancellationToken)
@@ -351,11 +372,14 @@ public class RCloneService : BackgroundService
                 if (match.Success)
                 {
                     urlRClone = match.Groups["url"].Value;
+                    _logger.LogInformation($"rclone: {strErrorOutput}");
                     break;
                 }
             }
 
+            Task.Run(() => _readPrintLog(reader, cancellationToken));
         }
+
 
         if (null == urlRClone)
         {
