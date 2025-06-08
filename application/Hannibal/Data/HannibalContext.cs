@@ -180,26 +180,29 @@ public class HannibalContext : DbContext
             User = userTimo,
             //Credentials = timosDropboxCredentials,
             Technology = "dropbox",
-            UriSchema = "TimosDropbox"
+            UriSchema = "TimosDropbox",
+            IsActive = true
         };
         Storage timosOnedrive = new()
         {
             User = userTimo,
             //Credentials = timosOnedriveCredentials,
             Technology = "onedrive",
-            UriSchema = "TimosOnedrive"
+            UriSchema = "TimosOnedrive",
+            IsActive = true
         };
         Storage timosRodrigo = new()
         {
             User = userTimo,
             Technology = "smb",
-            UriSchema = "TimosRodrigo"
+            UriSchema = "TimosRodrigo",
+            IsActive = true
         };
 
         List<Endpoint> listEndpoints = new()
         {
-            new(userTimo, timosRodrigo, "/public", "original public media"),
-            new (userTimo, timosOnedrive, "public", "onedrive public media")
+            new(userTimo, timosRodrigo, "/public", "original public media") { IsActive = true },
+            new (userTimo, timosOnedrive, "public", "onedrive public media") { IsActive = true }
 #if false
             new(userTimo, timosDropbox, "timomp3", "original timomp3"),
             new(userTimo, timosOnedrive, "timomp3", "shared timomp3"),

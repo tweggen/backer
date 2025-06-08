@@ -214,7 +214,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
-        _newEndpoint = new() { User = _user, UserId = _user.Id };
+        _newEndpoint = new() { User = _user, UserId = _user.Id, IsActive = true };
         
         _listEndpoints = new List<Hannibal.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
