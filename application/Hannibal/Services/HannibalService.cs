@@ -12,7 +12,7 @@ using Microsoft.Extensions.Options;
 namespace Hannibal.Services;
 
 
-public class HannibalService : IHannibalService
+public partial class HannibalService : IHannibalService
 {
     private object _lo = new();
 

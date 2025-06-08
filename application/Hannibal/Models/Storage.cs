@@ -13,5 +13,8 @@ public class Storage
     
     public string UriSchema { get; set; }
     
-    // public Credentials Credentials { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public bool IsActive { get; set; }
+    
 }

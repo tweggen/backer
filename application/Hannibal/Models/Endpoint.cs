@@ -39,4 +39,8 @@ public class Endpoint
     public string Path { get; set; }
     
     public string Comment { get; set; }
+    
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public bool IsActive { get; set; }
 }

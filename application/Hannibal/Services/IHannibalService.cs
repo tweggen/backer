@@ -65,4 +65,15 @@ public interface IHannibalService
      */
     public Task<Result> ReportJobAsync(JobStatus jobStatus, CancellationToken cancellationToken);
     public Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationToken);
+    
+    
+    public Task<ConfigExport> ExportConfig(
+        bool includeInactive, 
+        CancellationToken cancellationToken);
+
+    public Task<ImportResult> ImportConfig(
+        string configJson,
+        MergeStrategy mergeStrategy,
+        CancellationToken cancellationToken);
+
 }

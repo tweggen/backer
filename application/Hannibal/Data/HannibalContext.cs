@@ -144,7 +144,7 @@ public class HannibalContext : DbContext
 
         if (!await Rules.AnyAsync())
         {
-            await _ensureTestRule();
+            // await _ensureTestRule();
         }
         
     }

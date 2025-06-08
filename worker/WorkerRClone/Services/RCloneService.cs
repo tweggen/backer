@@ -113,45 +113,61 @@ public class RCloneService : BackgroundService
             Job job = kvp.Value;
             int jobId = job.Id;
             
-            var jobStatus = await rcloneClient.GetJobStatusAsync(rcloneJobId, cancellationToken);
-            if (jobStatus.finished)
+            /*
+             * We need to wrap this into try/catch in case the job has ceased to
+             * exist.
+             */
+            try
             {
-                if (jobStatus.success)
-                {
-                    _logger.LogInformation("job success {jobId} from {sourceEndpoint} to {destEndpoint} : {jobStatus}.",
-                        jobId, job.SourceEndpoint, job.DestinationEndpoint, jobStatus);
 
-                    /*
-                     * Report back the job success.
-                     */
-                    var reportRes = await _hannibalClient.ReportJobAsync(new()
-                        { JobId = jobId, State = Job.JobState.DoneSuccess, Owner = _ownerId },
-                        cancellationToken);
-                    listDoneJobs.Add(rcloneJobId);
+                var jobStatus = await rcloneClient.GetJobStatusAsync(rcloneJobId, cancellationToken);
+                if (jobStatus.finished)
+                {
+                    if (jobStatus.success)
+                    {
+                        _logger.LogInformation(
+                            "job success {jobId} from {sourceEndpoint} to {destEndpoint} : {jobStatus}.",
+                            jobId, job.SourceEndpoint, job.DestinationEndpoint, jobStatus);
+
+                        /*
+                         * Report back the job success.
+                         */
+                        var reportRes = await _hannibalClient.ReportJobAsync(new()
+                                { JobId = jobId, State = Job.JobState.DoneSuccess, Owner = _ownerId },
+                            cancellationToken);
+                        listDoneJobs.Add(rcloneJobId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Unable to perform job {jobId} from {sourceEndpoint} to {destEndpoint} : {error}.",
+                            jobId, job.SourceEndpoint, job.DestinationEndpoint, jobStatus.error);
+
+                        /*
+                         * Report back the error.
+                         */
+                        var reportRes = await _hannibalClient.ReportJobAsync(new()
+                                { JobId = jobId, State = Job.JobState.DoneFailure, Owner = _ownerId },
+                            cancellationToken);
+                        listDoneJobs.Add(rcloneJobId);
+                    }
                 }
                 else
                 {
-                    _logger.LogWarning("Unable to perform job {jobId} from {sourceEndpoint} to {destEndpoint} : {error}.",
-                        jobId, job.SourceEndpoint, job.DestinationEndpoint, jobStatus.error);
+                    _logger.LogInformation($"Job Status for {jobId} is {jobStatus}.");
 
-                    /*
-                     * Report back the error.
-                     */
+                    // TXWTODO: Throttle the amount of reportjobasync calls.
                     var reportRes = await _hannibalClient.ReportJobAsync(new()
-                        { JobId = jobId, State = Job.JobState.DoneFailure, Owner = _ownerId },
+                            { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId },
                         cancellationToken);
-                    listDoneJobs.Add(rcloneJobId);
+
                 }
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogInformation($"Job Status for {jobId} is {jobStatus}.");
-
-                // TXWTODO: Throttle the amount of reportjobasync calls.
-                var reportRes = await _hannibalClient.ReportJobAsync(new()
-                    { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId },
-                    cancellationToken);
-                
+                /*
+                 * We can igore this exception because the job might have ceased to exist.
+                 */
             }
         }
 

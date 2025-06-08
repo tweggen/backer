@@ -421,6 +421,33 @@ app.MapDelete("/api/higgins/v1/endpoints/{id}", async (
 .WithOpenApi();
 
 
+
+app.MapGet("/api/higgins/v1/dump", async (
+        IHannibalService higginsService,
+        [FromQuery] bool includeInactive,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await higginsService.ExportConfig(includeInactive, cancellationToken);
+        return Results.Ok(result);
+    })
+    .WithName("ExportConfig")
+    .WithOpenApi();
+
+    
+app.MapPost("/api/higgins/v1/dump", async (
+        IHannibalService higginsService,
+        string configJson,
+        MergeStrategy mergeStrategy,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await higginsService.ImportConfig(configJson, mergeStrategy, cancellationToken);
+        return Results.Ok(result);
+    })
+    .WithName("ImportConfig")
+    .WithOpenApi();
+
+
+
 // Global error handler
 app.Use(async (context, next) =>
 {
