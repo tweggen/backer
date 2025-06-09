@@ -1,10 +1,16 @@
 using Poe.Components;
+using Hannibal.Client;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services
+    // Clients
+    .AddHannibalServiceClient(builder.Configuration);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+    ;
 
 var app = builder.Build();
 
@@ -18,9 +24,10 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
+
 app.UseAntiforgery();
 
+app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

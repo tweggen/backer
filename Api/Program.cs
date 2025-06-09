@@ -5,10 +5,6 @@ using Hannibal.Client;
 using Hannibal.Data;
 using Hannibal.Models;
 using Hannibal.Services;
-using Hannibal;
-using Hannibal.Client;
-using Hannibal.Data;
-using Hannibal.Services;
 using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
@@ -42,14 +38,11 @@ builder.Services
     .AddProcessManager()
         // Application
     .AddHannibalService(builder.Configuration)
-        // Clients
+        // Client
     .AddHannibalServiceClient(builder.Configuration)
         // Workers
     .AddRCloneService(builder.Configuration)
     .AddHannibalBackofficeService(builder.Configuration)
-        // Razor
-    .AddRazorComponents()
-    .AddInteractiveServerComponents()
     ;
 
 
@@ -115,21 +108,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseHttpLogging();
-app.UseStaticFiles();
-app.UseAntiforgery();
-
-app.MapRazorComponents<Poe.Components.App>()
-    .AddInteractiveServerRenderMode();
+// app.UseAntiforgery();
 
 // Health check endpoint
 app.MapHealthChecks("/health");
 
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "..", "Frontend", "Poe", "wwwroot")),
-    RequestPath = ""
-});
+app.UseStaticFiles();
 
 app.MapHub<HannibalHub>("/hannibal");
 

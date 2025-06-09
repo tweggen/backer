@@ -88,7 +88,7 @@ main {
     z-index: 1000;
 }
 
-    #blazor-error-ui .dismiss {
+    #blazor-error-ui.dismiss {
         cursor: pointer;
         position: absolute;
         right: 0.75rem;
