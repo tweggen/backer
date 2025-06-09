@@ -98,7 +98,9 @@ builder.Services.AddAuthorization();
 // Build the application
 var app = builder.Build();
 
-app.MapGroup("/identity").MapIdentityApi<IdentityUser>();
+app.MapGroup("/api/auth/v1/").MapIdentityApi<IdentityUser>();
+
+// app.MapGroup("/identity").MapIdentityApi<IdentityUser>();
 
 {
     app.Lifetime.ApplicationStarted.Register(async () =>

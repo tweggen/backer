@@ -1,13 +1,15 @@
 using Hannibal.Data.Configurations;
 using Hannibal.Models;
 using Hannibal.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore.Proxies;
 
 namespace Hannibal.Data;
 
-public class HannibalContext : DbContext
+public class HannibalContext : IdentityDbContext
 {
     private ILogger<HannibalContext> _logger;
 
@@ -150,7 +152,8 @@ public class HannibalContext : DbContext
     
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {   
+    {
+        base.OnModelCreating(modelBuilder);
         // modelBuilder.ApplyConfiguration<HannibalJobConfiguration>(new HannibalJobConfiguration());
     }
     

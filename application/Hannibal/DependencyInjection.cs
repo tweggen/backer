@@ -33,7 +33,19 @@ public static class DependencyInjection
                 connectionString
             ));
 
-        services.AddIdentityCore<IdentityUser>()
+        ;
+
+        services.AddIdentityApiEndpoints<IdentityUser>(options => 
+            {
+                // Configure password requirements
+                options.Password.RequireDigit = true;
+                options.Password.RequiredLength = 6;
+                options.Password.RequireNonAlphanumeric = false;
+    
+                // Configure lockout settings
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+            })
             .AddEntityFrameworkStores<HannibalContext>()
             .AddDefaultTokenProviders();
         
