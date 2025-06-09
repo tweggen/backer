@@ -80,12 +80,14 @@ public partial class HannibalService
     /// <returns>JSON string containing the exported configuration</returns>
     public async Task<ConfigExport> ExportConfig(bool includeInactive, CancellationToken cancellationToken)
     {
+        await _obtainUser();
+        
         try
         {
-            _logger?.LogInformation("Starting config export for user {UserId}", _currentUserId);
+            _logger?.LogInformation("Starting config export for user {UserId}", _currentUser.Id);
 
             // Query storages for the user
-            var storagesQuery = _context.Storages.Where(s => s.UserId == _currentUserId);
+            var storagesQuery = _context.Storages.Where(s => s.UserId == _currentUser.Id);
             if (!includeInactive)
             {
                 storagesQuery = storagesQuery.Where(s => s.IsActive);
@@ -105,7 +107,7 @@ public partial class HannibalService
                 .ToListAsync();
 
             // Query endpoints for the user
-            var endpointsQuery = _context.Endpoints.Where(e => e.UserId == _currentUserId);
+            var endpointsQuery = _context.Endpoints.Where(e => e.UserId == _currentUser.Id);
             if (!includeInactive)
             {
                 endpointsQuery = endpointsQuery.Where(e => e.IsActive);
@@ -129,7 +131,7 @@ public partial class HannibalService
             var export = new ConfigExport
             {
                 ExportedAt = DateTime.UtcNow.ToString("O"),
-                ExportedBy = _currentUserId,
+                ExportedBy = _currentUser.Id,
                 Version = "1.0", // You might want to track versions
                 Storages = storages,
                 Endpoints = endpoints
@@ -170,7 +172,7 @@ public partial class HannibalService
     {
         try
         {
-            _logger?.LogInformation("Starting config import for user {UserId}", _currentUserId);
+            _logger?.LogInformation("Starting config import for user {UserId}", _currentUser.Id);
 
             var import = JsonSerializer.Deserialize<ConfigExport>(configJson, new JsonSerializerOptions
             {
@@ -189,16 +191,16 @@ public partial class HannibalService
             try
             {
                 // Import Storages
-                await ImportStorages(import.Storages, _currentUserId, mergeStrategy, result);
+                await ImportStorages(import.Storages, _currentUser.Id, mergeStrategy, result);
                 
                 // Import Endpoints (after storages to handle dependencies)
-                await ImportEndpoints(import.Endpoints, _currentUserId, mergeStrategy, result);
+                await ImportEndpoints(import.Endpoints, _currentUser.Id, mergeStrategy, result);
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 _logger?.LogInformation("Config import completed for user {UserId}. Results: {Results}", 
-                    _currentUserId, JsonSerializer.Serialize(result));
+                    _currentUser.Id, JsonSerializer.Serialize(result));
 
                 return result;
             }
