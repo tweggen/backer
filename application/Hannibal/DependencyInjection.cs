@@ -1,6 +1,8 @@
 using Hannibal.Configuration;
 using Hannibal.Data;
+using Hannibal.Models;
 using Hannibal.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +33,15 @@ public static class DependencyInjection
                 connectionString
             ));
 
+        services.AddIdentityCore<IdentityUser>()
+            .AddEntityFrameworkStores<HannibalContext>()
+            .AddDefaultTokenProviders();
+        
+        services.Configure<IdentityOptions>(options =>
+        {
+            // Configure identity options here
+        });
+        
         services.AddScoped<IHannibalService, HannibalService>();
         
         return services;

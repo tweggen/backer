@@ -21,6 +21,8 @@ public partial class HannibalService : IHannibalService
     private readonly HannibalServiceOptions _options;
     private readonly IHubContext<HannibalHub> _hannibalHub;
 
+    private string _currentUserId = "timo";
+    
     /**
      * Until we have a real database backend, we fake new entries using _nextId.
      */
@@ -39,27 +41,26 @@ public partial class HannibalService : IHannibalService
     }
 
     
-    public async Task<User> GetUserAsync(int id, CancellationToken cancellationToken)
+    public async Task<IdentityUser> GetUserAsync(int id, CancellationToken cancellationToken)
     {
-        User? user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+        #if false
+        IdendUser? user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
         if (null == user)
         {
             throw new KeyNotFoundException($"No user found for id {id}");
         }
 
         return user;
+        #else
+        throw new KeyNotFoundException($"Not yet implemented");
+        #endif
     }
 
     public async Task<CreateEndpointResult> CreateEndpointAsync(
         Endpoint endpoint,
         CancellationToken cancellationToken)
     {
-        var user = await _context.Users.FirstAsync(u => u.Id == endpoint.UserId, cancellationToken);
-        if (null == user)
-        {
-            throw new KeyNotFoundException($"No user found for userid {endpoint.UserId}");
-        }
-        endpoint.User = user;
+        endpoint.UserId = _currentUserId;
         
         var storage = await _context.Storages.FirstAsync(s => s.Id == endpoint.StorageId, cancellationToken);
         if (null == storage)
@@ -145,7 +146,6 @@ public partial class HannibalService : IHannibalService
         CancellationToken cancellationToken)
     {
         var endpoint = await _context.Endpoints
-            .Include(e => e.User)
             .Include(e => e.Storage)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
             
@@ -157,13 +157,7 @@ public partial class HannibalService : IHannibalService
         // Verify the new user exists if it's being changed
         if (updatedEndpoint.UserId != endpoint.UserId)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == updatedEndpoint.UserId, cancellationToken);
-            if (user == null)
-            {
-                throw new KeyNotFoundException($"No user found for userid {updatedEndpoint.UserId}");
-            }
-            endpoint.User = user;
-            endpoint.UserId = updatedEndpoint.UserId;
+            throw new InvalidDataException($"Unable to change user id");
         }
 
         // Verify the new storage exists if it's being changed
@@ -191,12 +185,7 @@ public partial class HannibalService : IHannibalService
         Rule rule,
         CancellationToken cancellationToken)
     {
-        var user = await _context.Users.FirstAsync(u => u.Id == rule.UserId, cancellationToken);
-        if (null == user)
-        {
-            throw new KeyNotFoundException($"No user found for userid {rule.UserId}");
-        }
-        rule.User = user;
+        rule.UserId = _currentUserId;
 
         var sourceEndpoint = await _context.Endpoints.FirstAsync(e => e.Id == rule.SourceEndpointId, cancellationToken);
         if (null == sourceEndpoint)
@@ -234,12 +223,7 @@ public partial class HannibalService : IHannibalService
             throw new KeyNotFoundException($"No rule found for id {id}");
         }
 
-        var user = await _context.Users.FirstAsync(u => u.Id == rule.UserId, cancellationToken);
-        if (null == user)
-        {
-            throw new KeyNotFoundException($"No user found for userid {rule.UserId}");
-        }
-        rule.User = user;
+        rule.UserId = _currentUserId;
 
         var sourceEndpoint = await _context.Endpoints.FirstAsync(e => e.Id == rule.SourceEndpointId, cancellationToken);
         if (null == sourceEndpoint)
@@ -360,7 +344,7 @@ public partial class HannibalService : IHannibalService
      */
     public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken)
     {
-        var user = await _context.Users.FirstAsync(u => u.Username == acquireParams.Username, cancellationToken); 
+        // var user = await _context.Users.FirstAsync(u => u.Username == acquireParams.Username, cancellationToken); 
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
         var listPossibleJobs = await _context.Jobs
@@ -371,7 +355,7 @@ public partial class HannibalService : IHannibalService
             .ToListAsync(cancellationToken);
 
         Job? job = null;
-        var mapStates = await _gatherEndpointAccess(user);
+        var mapStates = await _gatherEndpointAccess(_currentUserId);
         foreach (var candidate in listPossibleJobs)
         {
             if (_mayUseDestinationEndpoint(candidate.DestinationEndpoint, mapStates)
@@ -405,7 +389,7 @@ public partial class HannibalService : IHannibalService
      * This is assuming any given user would not have an excessive number of jobs running.
      */
     public async Task<SortedDictionary<string, EndpointState.AccessState>> 
-        _gatherEndpointAccess(User user)
+        _gatherEndpointAccess(string userId)
     {
         List<Job> listTimedOut = new();
         SortedDictionary<string, EndpointState.AccessState> mapStates = new();
@@ -414,7 +398,7 @@ public partial class HannibalService : IHannibalService
         var timeout = TimeSpan.FromSeconds(120);
 
         var myOngoingJobs = await _context.Jobs
-            .Where(j =>(j.User == user)&& (j.State == Job.JobState.Executing))
+            .Where(j =>(j.UserId == userId)&& (j.State == Job.JobState.Executing))
             .Include(j => j.SourceEndpoint)
             .Include(j => j.DestinationEndpoint)
             .ToListAsync();

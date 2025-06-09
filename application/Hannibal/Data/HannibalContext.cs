@@ -25,7 +25,6 @@ public class HannibalContext : DbContext
     public DbSet<RuleState> RuleStates { get; set; }
     public DbSet<Storage> Storages { get; set; }
     public DbSet<Endpoint> Endpoints { get; set; }
-    public DbSet<User> Users { get; set; }
 
 
 
@@ -137,7 +136,7 @@ public class HannibalContext : DbContext
     {
         await Database.EnsureCreatedAsync();
         
-        if (!await Users.AnyAsync())
+        if (!await Rules.AnyAsync())
         {
             await _createDevContent();
         }
@@ -166,7 +165,8 @@ public class HannibalContext : DbContext
 
     private async Task _createDevContent()
     {
-        User userTimo = new() { Username = "timo", Id=1 };
+        string userTimo = "timo";
+
         Credentials timosOnedriveCredentials = new()
         {
             // TXWTODO: We just use a locally configured rclone.
@@ -177,7 +177,7 @@ public class HannibalContext : DbContext
         };
         Storage timosDropbox = new()
         {
-            User = userTimo,
+            UserId = userTimo,
             //Credentials = timosDropboxCredentials,
             Technology = "dropbox",
             UriSchema = "TimosDropbox",
@@ -185,7 +185,7 @@ public class HannibalContext : DbContext
         };
         Storage timosOnedrive = new()
         {
-            User = userTimo,
+            UserId = userTimo,
             //Credentials = timosOnedriveCredentials,
             Technology = "onedrive",
             UriSchema = "TimosOnedrive",
@@ -193,7 +193,7 @@ public class HannibalContext : DbContext
         };
         Storage timosRodrigo = new()
         {
-            User = userTimo,
+            UserId = userTimo,
             Technology = "smb",
             UriSchema = "TimosRodrigo",
             IsActive = true
@@ -220,7 +220,6 @@ public class HannibalContext : DbContext
         {
             _logger.LogInformation("Adding test routes.");
             
-            await Users.AddAsync(userTimo);
             await Storages.AddAsync(timosDropbox);
             await Storages.AddAsync(timosOnedrive);
             await Storages.AddAsync(timosRodrigo);

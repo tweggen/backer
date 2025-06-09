@@ -2,6 +2,7 @@
 @using Hannibal.Client
 @using Hannibal.Client
 @using Hannibal.Models
+@using Microsoft.AspNetCore.Identity
 @inject IHannibalServiceClient HannibalServiceClient
 @inject NavigationManager NavigationManager
 @implements IDisposable
@@ -213,7 +214,7 @@ else
 @code {
     private List<Hannibal.Models.Rule>? _listRules = null;
     private List<Hannibal.Models.Endpoint>? _listEndpoints = null;
-    private Hannibal.Models.User? _user = null;
+    private IdentityUser? _user = null;
 
     [SupplyParameterFromForm] private Hannibal.Models.Rule _editRule { get; set; } = new() { Id = -1 };
     [SupplyParameterFromForm] private Hannibal.Models.Rule? _newRule { get; set; } = null;
@@ -387,7 +388,7 @@ else
             await HannibalServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
 
-        _newRule = new() { User = _user, UserId = _user.Id };
+        _newRule = new() { UserId = _user.Id };
         _newSourceEndpoint = _listEndpoints.FirstOrDefault(ep => true);
         _newSourceEndpointId = (_newSourceEndpoint!=null)?_newSourceEndpoint.Id:-1;
         _newDestinationEndpoint = _listEndpoints.FirstOrDefault(ep => true);

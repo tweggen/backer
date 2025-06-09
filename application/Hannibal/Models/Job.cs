@@ -27,8 +27,7 @@ public class Job
     public int Id { get; set; }
     
     
-    public int UserId { get; set; }
-    public virtual User User { get; set; }
+    public string UserId { get; set; }
     
     /**
      * A tag given to the job by the author, derived from a regular backup part

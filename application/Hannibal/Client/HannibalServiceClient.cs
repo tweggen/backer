@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Hannibal.Client.Configuration;
 using Hannibal.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
 namespace Hannibal.Client;
@@ -18,14 +19,14 @@ public class HannibalServiceClient : IHannibalServiceClient
     }
 
 
-    public async Task<User> GetUserAsync(int id, CancellationToken cancellationToken)
+    public async Task<IdentityUser> GetUserAsync(int id, CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
             $"/api/higgins/v1/users/{id}",
             cancellationToken);
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(cancellationToken); 
-        return JsonSerializer.Deserialize<User>(
+        return JsonSerializer.Deserialize<IdentityUser>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
     

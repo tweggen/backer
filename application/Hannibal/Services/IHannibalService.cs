@@ -1,12 +1,18 @@
 using Hannibal.Models;
+using Microsoft.AspNetCore.Identity;
 
 namespace Hannibal.Services;
 
 public interface IHannibalService
 {
-    public Task<User> GetUserAsync(
+    public Task<IdentityUser> GetUserAsync(
         int id,
         CancellationToken cancellationToken);
+
+    // public Task<RegisterUserResult> RegisterUserAsync(string username, string email, string pwhash);
+    
+    // public Task<LoginUserResult> LoginUserAsync(string username, string pwhash);
+        
 
     public Task<CreateEndpointResult> CreateEndpointAsync(
         Endpoint endpoint,

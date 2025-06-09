@@ -47,7 +47,7 @@ public class ConfigExport
 public class StorageExport
 {
     public int Id { get; set; }
-    public int UserId { get; set; }
+    public string UserId { get; set; }
     public string Technology { get; set; }
     public string UriSchema { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -60,7 +60,7 @@ public class EndpointExport
 {
     public int Id { get; set; }
     public string Name { get; set; }
-    public int UserId { get; set; }
+    public string UserId { get; set; }
     public int? StorageId { get; set; }
     public string Path { get; set; }
     public string Comment { get; set; }
@@ -82,18 +82,10 @@ public partial class HannibalService
     {
         try
         {
-            User? user = await _context.Users
-                .FirstOrDefaultAsync(s => s.Username == "timo");
-            
-            if (null == user)
-            {
-                throw new ArgumentException("User ID must be provided or available from context");
-            }
-
-            _logger?.LogInformation("Starting config export for user {UserId}", user.Username);
+            _logger?.LogInformation("Starting config export for user {UserId}", _currentUserId);
 
             // Query storages for the user
-            var storagesQuery = _context.Storages.Where(s => s.UserId == user.Id);
+            var storagesQuery = _context.Storages.Where(s => s.UserId == _currentUserId);
             if (!includeInactive)
             {
                 storagesQuery = storagesQuery.Where(s => s.IsActive);
@@ -113,7 +105,7 @@ public partial class HannibalService
                 .ToListAsync();
 
             // Query endpoints for the user
-            var endpointsQuery = _context.Endpoints.Where(e => e.UserId == user.Id);
+            var endpointsQuery = _context.Endpoints.Where(e => e.UserId == _currentUserId);
             if (!includeInactive)
             {
                 endpointsQuery = endpointsQuery.Where(e => e.IsActive);
@@ -137,7 +129,7 @@ public partial class HannibalService
             var export = new ConfigExport
             {
                 ExportedAt = DateTime.UtcNow.ToString("O"),
-                ExportedBy = user.Username,
+                ExportedBy = _currentUserId,
                 Version = "1.0", // You might want to track versions
                 Storages = storages,
                 Endpoints = endpoints
@@ -178,15 +170,7 @@ public partial class HannibalService
     {
         try
         {
-            User? user = await _context.Users
-                .FirstOrDefaultAsync(s => s.Username == "timo");
-            
-            if (null==user)
-            {
-                throw new ArgumentException("User ID must be provided or available from context");
-            }
-
-            _logger?.LogInformation("Starting config import for user {Username}", user.Username);
+            _logger?.LogInformation("Starting config import for user {UserId}", _currentUserId);
 
             var import = JsonSerializer.Deserialize<ConfigExport>(configJson, new JsonSerializerOptions
             {
@@ -205,16 +189,16 @@ public partial class HannibalService
             try
             {
                 // Import Storages
-                await ImportStorages(import.Storages, user, mergeStrategy, result);
+                await ImportStorages(import.Storages, _currentUserId, mergeStrategy, result);
                 
                 // Import Endpoints (after storages to handle dependencies)
-                await ImportEndpoints(import.Endpoints, user, mergeStrategy, result);
+                await ImportEndpoints(import.Endpoints, _currentUserId, mergeStrategy, result);
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                _logger?.LogInformation("Config import completed for user {Username}. Results: {Results}", 
-                    user.Username, JsonSerializer.Serialize(result));
+                _logger?.LogInformation("Config import completed for user {UserId}. Results: {Results}", 
+                    _currentUserId, JsonSerializer.Serialize(result));
 
                 return result;
             }
@@ -232,13 +216,13 @@ public partial class HannibalService
     }
 
     
-    private async Task ImportStorages(List<StorageExport> storages, User user, MergeStrategy mergeStrategy, ImportResult result)
+    private async Task ImportStorages(List<StorageExport> storages, string userId, MergeStrategy mergeStrategy, ImportResult result)
     {
         foreach (var storageExport in storages)
         {
             // Check if storage already exists (by name and user)
             var existing = await _context.Storages
-                .FirstOrDefaultAsync(s => s.Technology == storageExport.Technology && s.UserId == user.Id);
+                .FirstOrDefaultAsync(s => s.Technology == storageExport.Technology && s.UserId == userId);
 
             if (existing != null)
             {
@@ -278,7 +262,7 @@ public partial class HannibalService
                 // Create new storage
                 var newStorage = new Storage // Adjust to your actual entity type
                 {
-                    UserId = user.Id,
+                    UserId = userId,
                     Technology = storageExport.Technology,
                     UriSchema = storageExport.UriSchema,
                     CreatedAt = DateTime.UtcNow,
@@ -291,13 +275,13 @@ public partial class HannibalService
     }
 
     
-    private async Task ImportEndpoints(List<EndpointExport> endpoints, User user, MergeStrategy mergeStrategy, ImportResult result)
+    private async Task ImportEndpoints(List<EndpointExport> endpoints, string userId, MergeStrategy mergeStrategy, ImportResult result)
     {
         foreach (var endpointExport in endpoints)
         {
             // Check if endpoint already exists (by name and user)
             var existing = await _context.Endpoints
-                .FirstOrDefaultAsync(e => e.Name == endpointExport.Name && e.UserId == user.Id);
+                .FirstOrDefaultAsync(e => e.Name == endpointExport.Name && e.UserId == userId);
 
             // Resolve storage reference if present
             int? storageId = null;
@@ -305,7 +289,7 @@ public partial class HannibalService
             {
                 // Try to find storage by original ID first, then by Technology
                 var storage = await _context.Storages
-                    .FirstOrDefaultAsync(s => s.UserId == user.Id && 
+                    .FirstOrDefaultAsync(s => s.UserId == userId && 
                         (s.Id == endpointExport.StorageId.Value || 
                          _context.Storages.Any(orig => orig.Id == endpointExport.StorageId.Value && orig.Technology == s.Technology)));
                 storageId = storage?.Id;
@@ -335,8 +319,8 @@ public partial class HannibalService
                     case MergeStrategy.CreateNew:
                         var newEndpoint = new Endpoint // Adjust to your actual entity type
                         {
-                            Name = GetUniqueEndpointName(endpointExport.Name, user),
-                            UserId = user.Id,
+                            Name = GetUniqueEndpointName(endpointExport.Name, userId),
+                            UserId = userId,
                             StorageId = storageId.Value,
                             Path = endpointExport.Path,
                             Comment = endpointExport.Comment,
@@ -354,7 +338,7 @@ public partial class HannibalService
                 var newEndpoint = new Endpoint // Adjust to your actual entity type
                 {
                     Name = endpointExport.Name,
-                    UserId = user.Id,
+                    UserId = userId,
                     StorageId = storageId.Value,
                     Path = endpointExport.Path,
                     Comment = endpointExport.Comment,
@@ -368,12 +352,12 @@ public partial class HannibalService
     }
 
 
-    private string GetUniqueEndpointName(string baseName, User user)
+    private string GetUniqueEndpointName(string baseName, string userId)
     {
         var counter = 1;
         var name = baseName;
         
-        while (_context.Endpoints.Any(e => e.Name == name && e.UserId == user.Id))
+        while (_context.Endpoints.Any(e => e.Name == name && e.UserId == userId))
         {
             name = $"{baseName} ({counter})";
             counter++;

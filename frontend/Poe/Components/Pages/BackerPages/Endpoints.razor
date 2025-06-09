@@ -1,5 +1,6 @@
 @page "/backer/endpoints"
 @using Hannibal.Client
+@using Microsoft.AspNetCore.Identity
 @inject IHannibalServiceClient HigginsServiceClient
 @inject NavigationManager NavigationManager
 @implements IDisposable
@@ -138,7 +139,7 @@ else
 @code {
     private List<Hannibal.Models.Endpoint>? _listEndpoints = null;
     private List<Hannibal.Models.Storage>? _listStorages = null;
-    private Hannibal.Models.User? _user = null;
+    private IdentityUser? _user = null;
 
     private int _editingEndpointId { get; set; } = -1;
     private int _editingEndpointStorageId { get; set; } = -1;
@@ -214,7 +215,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
-        _newEndpoint = new() { User = _user, UserId = _user.Id, IsActive = true };
+        _newEndpoint = new() { UserId = _user.Id, IsActive = true };
         
         _listEndpoints = new List<Hannibal.Models.Endpoint>(
             await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)

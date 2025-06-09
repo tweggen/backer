@@ -7,9 +7,11 @@ using Hannibal.Models;
 using Hannibal.Services;
 using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.OpenApi.Models;
 using Tools;
 
 
@@ -17,7 +19,34 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add basic services
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(opt =>
+{
+    opt.SwaggerDoc("v1", new OpenApiInfo { Title = "hannibal", Version = "v1"});
+    opt.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Please enter token",
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        BearerFormat = "JWT",
+        Scheme = "bearer"
+    });
+    
+    opt.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type=ReferenceType.SecurityScheme,
+                    Id="Bearer"
+                }
+            },
+            new string[]{}
+        }
+    });
+});
 builder.Services.AddHealthChecks();
 builder.Services.AddSignalR();
 
@@ -32,11 +61,13 @@ builder.Services.AddHttpLogging(logging =>
 builder.Services.Configure<ApiOptions>(
     builder.Configuration.GetSection("Api"));
 
+builder.Services.AddDataProtection();
+
 // Add application services
 builder.Services
         // Tools
     .AddProcessManager()
-        // Application
+        // Application 
     .AddHannibalService(builder.Configuration)
         // Client
     .AddHannibalServiceClient(builder.Configuration)
@@ -62,9 +93,12 @@ builder.Services.AddSingleton(provider =>
     };
 });
 
+builder.Services.AddAuthorization();
 
 // Build the application
 var app = builder.Build();
+
+app.MapGroup("/identity").MapIdentityApi<IdentityUser>();
 
 {
     app.Lifetime.ApplicationStarted.Register(async () =>
@@ -133,6 +167,7 @@ app.MapGet("/api/hannibal/v1/rules/{ruleId}", async (
         return Results.NotFound();
     }
 })
+.RequireAuthorization()
 .WithName("GetRule")
 .WithOpenApi();
 
@@ -145,6 +180,7 @@ app.MapPost("/api/hannibal/v1/rules", async (
     var result = await hannibalService.CreateRuleAsync(rule, cancellationToken);
     return Results.Ok(result);
 })
+.RequireAuthorization()
 .WithName("CreateRule")
 .WithOpenApi();
 
@@ -168,6 +204,7 @@ app.MapGet("/api/hannibal/v1/rules", async (
         cancellationToken);
     return rules is not null ? Results.Ok(rules) : Results.Ok(new List<Rule>());
 })
+.RequireAuthorization()
 .WithName("GetRules")
 .WithOpenApi();
 
@@ -188,6 +225,7 @@ app.MapPut("/api/hannibal/v1/rules/{id}", async (
             return Results.NotFound();
         }
     })
+    .RequireAuthorization()
     .WithName("UpdateRule")
     .WithOpenApi();
 
@@ -207,6 +245,7 @@ app.MapDelete("/api/hannibal/v1/rules/{id}", async (
             return Results.NotFound();
         }
     })
+    .RequireAuthorization()
     .WithName("DeleteRule")
     .WithOpenApi();
 
@@ -226,6 +265,7 @@ app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
         return Results.NotFound();
     }
 })
+.RequireAuthorization()
 .WithName("GetJob")
 .WithOpenApi();
 
@@ -251,6 +291,7 @@ app.MapGet("/api/hannibal/v1/jobs", async (
         cancellationToken);
     return jobs is not null ? Results.Ok(jobs) : Results.Ok(new List<Job>());
 })
+.RequireAuthorization()
 .WithName("GetJobs")
 .WithOpenApi();
 
@@ -270,6 +311,7 @@ app.MapPost("/api/hannibal/v1/acquireNextJob", async (
         return Results.NotFound();
     }
 })
+.RequireAuthorization()
 .WithName("AcquireNextJob")
 .WithOpenApi();
 
@@ -282,6 +324,7 @@ app.MapPost("/api/hannibal/v1/reportJob", async (
     var result = await hannibalService.ReportJobAsync(jobStatus, cancellationToken);
     return Results.Ok(result);
 })
+.RequireAuthorization()
 .WithName("ReportJob")
 .WithOpenApi();
 
@@ -292,6 +335,7 @@ app.MapPost("/api/hannibal/v1/shutdown", async (
     var shutdownResult = await hannibalService.ShutdownAsync(cancellationToken);
     return Results.Ok(shutdownResult);
 })
+.RequireAuthorization()
 .WithName("Shutdown")
 .WithOpenApi();
 
@@ -304,6 +348,7 @@ app.MapGet("/api/higgins/v1/users/{id}", async (
         var result = await higginsService.GetUserAsync(id, cancellationToken);
         return Results.Ok(result);
     })
+    .RequireAuthorization()
     .WithName("GetUser")
     .WithOpenApi();
 
@@ -315,6 +360,7 @@ app.MapGet("/api/higgins/v1/storages", async (
         var result = await higginsService.GetStoragesAsync(cancellationToken);
         return Results.Ok(result);
     })
+    .RequireAuthorization()
     .WithName("GetStorages")
     .WithOpenApi();
 
@@ -327,6 +373,7 @@ app.MapGet("/api/higgins/v1/storages/{id}", async (
         var result = await higginsService.GetStorageAsync(id, cancellationToken);
         return Results.Ok(result);
     })
+    .RequireAuthorization()
     .WithName("GetStorage")
     .WithOpenApi();
 
@@ -338,6 +385,7 @@ app.MapGet("/api/higgins/v1/endpoints", async (
     var result = await higginsService.GetEndpointsAsync(cancellationToken);
     return Results.Ok(result);
 })
+.RequireAuthorization()
 .WithName("GetEndpoints")
 .WithOpenApi();
 
@@ -350,6 +398,7 @@ app.MapGet("/api/higgins/v1/endpoints/{name}", async (
     var result = await higginsService.GetEndpointAsync(name, cancellationToken);
     return Results.Ok(result);
 })
+.RequireAuthorization()
 .WithName("GetEndpoint")
 .WithOpenApi();
 
@@ -370,6 +419,7 @@ app.MapPut("/api/higgins/v1/endpoints/{id}", async (
         return Results.NotFound();
     }
 })
+.RequireAuthorization()
 .WithName("UpdateEndpoint")
 .WithOpenApi();
 
@@ -382,6 +432,7 @@ app.MapPost("/api/higgins/v1/endpoints", async (
     var result = await higginsService.CreateEndpointAsync(endpoint, cancellationToken);
     return Results.Ok(result);
 })
+.RequireAuthorization()
 .WithName("CreateEndpoint")
 .WithOpenApi();
 
@@ -401,6 +452,7 @@ app.MapDelete("/api/higgins/v1/endpoints/{id}", async (
         return Results.NotFound();
     }
 })
+.RequireAuthorization()
 .WithName("DeleteEndpoint")
 .WithOpenApi();
 
@@ -414,6 +466,7 @@ app.MapGet("/api/higgins/v1/dump", async (
         var result = await higginsService.ExportConfig(includeInactive, cancellationToken);
         return Results.Ok(result);
     })
+    .RequireAuthorization()
     .WithName("ExportConfig")
     .WithOpenApi();
 
@@ -427,6 +480,7 @@ app.MapPost("/api/higgins/v1/dump", async (
         var result = await higginsService.ImportConfig(configJson, mergeStrategy, cancellationToken);
         return Results.Ok(result);
     })
+    .RequireAuthorization()
     .WithName("ImportConfig")
     .WithOpenApi();
 

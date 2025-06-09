@@ -10,8 +10,7 @@ public class Credentials
 {
     public int Id { get; set; }
 
-    public int UserId { get; set; }
-    public virtual User User { get; set; }
+    public string UserId { get; set; }
 
     [NotMapped]
     public Dictionary<string, string> Environment { get; set; } = new();
