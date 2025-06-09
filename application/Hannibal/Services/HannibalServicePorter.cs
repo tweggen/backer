@@ -382,15 +382,23 @@ public partial class HannibalService
         return name;
     }
 
-
-    #if false
+    
     /// <summary>
     /// Exports configuration to a file
     /// </summary>
     public async Task<string> ExportConfigToFile(string filePath, bool includeInactive = false)
     {
-        var config = await ExportConfig(includeInactive);
-        await File.WriteAllTextAsync(filePath, config);
+        var export = await ExportConfig(includeInactive, CancellationToken.None);
+        
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        var jsonExport = JsonSerializer.Serialize(export, jsonOptions);
+
+        await File.WriteAllTextAsync(filePath, jsonExport);
         return filePath;
     }
 
@@ -401,8 +409,7 @@ public partial class HannibalService
     public async Task<ImportResult> ImportConfigFromFile(string filePath, MergeStrategy mergeStrategy = MergeStrategy.SkipExisting)
     {
         var config = await File.ReadAllTextAsync(filePath);
-        return await ImportConfig(config, mergeStrategy);
+        return await ImportConfig(config, mergeStrategy, CancellationToken.None);
     }
-    #endif
 }
 
