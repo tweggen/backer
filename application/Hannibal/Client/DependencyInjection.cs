@@ -28,6 +28,26 @@ public static class DependencyInjection
         return services;
     }
     
+    public static IServiceCollection AddIdentityApiClient(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        /*
+         * Apply the hannibal client options.
+         */
+        services.Configure<IdentityApiServiceOptions>(configuration.GetSection("IdentityApiServiceClient"));
+        
+        
+        // Combine the HTTP client registration with the service registration
+        services.AddHttpClient<IIdentityApiService, IdentityApiService>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<HannibalServiceClientOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl);
+        });
+
+        return services;
+    }
+    
     public static IServiceCollection AddHannibalBackofficeService(
         this IServiceCollection services,
         IConfiguration configuration)

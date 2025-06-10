@@ -5,7 +5,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     // Clients
-    .AddHannibalServiceClient(builder.Configuration);
+    .AddHannibalServiceClient(builder.Configuration)
+    .AddIdentityApiClient(builder.Configuration);
+
+builder.Services.AddAuthentication("Cookies")
+    .AddCookie("Cookies", options =>
+    {
+        options.LoginPath = "/login";
+        options.LogoutPath = "/logout";
+        options.AccessDeniedPath = "/access-denied";
+    });
+
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
