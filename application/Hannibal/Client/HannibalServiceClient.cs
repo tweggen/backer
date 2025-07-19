@@ -13,7 +13,8 @@ public class HannibalServiceClient : IHannibalServiceClient
 
     public HannibalServiceClient(
         IOptions<HannibalServiceClientOptions> options,
-        HttpClient httpClient)
+        HttpClient httpClient
+    )
     {
         _httpClient = httpClient;
     }

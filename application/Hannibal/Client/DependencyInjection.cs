@@ -23,7 +23,7 @@ public static class DependencyInjection
         {
             var options = serviceProvider.GetRequiredService<IOptions<HannibalServiceClientOptions>>().Value;
             client.BaseAddress = new Uri(options.BaseUrl);
-        });
+        }).AddHttpMessageHandler<IdentityCookieHandler>();
 
         return services;
     }

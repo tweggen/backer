@@ -54,7 +54,8 @@ public class IdentityApiService : IIdentityApiService
     public async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>> LoginUserAsync(
         LoginRequest loginRequest, CancellationToken cancellationToken)
     {
-        string endpoint = $"{ApiPrefix}login";
+        string endpoint = $"{ApiPrefix}login?useCookies=true&useSessionCookies=true";
+        
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
 
         if (loginRequest != null)

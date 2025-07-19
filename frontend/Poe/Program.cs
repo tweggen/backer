@@ -1,3 +1,4 @@
+using Hannibal;
 using Poe.Components;
 using Hannibal.Client;
 
@@ -5,9 +6,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     // Clients
-    .AddHannibalServiceClient(builder.Configuration)
+    .AddTransient<IdentityCookieHandler>()
     .AddIdentityApiClient(builder.Configuration)
     .AddHttpContextAccessor();
+    
+builder.Services
+    .AddHttpClient("AuthenticatedClient")
+        .AddHttpMessageHandler<IdentityCookieHandler>();
+
+builder.Services
+    .AddHannibalServiceClient(builder.Configuration);
 
 builder.Services.AddAuthentication("Cookies")
     .AddCookie("Cookies", options =>

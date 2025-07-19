@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Channels;
 using Hannibal.Client;
 using Hannibal.Models;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -39,6 +40,7 @@ public class RCloneService : BackgroundService
 
     private SortedDictionary<int, Job> _mapRCloneToJob = new();
     
+    private readonly Channel<RCloneServiceParams> _taskChannel = Channel.CreateUnbounded<RCloneServiceParams>();
     
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -67,10 +69,19 @@ public class RCloneService : BackgroundService
         _processRClone?.Dispose();
         base.Dispose();
     }
+    
 
+    public void StartBackgroundService(RCloneServiceParams data)
+    {
+        _taskChannel.Writer.TryWrite(data);
+    }
+    
+    
     
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
+        var rCloneServiceParams = await _taskChannel.Reader.ReadAsync(cancellationToken);
+        
         /*
          * Initially, we trigger reading all matching todos from hannibal.
          * Whatever we got we execute.

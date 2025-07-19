@@ -13,6 +13,8 @@ public interface IHannibalService
     
     // public Task<LoginUserResult> LoginUserAsync(string username, string pwhash);
         
+    public Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken);
+    public Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken);
 
     public Task<CreateEndpointResult> CreateEndpointAsync(
         Endpoint endpoint,

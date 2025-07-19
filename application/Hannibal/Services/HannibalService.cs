@@ -33,7 +33,8 @@ public partial class HannibalService : IHannibalService
         IOptions<HannibalServiceOptions> options,
         IHubContext<HannibalHub> hannibalHub,
         UserManager<IdentityUser> userManager,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IBackgroundWorker backgroundWorker)
     {
         _context = context;
         _logger = logger;
@@ -43,6 +44,18 @@ public partial class HannibalService : IHannibalService
         _httpContextAccessor = httpContextAccessor;
     }
 
+
+    public Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken)
+    {
+        
+    }
+
+    
+    public Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken)
+    {
+        
+    }
+    
     
     public async Task<IdentityUser> GetUserAsync(int id, CancellationToken cancellationToken)
     {
@@ -613,3 +626,4 @@ public partial class HannibalService : IHannibalService
         return new ShutdownResult() { ErrorCode = 0 };
     }
 }
+

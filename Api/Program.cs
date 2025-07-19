@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http.Headers;
 using Api;
 using Api.Configuration;
 using Hannibal;
@@ -49,6 +51,13 @@ builder.Services.AddSwaggerGen(opt =>
 });
 builder.Services.AddHealthChecks();
 builder.Services.AddSignalR();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<IdentityCookieHandler>();
+builder.Services
+    .AddHttpClient("AuthenticatedClient")
+    .AddHttpMessageHandler<IdentityCookieHandler>();
+
+
 
 // Configure HTTP logging
 builder.Services.AddHttpLogging(logging =>
