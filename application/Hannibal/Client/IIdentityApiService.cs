@@ -4,11 +4,14 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity.Data;
 using System;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 
 namespace Hannibal.Client;
@@ -48,10 +51,42 @@ public class IdentityApiService : IIdentityApiService
         SendRequestAsync<Results<Ok, ValidationProblem>>(HttpMethod.Post, $"{ApiPrefix}register", request,
             cancellationToken);
 
-    public Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>> LoginUserAsync(
-        LoginRequest loginRequest, CancellationToken cancellationToken) =>
-        SendRequestAsync<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>>(HttpMethod.Post,
-            $"{ApiPrefix}login", loginRequest, cancellationToken);
+    public async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>> LoginUserAsync(
+        LoginRequest loginRequest, CancellationToken cancellationToken)
+    {
+        string endpoint = $"{ApiPrefix}login";
+        var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+
+        if (loginRequest != null)
+        {
+            var jsonData = JsonSerializer.Serialize(loginRequest);
+            request.Content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+        }
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        
+        if (response.IsSuccessStatusCode)
+        {
+            var token = await response.Content.ReadFromJsonAsync<AccessTokenResponse>();
+            if (token != null)
+            {
+                return TypedResults.Ok(token);
+            }
+
+            return TypedResults.Empty;
+        }
+        else
+        {
+            // Try to parse error details
+            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken)
+                                 ?? new ProblemDetails { Title = "Login failed", Status = (int)response.StatusCode };
+            
+            return TypedResults.Problem(problemDetails);
+        }
+        
+    }
 
     public Task<Results<Ok<AccessTokenResponse>, UnauthorizedHttpResult, SignInHttpResult, ChallengeHttpResult>>
         RefreshAsync(RefreshRequest refreshRequest, CancellationToken cancellationToken) =>

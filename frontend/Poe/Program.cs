@@ -6,7 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     // Clients
     .AddHannibalServiceClient(builder.Configuration)
-    .AddIdentityApiClient(builder.Configuration);
+    .AddIdentityApiClient(builder.Configuration)
+    .AddHttpContextAccessor();
 
 builder.Services.AddAuthentication("Cookies")
     .AddCookie("Cookies", options =>

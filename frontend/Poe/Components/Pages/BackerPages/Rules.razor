@@ -2,11 +2,13 @@
 @using Hannibal.Client
 @using Hannibal.Client
 @using Hannibal.Models
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @inject IHannibalServiceClient HannibalServiceClient
 @inject NavigationManager NavigationManager
 @implements IDisposable
 @rendermode InteractiveServer
+@attribute [Authorize]
 
 
 <h3>Rules</h3>

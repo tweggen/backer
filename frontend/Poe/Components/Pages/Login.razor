@@ -1,0 +1,67 @@
+@page "/Login"
+@using System.Security.Claims
+@using Hannibal.Client
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.BearerToken
+@using Microsoft.AspNetCore.Http
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Http.HttpResults
+@using Microsoft.AspNetCore.Identity.Data
+@using Microsoft.EntityFrameworkCore.Metadata.Internal
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IIdentityApiService IdentityApiService
+@inject NavigationManager Navigation
+
+<h3>Login</h3>
+
+
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <p style="color:red">@ErrorMessage</p>
+}
+
+<EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" FormName="LoginForm">
+    <InputText @bind-Value="loginModel.Username" placeholder="Username" />
+    <InputText @bind-Value="loginModel.Password" placeholder="Password" type="password" />
+    <button type="submit">Log in</button>
+</EditForm>
+
+@code {
+    private string? ErrorMessage;
+
+    [SupplyParameterFromForm(FormName = "LoginForm")]
+    private LoginModel loginModel { get; set; }= new();
+
+    private async Task HandleLogin()
+    {
+        var result = await IdentityApiService.LoginUserAsync(new LoginRequest()
+        {
+            Email = loginModel.Username, Password = loginModel.Password, TwoFactorCode = "false", TwoFactorRecoveryCode = "false"
+        }, CancellationToken.None);
+        
+        // Stubbed auth logic — replace with real validation
+        if (result.Result is Ok<AccessTokenResponse> okResult)
+        {
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, loginModel.Username)
+            };
+
+            var identity = new ClaimsIdentity(claims, "Cookies");
+            var principal = new ClaimsPrincipal(identity);
+
+            await HttpContextAccessor.HttpContext!.SignInAsync("Cookies", principal);
+            Navigation.NavigateTo("/");
+        }
+        else
+        {
+            ErrorMessage = "Invalid login credentials";
+        }
+    }
+
+    public class LoginModel
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
+}
