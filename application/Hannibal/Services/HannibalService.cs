@@ -26,6 +26,8 @@ public partial class HannibalService : IHannibalService
     private IdentityUser? _currentUser = null;
     
     private readonly UserManager<IdentityUser> _userManager;
+    
+    private readonly IBackgroundWorker _backgroundWorker;
 
     public HannibalService(
         HannibalContext context,
@@ -42,18 +44,28 @@ public partial class HannibalService : IHannibalService
         _hannibalHub = hannibalHub;
         _userManager = userManager;
         _httpContextAccessor = httpContextAccessor;
+        _backgroundWorker = backgroundWorker;
     }
 
 
-    public Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken)
+    public async Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken)
     {
+        var backgroundParams = new RCloneServiceParams();
+        var cookie = _httpContextAccessor.HttpContext?.Request.Cookies[".AspNetCore.Identity.Application"];
+        if (!string.IsNullOrEmpty(cookie))
+        {
+            backgroundParams.Cookie = cookie;
+        }
         
+        var runnerResult = await _backgroundWorker.StartBackgroundServiceAsync(backgroundParams, cancellationToken);
+        return runnerResult;
     }
 
     
-    public Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken)
+    public async Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken)
     {
-        
+        var runnerResult = await _backgroundWorker.StopBackgroundServiceAsync(cancellationToken);
+        return runnerResult;
     }
     
     

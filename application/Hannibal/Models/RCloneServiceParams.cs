@@ -2,5 +2,5 @@ namespace Hannibal.Models;
 
 public class RCloneServiceParams
 {
-    public string Cookies { get; set; }
+    public string Cookie { get; set; }
 }

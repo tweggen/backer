@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using Hannibal.Client;
 using Hannibal.Models;
+using Hannibal.Services;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,7 +18,7 @@ using Result = WorkerRClone.Models.Result;
 
 namespace WorkerRClone;
 
-public class RCloneService : BackgroundService
+public class RCloneService : BackgroundService, IBackgroundWorker
 {
     private static object _classLock = new();
     private static int _nextId;
@@ -41,6 +42,8 @@ public class RCloneService : BackgroundService
     private SortedDictionary<int, Job> _mapRCloneToJob = new();
     
     private readonly Channel<RCloneServiceParams> _taskChannel = Channel.CreateUnbounded<RCloneServiceParams>();
+    
+    private bool _isStarted = false;
     
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -69,14 +72,37 @@ public class RCloneService : BackgroundService
         _processRClone?.Dispose();
         base.Dispose();
     }
-    
 
-    public void StartBackgroundService(RCloneServiceParams data)
+
+    public async Task<RunnerResult> StartBackgroundServiceAsync(
+        RCloneServiceParams rCloneServiceParams,
+        CancellationToken cancellationToken)
     {
-        _taskChannel.Writer.TryWrite(data);
+        bool wasStarted;
+        lock (_lo)
+        {
+            wasStarted = _isStarted;
+            if (!wasStarted)
+            {
+                _isStarted = true;
+            }
+        }
+
+        if (!wasStarted)
+        {
+            _taskChannel.Writer.TryWrite(rCloneServiceParams);
+        }
+
+        return new RunnerResult() { NewStatus = RunnerResult.RunnerStatus.Running };
     }
-    
-    
+
+
+    public Task<RunnerResult> StopBackgroundServiceAsync(
+        CancellationToken cancellationToken)
+    {
+        throw new NotFiniteNumberException();
+    }
+
     
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
