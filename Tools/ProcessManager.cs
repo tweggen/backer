@@ -91,28 +91,3 @@ public class ProcessManager : IHostedService, IDisposable
         }
     }
 }
-
-#if false
-// Example registration in Program.cs or Startup.cs
-// Example usage in a service
-public class SomeService
-{
-    private readonly ProcessManager _processManager;
-
-    public SomeService(ProcessManager processManager)
-    {
-        _processManager = processManager;
-    }
-
-    public void StartSomeProcess()
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "some-executable",
-            UseShellExecute = false
-        };
-
-        var process = _processManager.StartManagedProcess(startInfo);
-    }
-}
-#endif
