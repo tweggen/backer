@@ -1,5 +1,12 @@
 @page "/backer"
 @using System.Net
+@using Hannibal.Client
+@using Hannibal.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IHannibalServiceClient HannibalServiceClient
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@attribute [Authorize]
 
 @implements IDisposable
 
@@ -7,9 +14,60 @@
 
 <h3>Backer</h3>
 
+<button @onclick="ToggleRunnerAsync">
+    @(IsRunning ? "Stop Runner" : "Start Runner")
+</button>
+
+@if (IsLoading)
+{
+    <p>Checking runner status...</p>
+}
+
 @code {
+    private bool IsRunning = false;
+    private bool IsLoading = true;
+    private string Username = "";
+    private string Email = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            Username = user.Identity.Name;
+            // You can also access claims like:
+            Email = user.FindFirst(c => c.Type == "email")?.Value;
+
+            // Load the runner status when the component initializes
+            var runnerStatus = await HannibalServiceClient.GetRunnerStatusAsync(CancellationToken.None);
+            IsRunning = runnerStatus.NewStatus == RunnerResult.RunnerStatus.Running;
+            IsLoading = false;
+        }
+    }
+
+    private async Task ToggleRunnerAsync()
+    {
+        IsLoading = true;
+
+        if (IsRunning)
+        {
+            await HannibalServiceClient.StopRunnerAsync(CancellationToken.None);
+        }
+        else
+        {
+            await HannibalServiceClient.StartRunnerAsync(CancellationToken.None);
+        }
+
+        // Refresh runner state
+        var runnerStatus = await HannibalServiceClient.GetRunnerStatusAsync(CancellationToken.None);
+        IsRunning = runnerStatus.NewStatus == RunnerResult.RunnerStatus.Running;
+        IsLoading = false;
+    }
+
     public void Dispose()
     {
-        // Dispose logic if needed
+        // Any necessary cleanup here
     }
 }

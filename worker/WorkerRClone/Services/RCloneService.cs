@@ -74,6 +74,18 @@ public class RCloneService : BackgroundService, IBackgroundWorker
     }
 
 
+    public async Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken)
+    {
+        lock (_lo)
+        {
+            return new RunnerResult()
+            {
+                NewStatus = _isStarted ? RunnerResult.RunnerStatus.Running : RunnerResult.RunnerStatus.Stopped
+            };
+        }
+    }
+    
+    
     public async Task<RunnerResult> StartBackgroundServiceAsync(
         RCloneServiceParams rCloneServiceParams,
         CancellationToken cancellationToken)

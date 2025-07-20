@@ -7,6 +7,9 @@ namespace Hannibal.Client;
 public interface IHannibalServiceClient
 {
     public Task<IdentityUser> GetUserAsync(int id, CancellationToken cancellationToken);
+    public Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken);
+    public Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken);
+    public Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken);
     public Task<CreateEndpointResult> CreateEndpointAsync(Endpoint endpoint, CancellationToken cancellationToken);
     public Task<IEnumerable<Endpoint>> GetEndpointsAsync(CancellationToken cancellationToken);
     public Task<Endpoint> GetEndpointAsync(string name, CancellationToken cancellationToken);

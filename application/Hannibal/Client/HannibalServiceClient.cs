@@ -23,11 +23,44 @@ public class HannibalServiceClient : IHannibalServiceClient
     public async Task<IdentityUser> GetUserAsync(int id, CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
-            $"/api/higgins/v1/users/{id}",
+            $"/api/hannibal/v1/users/{id}",
             cancellationToken);
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(cancellationToken); 
         return JsonSerializer.Deserialize<IdentityUser>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+
+    public async Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/hannibal/v1/runnerStatus", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        return JsonSerializer.Deserialize<RunnerResult>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+
+    public async Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            $"/api/hannibal/v1/startRunner", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        return JsonSerializer.Deserialize<RunnerResult>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+    }
+
+
+    public async Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            $"/api/hannibal/v1/stopRunner", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        return JsonSerializer.Deserialize<RunnerResult>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
     
@@ -35,7 +68,7 @@ public class HannibalServiceClient : IHannibalServiceClient
     public async Task<CreateEndpointResult> CreateEndpointAsync(Endpoint endpoint, CancellationToken cancellationToken)
     {
         var response = await _httpClient.PostAsJsonAsync(
-            $"/api/higgins/v1/endpoints", endpoint,
+            $"/api/hannibal/v1/endpoints", endpoint,
             cancellationToken);
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -47,7 +80,7 @@ public class HannibalServiceClient : IHannibalServiceClient
     public async Task<Endpoint> GetEndpointAsync(string name, CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
-            $"/api/higgins/v1/endpoints/{Uri.EscapeDataString(name)}",
+            $"/api/hannibal/v1/endpoints/{Uri.EscapeDataString(name)}",
             cancellationToken);
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(cancellationToken); 
@@ -59,7 +92,7 @@ public class HannibalServiceClient : IHannibalServiceClient
     public async Task<IEnumerable<Endpoint>> GetEndpointsAsync(CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
-            $"/api/higgins/v1/endpoints",
+            $"/api/hannibal/v1/endpoints",
             cancellationToken);
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(cancellationToken); 
@@ -70,7 +103,7 @@ public class HannibalServiceClient : IHannibalServiceClient
     public async Task<Storage> GetStorageAsync(int id, CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
-            $"/api/higgins/v1/storages/{id}",
+            $"/api/hannibal/v1/storages/{id}",
             cancellationToken);
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(cancellationToken); 
@@ -82,7 +115,7 @@ public class HannibalServiceClient : IHannibalServiceClient
     public async Task<IEnumerable<Storage>> GetStoragesAsync(CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
-            $"/api/higgins/v1/storages",
+            $"/api/hannibal/v1/storages",
             cancellationToken);
         response.EnsureSuccessStatusCode(); 
         var content = await response.Content.ReadAsStringAsync(cancellationToken); 
@@ -93,7 +126,7 @@ public class HannibalServiceClient : IHannibalServiceClient
 
     public async Task DeleteEndpointAsync(int id, CancellationToken cancellationToken)
     {
-        var response = await _httpClient.DeleteAsync($"/api/higgins/v1/endpoints/{id}", cancellationToken);
+        var response = await _httpClient.DeleteAsync($"/api/hannibal/v1/endpoints/{id}", cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 
@@ -101,7 +134,7 @@ public class HannibalServiceClient : IHannibalServiceClient
     public async Task<Endpoint> UpdateEndpointAsync(int id, Endpoint endpoint, CancellationToken cancellationToken)
     {
         var response = await _httpClient.PutAsJsonAsync(
-            $"/api/higgins/v1/endpoints/{id}", endpoint,
+            $"/api/hannibal/v1/endpoints/{id}", endpoint,
             cancellationToken);
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync(cancellationToken);

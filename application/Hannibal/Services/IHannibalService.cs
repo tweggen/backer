@@ -9,10 +9,7 @@ public interface IHannibalService
         int id,
         CancellationToken cancellationToken);
 
-    // public Task<RegisterUserResult> RegisterUserAsync(string username, string email, string pwhash);
-    
-    // public Task<LoginUserResult> LoginUserAsync(string username, string pwhash);
-        
+    public Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken);
     public Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken);
     public Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken);
 

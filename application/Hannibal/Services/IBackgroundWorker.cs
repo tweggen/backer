@@ -5,9 +5,11 @@ namespace Hannibal.Services;
 
 public interface IBackgroundWorker : IHostedService
 {
-    Task<RunnerResult> StartBackgroundServiceAsync(
+    public Task<RunnerResult> GetRunnerStatusAsync(
+        CancellationToken cancellationToken);
+    public Task<RunnerResult> StartBackgroundServiceAsync(
         RCloneServiceParams rCloneServiceParams,
         CancellationToken cancellationToken);
-    Task<RunnerResult> StopBackgroundServiceAsync(
+    public Task<RunnerResult> StopBackgroundServiceAsync(
         CancellationToken cancellationToken);
 }

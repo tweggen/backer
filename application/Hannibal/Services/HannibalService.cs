@@ -48,6 +48,13 @@ public partial class HannibalService : IHannibalService
     }
 
 
+    public async Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken)
+    {
+        var runnerResult = await _backgroundWorker.GetRunnerStatusAsync(cancellationToken);
+        return runnerResult;
+    }
+
+    
     public async Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken)
     {
         var backgroundParams = new RCloneServiceParams();

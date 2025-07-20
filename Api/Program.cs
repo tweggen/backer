@@ -162,6 +162,41 @@ app.UseStaticFiles();
 
 app.MapHub<HannibalHub>("/hannibal");
 
+app.MapGet("/api/hannibal/v1/runnerStatus", async (
+        IHannibalService hannibalService,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await hannibalService.GetRunnerStatusAsync(cancellationToken);
+        return Results.Ok(result);
+    })
+    .RequireAuthorization()
+    .WithName("GetRunnerStatus")
+    .WithOpenApi();
+
+
+app.MapPost("/api/hannibal/v1/startRunner", async (
+        IHannibalService hannibalService,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await hannibalService.StartRunnerAsync(cancellationToken);
+        return Results.Ok(result);
+    })
+    .RequireAuthorization()
+    .WithName("StartRunner")
+    .WithOpenApi();
+
+
+app.MapPost("/api/hannibal/v1/stopRunner", async (
+        IHannibalService hannibalService,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await hannibalService.StopRunnerAsync(cancellationToken);
+        return Results.Ok(result);
+    })
+    .RequireAuthorization()
+    .WithName("StopRunner")
+    .WithOpenApi();
+
 
 app.MapGet("/api/hannibal/v1/rules/{ruleId}", async (
     IHannibalService hannibalService,
@@ -351,7 +386,7 @@ app.MapPost("/api/hannibal/v1/shutdown", async (
 .WithOpenApi();
 
 
-app.MapGet("/api/higgins/v1/users/{id}", async (
+app.MapGet("/api/hannibal/v1/users/{id}", async (
         IHannibalService higginsService,
         int id,
         CancellationToken cancellationToken) =>
@@ -364,7 +399,7 @@ app.MapGet("/api/higgins/v1/users/{id}", async (
     .WithOpenApi();
 
     
-app.MapGet("/api/higgins/v1/storages", async (
+app.MapGet("/api/hannibal/v1/storages", async (
         IHannibalService higginsService,
         CancellationToken cancellationToken) =>
     {
@@ -376,7 +411,7 @@ app.MapGet("/api/higgins/v1/storages", async (
     .WithOpenApi();
 
     
-app.MapGet("/api/higgins/v1/storages/{id}", async (
+app.MapGet("/api/hannibal/v1/storages/{id}", async (
         IHannibalService higginsService,
         int id,
         CancellationToken cancellationToken) =>
@@ -389,7 +424,7 @@ app.MapGet("/api/higgins/v1/storages/{id}", async (
     .WithOpenApi();
 
     
-app.MapGet("/api/higgins/v1/endpoints", async (
+app.MapGet("/api/hannibal/v1/endpoints", async (
     IHannibalService higginsService,
     CancellationToken cancellationToken) =>
 {
@@ -401,7 +436,7 @@ app.MapGet("/api/higgins/v1/endpoints", async (
 .WithOpenApi();
 
     
-app.MapGet("/api/higgins/v1/endpoints/{name}", async (
+app.MapGet("/api/hannibal/v1/endpoints/{name}", async (
     IHannibalService higginsService,
     string name,
     CancellationToken cancellationToken) =>
@@ -414,7 +449,7 @@ app.MapGet("/api/higgins/v1/endpoints/{name}", async (
 .WithOpenApi();
 
     
-app.MapPut("/api/higgins/v1/endpoints/{id}", async (
+app.MapPut("/api/hannibal/v1/endpoints/{id}", async (
     IHannibalService higginsService,
     int id,
     Hannibal.Models.Endpoint endpoint,
@@ -435,7 +470,7 @@ app.MapPut("/api/higgins/v1/endpoints/{id}", async (
 .WithOpenApi();
 
 
-app.MapPost("/api/higgins/v1/endpoints", async (
+app.MapPost("/api/hannibal/v1/endpoints", async (
     IHannibalService higginsService,
     Hannibal.Models.Endpoint endpoint,
     CancellationToken cancellationToken) =>
@@ -448,7 +483,7 @@ app.MapPost("/api/higgins/v1/endpoints", async (
 .WithOpenApi();
 
 
-app.MapDelete("/api/higgins/v1/endpoints/{id}", async (
+app.MapDelete("/api/hannibal/v1/endpoints/{id}", async (
     IHannibalService higginsService,
     int id,
     CancellationToken cancellationToken) =>
@@ -469,7 +504,7 @@ app.MapDelete("/api/higgins/v1/endpoints/{id}", async (
 
 
 
-app.MapGet("/api/higgins/v1/dump", async (
+app.MapGet("/api/hannibal/v1/dump", async (
         IHannibalService higginsService,
         [FromQuery] bool includeInactive,
         CancellationToken cancellationToken) =>
@@ -482,7 +517,7 @@ app.MapGet("/api/higgins/v1/dump", async (
     .WithOpenApi();
 
     
-app.MapPost("/api/higgins/v1/dump", async (
+app.MapPost("/api/hannibal/v1/dump", async (
         IHannibalService higginsService,
         string configJson,
         MergeStrategy mergeStrategy,

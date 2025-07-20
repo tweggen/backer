@@ -70,10 +70,21 @@ public class IdentityApiService : IIdentityApiService
         
         if (response.IsSuccessStatusCode)
         {
-            var token = await response.Content.ReadFromJsonAsync<AccessTokenResponse>();
-            if (token != null)
+            var contentString = await response.Content.ReadAsStringAsync(cancellationToken);
+            IEnumerable<string> cookies = response.Headers.SingleOrDefault(header => header.Key == "Set-Cookie").Value;
+            string? authToken= default;
+
+            foreach (var cookie in cookies)
             {
-                return TypedResults.Ok(token);
+                if (cookie.StartsWith(".AspNetCore.Identity.Application"))
+                {
+                    authToken = cookie.Substring(".AspNetCore.Identity.Application".Length);
+                }
+            }
+
+            if (authToken != null)
+            {
+                return TypedResults.Ok(new AccessTokenResponse() { AccessToken = authToken, ExpiresIn = 3600, RefreshToken = ""});
             }
 
             return TypedResults.Empty;
