@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Endpoint = Hannibal.Models.Endpoint;
@@ -27,7 +28,8 @@ public partial class HannibalService : IHannibalService
     
     private readonly UserManager<IdentityUser> _userManager;
     
-    private readonly IBackgroundWorker _backgroundWorker;
+    private IBackgroundWorker? _backgroundWorker = null;
+    private readonly IServiceProvider _serviceProvider;
 
     public HannibalService(
         HannibalContext context,
@@ -36,7 +38,7 @@ public partial class HannibalService : IHannibalService
         IHubContext<HannibalHub> hannibalHub,
         UserManager<IdentityUser> userManager,
         IHttpContextAccessor httpContextAccessor,
-        IBackgroundWorker backgroundWorker)
+        IServiceProvider serviceProvider)
     {
         _context = context;
         _logger = logger;
@@ -44,13 +46,23 @@ public partial class HannibalService : IHannibalService
         _hannibalHub = hannibalHub;
         _userManager = userManager;
         _httpContextAccessor = httpContextAccessor;
-        _backgroundWorker = backgroundWorker;
+        _serviceProvider = serviceProvider;
     }
 
 
+    private IBackgroundWorker _findBackgroundWorker()
+    {
+        if (null == _backgroundWorker)
+        {
+            _backgroundWorker = _serviceProvider.GetService<IBackgroundWorker>();
+        }
+        return _backgroundWorker!;
+    }
+    
+
     public async Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken)
     {
-        var runnerResult = await _backgroundWorker.GetRunnerStatusAsync(cancellationToken);
+        var runnerResult = await _findBackgroundWorker().GetRunnerStatusAsync(cancellationToken);
         return runnerResult;
     }
 
@@ -64,14 +76,14 @@ public partial class HannibalService : IHannibalService
             backgroundParams.Cookie = cookie;
         }
         
-        var runnerResult = await _backgroundWorker.StartBackgroundServiceAsync(backgroundParams, cancellationToken);
+        var runnerResult = await _findBackgroundWorker().StartBackgroundServiceAsync(backgroundParams, cancellationToken);
         return runnerResult;
     }
 
     
     public async Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken)
     {
-        var runnerResult = await _backgroundWorker.StopBackgroundServiceAsync(cancellationToken);
+        var runnerResult = await _findBackgroundWorker().StopBackgroundServiceAsync(cancellationToken);
         return runnerResult;
     }
     

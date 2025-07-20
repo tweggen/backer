@@ -7,6 +7,7 @@ using Hannibal.Client;
 using Hannibal.Models;
 using Hannibal.Services;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -31,8 +32,6 @@ public class RCloneService : BackgroundService, IBackgroundWorker
     private ILogger<RCloneService> _logger;
     private ProcessManager _processManager;
     private HubConnection _hannibalConnection;
-    private IHannibalServiceClient _hannibalClient;
-    private IHannibalServiceClient _higginsClient;
 
     private readonly RCloneServiceOptions _options;
 
@@ -45,13 +44,14 @@ public class RCloneService : BackgroundService, IBackgroundWorker
     
     private bool _isStarted = false;
     
+    private readonly IServiceScopeFactory _serviceScopeFactory;
+    
     public RCloneService(
         ILogger<RCloneService> logger,
         ProcessManager processManager,
         IOptions<RCloneServiceOptions> options,
         Dictionary<string, HubConnection> connections,
-        IHannibalServiceClient hannibalClient,
-        IHannibalServiceClient higginsClient)
+        IServiceScopeFactory serviceScopeFactory)
     {
         lock (_classLock)
         {
@@ -61,8 +61,7 @@ public class RCloneService : BackgroundService, IBackgroundWorker
         _processManager = processManager;
         _options = options.Value;
         _hannibalConnection = connections["hannibal"];
-        _hannibalClient = hannibalClient;
-        _higginsClient = higginsClient;
+        _serviceScopeFactory = serviceScopeFactory;
     }
     
     
@@ -181,7 +180,9 @@ public class RCloneService : BackgroundService, IBackgroundWorker
                         /*
                          * Report back the job success.
                          */
-                        var reportRes = await _hannibalClient.ReportJobAsync(new()
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                        var reportRes = await hannibalService.ReportJobAsync(new()
                                 { JobId = jobId, State = Job.JobState.DoneSuccess, Owner = _ownerId },
                             cancellationToken);
                         listDoneJobs.Add(rcloneJobId);
@@ -195,7 +196,9 @@ public class RCloneService : BackgroundService, IBackgroundWorker
                         /*
                          * Report back the error.
                          */
-                        var reportRes = await _hannibalClient.ReportJobAsync(new()
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                        var reportRes = await hannibalService.ReportJobAsync(new()
                                 { JobId = jobId, State = Job.JobState.DoneFailure, Owner = _ownerId },
                             cancellationToken);
                         listDoneJobs.Add(rcloneJobId);
@@ -206,7 +209,9 @@ public class RCloneService : BackgroundService, IBackgroundWorker
                     _logger.LogInformation($"Job Status for {jobId} is {jobStatus}.");
 
                     // TXWTODO: Throttle the amount of reportjobasync calls.
-                    var reportRes = await _hannibalClient.ReportJobAsync(new()
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                    var reportRes = await hannibalService.ReportJobAsync(new()
                             { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId },
                         cancellationToken);
 
@@ -309,9 +314,14 @@ public class RCloneService : BackgroundService, IBackgroundWorker
             /*
              * Then get the next job.
              */
-            var job = await _hannibalClient.AcquireNextJobAsync(
-                new() { Username = "timo", Capabilities ="rclone", Owner = _ownerId },
-                cancellationToken);
+            Job job;
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                job = await hannibalService.AcquireNextJobAsync(
+                    new() { Username = "timo", Capabilities = "rclone", Owner = _ownerId },
+                    cancellationToken);
+            }
             if (null == job)
             {
                 /*
@@ -343,7 +353,9 @@ public class RCloneService : BackgroundService, IBackgroundWorker
                 /*
                  * Report back the error.
                  */
-                var reportRes = await _hannibalClient.ReportJobAsync(new()
+                using var scope = _serviceScopeFactory.CreateScope();
+                var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                var reportRes = await hannibalService.ReportJobAsync(new()
                     { JobId = job.Id, State = Job.JobState.DoneFailure, Owner = _ownerId },
                     cancellationToken);
             }
