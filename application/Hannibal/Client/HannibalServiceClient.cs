@@ -45,8 +45,8 @@ public class HannibalServiceClient : IHannibalServiceClient
 
     public async Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken)
     {
-        var response = await _httpClient.PostAsJsonAsync(
-            $"/api/hannibal/v1/startRunner", cancellationToken);
+        var response = await _httpClient.PostAsync(
+            $"/api/hannibal/v1/startRunner", null, cancellationToken);
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<RunnerResult>(
@@ -56,8 +56,8 @@ public class HannibalServiceClient : IHannibalServiceClient
 
     public async Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken)
     {
-        var response = await _httpClient.PostAsJsonAsync(
-            $"/api/hannibal/v1/stopRunner", cancellationToken);
+        var response = await _httpClient.PostAsync(
+            $"/api/hannibal/v1/stopRunner", null, cancellationToken);
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<RunnerResult>(
