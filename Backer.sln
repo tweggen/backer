@@ -14,6 +14,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Frontend", "Frontend", "{3B
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Poe", "frontend\Poe\Poe.csproj", "{91E01B6D-70E2-4951-ABA2-D4F68F03CC0E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalAgent", "LocalAgent\LocalAgent.csproj", "{BE5B4831-547E-4333-83AF-1770A0C46503}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +46,10 @@ Global
 		{91E01B6D-70E2-4951-ABA2-D4F68F03CC0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{91E01B6D-70E2-4951-ABA2-D4F68F03CC0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{91E01B6D-70E2-4951-ABA2-D4F68F03CC0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE5B4831-547E-4333-83AF-1770A0C46503}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE5B4831-547E-4333-83AF-1770A0C46503}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE5B4831-547E-4333-83AF-1770A0C46503}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE5B4831-547E-4333-83AF-1770A0C46503}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D1AEF81A-F693-45E3-AAB1-E7CF20FFA2B2} = {F59EAE49-3A3C-4E00-BDCF-8B1E345BC7E7}

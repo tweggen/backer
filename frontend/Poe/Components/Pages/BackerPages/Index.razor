@@ -14,18 +14,7 @@
 
 <h3>Backer</h3>
 
-<button @onclick="ToggleRunnerAsync">
-    @(IsRunning ? "Stop Runner" : "Start Runner")
-</button>
-
-@if (IsLoading)
-{
-    <p>Checking runner status...</p>
-}
-
 @code {
-    private bool IsRunning = false;
-    private bool IsLoading = true;
     private string Username = "";
     private string Email = "";
 
@@ -39,31 +28,7 @@
             Username = user.Identity.Name;
             // You can also access claims like:
             Email = user.FindFirst(c => c.Type == "email")?.Value;
-
-            // Load the runner status when the component initializes
-            var runnerStatus = await HannibalServiceClient.GetRunnerStatusAsync(CancellationToken.None);
-            IsRunning = runnerStatus.NewStatus == RunnerResult.RunnerStatus.Running;
-            IsLoading = false;
         }
-    }
-
-    private async Task ToggleRunnerAsync()
-    {
-        IsLoading = true;
-
-        if (IsRunning)
-        {
-            await HannibalServiceClient.StopRunnerAsync(CancellationToken.None);
-        }
-        else
-        {
-            await HannibalServiceClient.StartRunnerAsync(CancellationToken.None);
-        }
-
-        // Refresh runner state
-        var runnerStatus = await HannibalServiceClient.GetRunnerStatusAsync(CancellationToken.None);
-        IsRunning = runnerStatus.NewStatus == RunnerResult.RunnerStatus.Running;
-        IsLoading = false;
     }
 
     public void Dispose()

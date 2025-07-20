@@ -15,9 +15,8 @@ public static class DependencyInjection
         services.Configure<RCloneServiceOptions>(
             configuration.GetSection("RCloneService"));
 
-        services.AddSingleton<IBackgroundWorker, RCloneService>();             // For DI
-        services.AddHostedService(provider => 
-            provider.GetRequiredService<IBackgroundWorker>());  
+
+        services.AddHostedService<RCloneService>();  
         // services.AddHostedService<IBackgroundWorker, RCloneService>();
         
         return services;

@@ -1,4 +1,4 @@
-namespace Api;
+namespace Hannibal;
 
 public interface IHttpBaseUrlAccessor
 {

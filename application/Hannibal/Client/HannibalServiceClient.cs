@@ -10,7 +10,7 @@ namespace Hannibal.Client;
 public class HannibalServiceClient : IHannibalServiceClient
 {
     private readonly HttpClient _httpClient;
-
+    
     public HannibalServiceClient(
         IOptions<HannibalServiceClientOptions> options,
         HttpClient httpClient
@@ -19,6 +19,10 @@ public class HannibalServiceClient : IHannibalServiceClient
         _httpClient = httpClient;
     }
 
+    public IHannibalServiceClient SetAuthCookie(string authCookie)
+    {
+        return this;
+    }
 
     public async Task<IdentityUser> GetUserAsync(int id, CancellationToken cancellationToken)
     {
@@ -32,39 +36,6 @@ public class HannibalServiceClient : IHannibalServiceClient
     }
 
 
-    public async Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken)
-    {
-        var response = await _httpClient.GetAsync(
-            $"/api/hannibal/v1/runnerStatus", cancellationToken);
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonSerializer.Deserialize<RunnerResult>(
-            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-    }
-
-
-    public async Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken)
-    {
-        var response = await _httpClient.PostAsync(
-            $"/api/hannibal/v1/startRunner", null, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonSerializer.Deserialize<RunnerResult>(
-            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-    }
-
-
-    public async Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken)
-    {
-        var response = await _httpClient.PostAsync(
-            $"/api/hannibal/v1/stopRunner", null, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonSerializer.Deserialize<RunnerResult>(
-            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
-    }
-    
-    
     public async Task<CreateEndpointResult> CreateEndpointAsync(Endpoint endpoint, CancellationToken cancellationToken)
     {
         var response = await _httpClient.PostAsJsonAsync(

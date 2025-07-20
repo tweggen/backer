@@ -9,10 +9,6 @@ public interface IHannibalService
         int id,
         CancellationToken cancellationToken);
 
-    public Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken);
-    public Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken);
-    public Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken);
-
     public Task<CreateEndpointResult> CreateEndpointAsync(
         Endpoint endpoint,
         CancellationToken cancellationToken);

@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Http.Headers;
 using Api;
 using Api.Configuration;
 using Hannibal;
@@ -7,14 +5,11 @@ using Hannibal.Client;
 using Hannibal.Data;
 using Hannibal.Models;
 using Hannibal.Services;
-using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
-using Tools;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -52,11 +47,6 @@ builder.Services.AddSwaggerGen(opt =>
 builder.Services.AddHealthChecks();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddTransient<IdentityCookieHandler>();
-builder.Services
-    .AddHttpClient("AuthenticatedClient")
-    .AddHttpMessageHandler<IdentityCookieHandler>();
-
 
 
 // Configure HTTP logging
@@ -74,14 +64,9 @@ builder.Services.AddDataProtection();
 
 // Add application services
 builder.Services
-        // Tools
-    .AddProcessManager()
         // Application 
     .AddHannibalService(builder.Configuration)
-        // Client
-    .AddHannibalServiceClient(builder.Configuration)
-        // Workers
-    .AddRCloneService(builder.Configuration)
+        // Server side backoffice to process and maintain jobs
     .AddHannibalBackofficeService(builder.Configuration)
     ;
 
@@ -161,42 +146,6 @@ app.MapHealthChecks("/health");
 app.UseStaticFiles();
 
 app.MapHub<HannibalHub>("/hannibal");
-
-app.MapGet("/api/hannibal/v1/runnerStatus", async (
-        IHannibalService hannibalService,
-        CancellationToken cancellationToken) =>
-    {
-        var result = await hannibalService.GetRunnerStatusAsync(cancellationToken);
-        return Results.Ok(result);
-    })
-    .RequireAuthorization()
-    .WithName("GetRunnerStatus")
-    .WithOpenApi();
-
-
-app.MapPost("/api/hannibal/v1/startRunner", async (
-        IHannibalService hannibalService,
-        CancellationToken cancellationToken) =>
-    {
-        var result = await hannibalService.StartRunnerAsync(cancellationToken);
-        return Results.Ok(result);
-    })
-    .RequireAuthorization()
-    .WithName("StartRunner")
-    .WithOpenApi();
-
-
-app.MapPost("/api/hannibal/v1/stopRunner", async (
-        IHannibalService hannibalService,
-        CancellationToken cancellationToken) =>
-    {
-        var result = await hannibalService.StopRunnerAsync(cancellationToken);
-        return Results.Ok(result);
-    })
-    .RequireAuthorization()
-    .WithName("StopRunner")
-    .WithOpenApi();
-
 
 app.MapGet("/api/hannibal/v1/rules/{ruleId}", async (
     IHannibalService hannibalService,

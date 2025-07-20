@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 
-namespace Api;
+namespace Hannibal;
 
 public class HubConnectionFactory
 {

@@ -1,4 +1,6 @@
-namespace Api;
+using Microsoft.Extensions.Configuration;
+
+namespace Hannibal;
 
 public class HttpBaseUrlAccessor : IHttpBaseUrlAccessor
 {

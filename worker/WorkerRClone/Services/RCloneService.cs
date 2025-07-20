@@ -19,7 +19,7 @@ using Result = WorkerRClone.Models.Result;
 
 namespace WorkerRClone;
 
-public class RCloneService : BackgroundService, IBackgroundWorker
+public class RCloneService : BackgroundService
 {
     private static object _classLock = new();
     private static int _nextId;
@@ -73,48 +73,6 @@ public class RCloneService : BackgroundService, IBackgroundWorker
     }
 
 
-    public async Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken)
-    {
-        lock (_lo)
-        {
-            return new RunnerResult()
-            {
-                NewStatus = _isStarted ? RunnerResult.RunnerStatus.Running : RunnerResult.RunnerStatus.Stopped
-            };
-        }
-    }
-    
-    
-    public async Task<RunnerResult> StartBackgroundServiceAsync(
-        RCloneServiceParams rCloneServiceParams,
-        CancellationToken cancellationToken)
-    {
-        bool wasStarted;
-        lock (_lo)
-        {
-            wasStarted = _isStarted;
-            if (!wasStarted)
-            {
-                _isStarted = true;
-            }
-        }
-
-        if (!wasStarted)
-        {
-            _taskChannel.Writer.TryWrite(rCloneServiceParams);
-        }
-
-        return new RunnerResult() { NewStatus = RunnerResult.RunnerStatus.Running };
-    }
-
-
-    public Task<RunnerResult> StopBackgroundServiceAsync(
-        CancellationToken cancellationToken)
-    {
-        throw new NotFiniteNumberException();
-    }
-
-    
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         var rCloneServiceParams = await _taskChannel.Reader.ReadAsync(cancellationToken);
@@ -181,7 +139,7 @@ public class RCloneService : BackgroundService, IBackgroundWorker
                          * Report back the job success.
                          */
                         using var scope = _serviceScopeFactory.CreateScope();
-                        var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                        var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
                         var reportRes = await hannibalService.ReportJobAsync(new()
                                 { JobId = jobId, State = Job.JobState.DoneSuccess, Owner = _ownerId },
                             cancellationToken);
@@ -197,7 +155,7 @@ public class RCloneService : BackgroundService, IBackgroundWorker
                          * Report back the error.
                          */
                         using var scope = _serviceScopeFactory.CreateScope();
-                        var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                        var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
                         var reportRes = await hannibalService.ReportJobAsync(new()
                                 { JobId = jobId, State = Job.JobState.DoneFailure, Owner = _ownerId },
                             cancellationToken);
@@ -210,7 +168,7 @@ public class RCloneService : BackgroundService, IBackgroundWorker
 
                     // TXWTODO: Throttle the amount of reportjobasync calls.
                     using var scope = _serviceScopeFactory.CreateScope();
-                    var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                    var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
                     var reportRes = await hannibalService.ReportJobAsync(new()
                             { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId },
                         cancellationToken);
@@ -294,6 +252,22 @@ public class RCloneService : BackgroundService, IBackgroundWorker
 
     private async Task _triggerFetchJob(CancellationToken cancellationToken)
     {
+        /*
+         * Find our if we are logged in at all
+         */
+        if (true) {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var identityApiService = scope.ServiceProvider.GetRequiredService<IIdentityApiService>();
+            var loginRes = await identityApiService.LoginUserAsync (new()
+                    { Email = _options.BackerUsername, Password = _options.BackerPassword },
+                cancellationToken);
+            /*
+             * On successful login, we should now have the cookie stored in our httpConnection.
+             */
+            int a = 1;
+        }
+
+
         try
         {
             /*
@@ -317,7 +291,7 @@ public class RCloneService : BackgroundService, IBackgroundWorker
             Job job;
             {
                 using var scope = _serviceScopeFactory.CreateScope();
-                var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
                 job = await hannibalService.AcquireNextJobAsync(
                     new() { Username = "timo", Capabilities = "rclone", Owner = _ownerId },
                     cancellationToken);
@@ -354,7 +328,7 @@ public class RCloneService : BackgroundService, IBackgroundWorker
                  * Report back the error.
                  */
                 using var scope = _serviceScopeFactory.CreateScope();
-                var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalService>();
+                var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
                 var reportRes = await hannibalService.ReportJobAsync(new()
                     { JobId = job.Id, State = Job.JobState.DoneFailure, Owner = _ownerId },
                     cancellationToken);
@@ -469,7 +443,7 @@ public class RCloneService : BackgroundService, IBackgroundWorker
         _rcloneHttpClient.DefaultRequestHeaders.Authorization = 
             new AuthenticationHeaderValue(
                 "Basic", Convert.ToBase64String(byteArray));
-        
+
         _hannibalConnection.On("NewJobAvailable", async () =>
         {
             await _triggerFetchJob(CancellationToken.None);

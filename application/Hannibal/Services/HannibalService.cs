@@ -28,7 +28,6 @@ public partial class HannibalService : IHannibalService
     
     private readonly UserManager<IdentityUser> _userManager;
     
-    private IBackgroundWorker? _backgroundWorker = null;
     private readonly IServiceProvider _serviceProvider;
 
     public HannibalService(
@@ -50,44 +49,6 @@ public partial class HannibalService : IHannibalService
     }
 
 
-    private IBackgroundWorker _findBackgroundWorker()
-    {
-        if (null == _backgroundWorker)
-        {
-            _backgroundWorker = _serviceProvider.GetService<IBackgroundWorker>();
-        }
-        return _backgroundWorker!;
-    }
-    
-
-    public async Task<RunnerResult> GetRunnerStatusAsync(CancellationToken cancellationToken)
-    {
-        var runnerResult = await _findBackgroundWorker().GetRunnerStatusAsync(cancellationToken);
-        return runnerResult;
-    }
-
-    
-    public async Task<RunnerResult> StartRunnerAsync(CancellationToken cancellationToken)
-    {
-        var backgroundParams = new RCloneServiceParams();
-        var cookie = _httpContextAccessor.HttpContext?.Request.Cookies[".AspNetCore.Identity.Application"];
-        if (!string.IsNullOrEmpty(cookie))
-        {
-            backgroundParams.Cookie = cookie;
-        }
-        
-        var runnerResult = await _findBackgroundWorker().StartBackgroundServiceAsync(backgroundParams, cancellationToken);
-        return runnerResult;
-    }
-
-    
-    public async Task<RunnerResult> StopRunnerAsync(CancellationToken cancellationToken)
-    {
-        var runnerResult = await _findBackgroundWorker().StopBackgroundServiceAsync(cancellationToken);
-        return runnerResult;
-    }
-    
-    
     public async Task<IdentityUser> GetUserAsync(int id, CancellationToken cancellationToken)
     {
         var userClaims = _httpContextAccessor.HttpContext?.User;
