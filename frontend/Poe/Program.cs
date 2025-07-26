@@ -15,7 +15,7 @@ builder.Services
         .AddHttpMessageHandler<IdentityCookieHandler>();
 
 builder.Services
-    .AddHannibalServiceClient(builder.Configuration);
+    .AddFrontendHannibalServiceClient(builder.Configuration);
 
 builder.Services.AddAuthentication("Cookies")
     .AddCookie("Cookies", options =>

@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Hannibal;
 using Hannibal.Client;
+using LocalAgent;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Builder;
@@ -57,34 +58,6 @@ builder.Services
     .AddIdentityApiClient(builder.Configuration)
     .AddHttpContextAccessor()
     ;
-builder.Services
-    .AddHttpClient("AuthenticatedClient")
-    .AddHttpMessageHandler(sp =>
-    {
-        var authClient = new HttpClient();
-        return new AutoAuthHandler(builder.Services.BuildServiceProvider(), authClient, async (sp, cancellationToken) => {
-            /*
-             * We are supposed to return the authenticated token.
-             */
-            var apiOptions = new RCloneServiceOptions();
-            builder.Configuration.GetSection("RCloneService").Bind(apiOptions);
-            using var scope = sp.GetRequiredService<IServiceScopeFactory>().CreateScope();
-            IIdentityApiService identityApiService = scope.ServiceProvider.GetRequiredService<IIdentityApiService>();
-            var loginRes = await identityApiService.LoginUserAsync (new()
-                    { Email = apiOptions.BackerUsername, Password = apiOptions.BackerPassword },
-                cancellationToken);
-
-            if (loginRes.Result is Ok<AccessTokenResponse> okResult)
-            {
-                return okResult.Value.AccessToken;
-            }
-            else
-            {
-                return "";
-            }
-        });
-    });
-
 
 // Configure HTTP logging
 builder.Services.AddHttpLogging(logging =>
@@ -103,8 +76,8 @@ builder.Services.AddDataProtection();
 builder.Services
         // Tools
     .AddProcessManager()
-        // Client
-    .AddHannibalServiceClient(builder.Configuration)
+        // ClientHannibalServiceClient
+    .AddBackgroundHannibalServiceClient(builder.Configuration)
         // Workers
     .AddRCloneService(builder.Configuration)
     ;

@@ -1,5 +1,7 @@
 using Hannibal.Client.Configuration;
 using Hannibal.Services;
+using Microsoft.AspNetCore.Authentication.BearerToken;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -8,7 +10,7 @@ namespace Hannibal.Client;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddHannibalServiceClient(
+    public static IServiceCollection AddFrontendHannibalServiceClient(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -27,6 +29,9 @@ public static class DependencyInjection
 
         return services;
     }
+
+
+    
     
     public static IServiceCollection AddIdentityApiClient(
         this IServiceCollection services,

@@ -29,7 +29,7 @@ public class AutoAuthHandler : DelegatingHandler
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             var token = await _getAuthCookieAsync(_serviceProvider, cancellationToken); // Get token with credentials
-            System.Console.WriteLine("Got auth cookie: {token}", token);
+            System.Console.WriteLine($"Got auth cookie: {token}");
             
             /*
              * Clone request and retry
