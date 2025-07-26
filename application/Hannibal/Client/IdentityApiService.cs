@@ -76,9 +76,9 @@ public class IdentityApiService : IIdentityApiService
 
             foreach (var cookie in cookies)
             {
-                if (cookie.StartsWith(".AspNetCore.Identity.Application"))
+                if (cookie.StartsWith(".AspNetCore.Identity.Application="))
                 {
-                    authToken = cookie.Substring(".AspNetCore.Identity.Application".Length);
+                    authToken = cookie;
                 }
             }
 

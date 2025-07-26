@@ -1,3 +1,4 @@
+using System.Net;
 using Hannibal;
 using Hannibal.Client;
 using Hannibal.Client.Configuration;
@@ -20,17 +21,34 @@ public static class DependencyInjection
          */
         services.Configure<HannibalServiceClientOptions>(configuration.GetSection("HannibalServiceClient"));
 
+        var cookieContainer = new CookieContainer();
+        var handler = new HttpClientHandler
+        {
+            CookieContainer = cookieContainer,
+            UseCookies = true
+        };
+        
         services
             .AddHttpClient<IHannibalServiceClient, HannibalServiceClient>((serviceProvider, client) =>
             {
                 var options = serviceProvider.GetRequiredService<IOptions<HannibalServiceClientOptions>>().Value;
                 client.BaseAddress = new Uri(options.BaseUrl);
             })
+            .ConfigurePrimaryHttpMessageHandler(() =>
+            {
+                return new HttpClientHandler
+                {
+                    UseCookies = true,
+                    CookieContainer = cookieContainer,
+                    AllowAutoRedirect = true // tweak as needed
+                };
+            })
             .AddHttpMessageHandler(sp =>
             {
                 var authClient = new HttpClient();
                 return new Tools.AutoAuthHandler(
                     services.BuildServiceProvider(),
+                    cookieContainer,
                     authClient,
                     async (sp, cancellationToken) =>
                     {

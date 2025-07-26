@@ -15,11 +15,44 @@ public class AutoAuthHandler : DelegatingHandler
     private readonly string _password;
     private readonly Func<ServiceProvider, CancellationToken, Task<string>> _getAuthCookieAsync;
     private readonly ServiceProvider _serviceProvider;
+    private readonly CookieContainer _cookieContainer;
 
-    public AutoAuthHandler(ServiceProvider serviceProvider, HttpClient authClient, Func<ServiceProvider, CancellationToken, Task<string>> getAuthCookieAsync)
+    public static void AddSetCookieToContainer(
+        CookieContainer container, 
+        Uri uri, 
+        string setCookie,
+        HttpRequestMessage? request = null)
+    {
+        string[] parts = setCookie.Split(';');
+        string[] nameValue = parts[0].Split('=', 2);
+
+        var cookie = new Cookie(nameValue[0].Trim(), nameValue[1].Trim());
+
+        foreach (var part in parts[1..])
+        {
+            var trimmed = part.Trim().ToLowerInvariant();
+            if (trimmed.StartsWith("path=")) cookie.Path = part.Substring(5).Trim();
+            else if (trimmed == "secure") cookie.Secure = true;
+            else if (trimmed == "httponly") cookie.HttpOnly = true;
+            else if (trimmed.StartsWith("domain=")) cookie.Domain = part.Substring(7).Trim();
+            // You could add more logic for SameSite if needed
+        }
+
+        request?.Headers.Add("Cookie", cookie.ToString());
+        container.Add(uri, cookie);
+    }
+    
+    public AutoAuthHandler(
+        ServiceProvider serviceProvider, 
+        CookieContainer cookieContainer,
+        HttpClient authClient, 
+        Func<ServiceProvider, 
+            CancellationToken, 
+            Task<string>> getAuthCookieAsync)
     {
         _serviceProvider = serviceProvider;
         _getAuthCookieAsync = getAuthCookieAsync;
+        _cookieContainer = cookieContainer;
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -28,14 +61,22 @@ public class AutoAuthHandler : DelegatingHandler
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            var token = await _getAuthCookieAsync(_serviceProvider, cancellationToken); // Get token with credentials
-            System.Console.WriteLine($"Got auth cookie: {token}");
+            var setCookieValue = await _getAuthCookieAsync(_serviceProvider, cancellationToken); // Get token with credentials
+            System.Console.WriteLine($"Got set cookie value: {setCookieValue}");
+            
+            var originalUri = request.RequestUri;
+
+            // Build domain-level Uri (scheme + host + optional port)
+            var domainUri = new Uri($"{originalUri!.Scheme}://{originalUri.Host}" +
+                                    (originalUri.IsDefaultPort ? "" : $":{originalUri.Port}"));
+            
             
             /*
              * Clone request and retry
              */
             var newRequest = await CloneHttpRequestMessageAsync(request);
-            newRequest.Headers.Add("Cookie", $".AspNetCore.Identity.Application={token}");
+
+            AddSetCookieToContainer(_cookieContainer, domainUri, setCookieValue, newRequest);
 
             return await base.SendAsync(newRequest, cancellationToken);
         }
