@@ -1,7 +1,11 @@
-﻿using Hannibal;
+﻿using System.Security.Claims;
+using Hannibal;
 using Hannibal.Client;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -54,7 +58,38 @@ builder.Services
     .AddHttpContextAccessor()
     ;
 builder.Services
-    .AddHttpClient("AuthenticatedClient");
+    .AddHttpClient("AuthenticatedClient")
+    .AddHttpMessageHandler(sp =>
+    {
+        var authClient = new HttpClient();
+        return new AutoAuthHandler(sp, authClient, async (sp, cancellationToken) => {
+            /*
+             * We are supposed to return the authenticated token.
+             */
+            var apiOptions = new RCloneServiceOptions();
+            builder.Configuration.GetSection("RCloneService").Bind(apiOptions);
+            
+            using var scope = sp.GetRequiredService<IServiceScopeFactory>().CreateScope();
+            var identityApiService = scope.ServiceProvider.GetRequiredService<IIdentityApiService>();
+            var loginRes = await identityApiService.LoginUserAsync (new()
+                    { Email = apiOptions.BackerUsername, Password = apiOptions.BackerPassword },
+                cancellationToken);
+
+            if (loginRes.Result is Ok<AccessTokenResponse> okResult)
+            {
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, apiOptions.BackerUsername)
+                };
+
+                var identity = new ClaimsIdentity(claims, "Cookies");
+                var principal = new ClaimsPrincipal(identity);
+
+                await authClient.HttpContext!.SignInAsync("Cookies", principal);
+
+            return "";
+        });
+    });
 
 
 // Configure HTTP logging
