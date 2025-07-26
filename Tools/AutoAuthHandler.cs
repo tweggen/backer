@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Tools;
 
@@ -28,10 +29,14 @@ public class AutoAuthHandler : DelegatingHandler
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             var token = await _getAuthCookieAsync(_serviceProvider, cancellationToken); // Get token with credentials
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-            // Clone request and retry
+            System.Console.WriteLine("Got auth cookie: {token}", token);
+            
+            /*
+             * Clone request and retry
+             */
             var newRequest = await CloneHttpRequestMessageAsync(request);
+            newRequest.Headers.Add("Cookie", $".AspNetCore.Identity.Application={token}");
+
             return await base.SendAsync(newRequest, cancellationToken);
         }
 

@@ -30,7 +30,7 @@
     private string? ErrorMessage;
 
     [SupplyParameterFromForm(FormName = "LoginForm")]
-    private LoginModel loginModel { get; set; }= new();
+    private LoginModel loginModel { get; set; } = new();
 
     private async Task HandleLogin()
     {

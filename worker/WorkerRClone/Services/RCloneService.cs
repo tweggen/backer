@@ -252,28 +252,6 @@ public class RCloneService : BackgroundService
 
     private async Task _triggerFetchJob(CancellationToken cancellationToken)
     {
-        /*
-         * Find our if we are logged in at all.
-         * TXWTODO: Only log in if we haven't been logged in.
-         */
-        if (true) {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var identityApiService = scope.ServiceProvider.GetRequiredService<IIdentityApiService>();
-            var loginRes = await identityApiService.LoginUserAsync (new()
-                    { Email = _options.BackerUsername, Password = _options.BackerPassword },
-                cancellationToken);
-            /*
-             * On successful login, we should now have the cookie stored in our httpConnection.
-             */
-            int a = 1;
-            
-            /*
-             * Set the cookie in the http handler.
-             */
-            // TXWTODO: Do it.
-        }
-
-
         try
         {
             /*

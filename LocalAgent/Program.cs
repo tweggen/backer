@@ -62,32 +62,26 @@ builder.Services
     .AddHttpMessageHandler(sp =>
     {
         var authClient = new HttpClient();
-        return new AutoAuthHandler(sp, authClient, async (sp, cancellationToken) => {
+        return new AutoAuthHandler(builder.Services.BuildServiceProvider(), authClient, async (sp, cancellationToken) => {
             /*
              * We are supposed to return the authenticated token.
              */
             var apiOptions = new RCloneServiceOptions();
             builder.Configuration.GetSection("RCloneService").Bind(apiOptions);
-            
             using var scope = sp.GetRequiredService<IServiceScopeFactory>().CreateScope();
-            var identityApiService = scope.ServiceProvider.GetRequiredService<IIdentityApiService>();
+            IIdentityApiService identityApiService = scope.ServiceProvider.GetRequiredService<IIdentityApiService>();
             var loginRes = await identityApiService.LoginUserAsync (new()
                     { Email = apiOptions.BackerUsername, Password = apiOptions.BackerPassword },
                 cancellationToken);
 
             if (loginRes.Result is Ok<AccessTokenResponse> okResult)
             {
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, apiOptions.BackerUsername)
-                };
-
-                var identity = new ClaimsIdentity(claims, "Cookies");
-                var principal = new ClaimsPrincipal(identity);
-
-                await authClient.HttpContext!.SignInAsync("Cookies", principal);
-
-            return "";
+                return okResult.Value.AccessToken;
+            }
+            else
+            {
+                return "";
+            }
         });
     });
 
