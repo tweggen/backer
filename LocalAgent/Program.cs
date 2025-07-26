@@ -50,15 +50,11 @@ builder.Services.AddHealthChecks();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 builder.Services
-    .AddTransient<IdentityCookieHandler>()
     .AddIdentityApiClient(builder.Configuration)
     .AddHttpContextAccessor()
     ;
 builder.Services
-    .AddHttpClient("AuthenticatedClient")
-    .AddHttpMessageHandler<IdentityCookieHandler>();
-
-
+    .AddHttpClient("AuthenticatedClient");
 
 
 // Configure HTTP logging
