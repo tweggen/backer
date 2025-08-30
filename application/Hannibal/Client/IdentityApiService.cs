@@ -110,24 +110,11 @@ public class IdentityApiService : IIdentityApiService
         
     }
 
-    public async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult, UnauthorizedHttpResult>> LoginTokenAsync(
-        LoginRequest loginRequest, 
-        CancellationToken cancellationToken)
-    {
-        var user = await _userManager.FindByEmailAsync(loginRequest.Email);
-        if (user == null || !await _userManager.CheckPasswordAsync(user, loginRequest.Password))
-        {
-            return TypedResults.Unauthorized();
-        }
-
-        var token = _tokenService.CreateToken(user); // Your custom JWT logic
-        return TypedResults.Ok(new AccessTokenResponse
-        {
-            AccessToken = token,
-            ExpiresIn = 3600,
-            RefreshToken = ""
-        });
-    }
+    public Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>>
+        TokenAsync(LoginRequest loginRequest, CancellationToken cancellationToken) =>
+        SendRequestAsync<
+        Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>>(
+            HttpMethod.Post, $"{ApiPrefix}token", loginRequest, cancellationToken);
 
     
     public Task<Results<Ok<AccessTokenResponse>, UnauthorizedHttpResult, SignInHttpResult, ChallengeHttpResult>>

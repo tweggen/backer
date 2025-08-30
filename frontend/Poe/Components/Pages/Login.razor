@@ -34,39 +34,50 @@
 
     private async Task HandleLogin()
     {
-        var result = await IdentityApiService.LoginUserAsync(new LoginRequest()
+        var loginRequest = new LoginRequest()
         {
             Email = loginModel.Username, Password = loginModel.Password, TwoFactorCode = "false", TwoFactorRecoveryCode = "false"
-        }, CancellationToken.None);
+        };
         
+        var result = await IdentityApiService.LoginUserAsync(loginRequest, CancellationToken.None);
         // Stubbed auth logic — replace with real validation
         if (result.Result is Ok<AccessTokenResponse> okResult)
         {
-            var token = okResult.Value!.AccessToken;
-            
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, loginModel.Username),
-                // new Claim("access_token", token)
             };
 
             var identity = new ClaimsIdentity(claims, "Cookies");
             var principal = new ClaimsPrincipal(identity);
+            await HttpContextAccessor.HttpContext!.SignInAsync("Cookies", principal);
+        } 
+        else
+        {
+            ErrorMessage = "Invalid login credentials";
+            return;
+        }
 
+
+        var tokenResult = await IdentityApiService.LoginTokenAsync(
+                loginRequest, CancellationToken.None);
+        if (tokenResult.Result is Ok<AccessTokenResponse> okTokenResult)
+        {
+            var token = okTokenResult.Value!.AccessToken;
             HttpContextAccessor.HttpContext!.Response.Cookies.Append("access_token", token, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict
             });
-            
-            await HttpContextAccessor.HttpContext!.SignInAsync("Cookies", principal);
-            Navigation.NavigateTo("/");
         }
         else
         {
-            ErrorMessage = "Invalid login credentials";
+            ErrorMessage = "Invalid login credentials for token";
+            return;
         }
+
+        Navigation.NavigateTo("/");
     }
 
     public class LoginModel

@@ -6,9 +6,12 @@ using Hannibal.Client;
 using Hannibal.Data;
 using Hannibal.Models;
 using Hannibal.Services;
+using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.IdentityModel.Tokens;
@@ -143,6 +146,7 @@ app.UseRouting();           // Enables endpoint routing
 app.UseAuthentication();    // Parses and validates tokens
 app.UseAuthorization();     // Applies authorization policies
 
+
 app.MapGroup("/api/auth/v1/").MapIdentityApi<IdentityUser>();
 
 {
@@ -196,6 +200,33 @@ app.MapHealthChecks("/health");
 app.UseStaticFiles();
 
 app.MapHub<HannibalHub>("/hannibal");
+
+app.MapPost("/api/authb/v1/token", async (
+    SignInManager<IdentityUser> signInManager,
+    UserManager<IdentityUser> userManager,
+    ITokenService tokenService,
+    LoginRequest loginRequest) =>
+    {
+        var user = await userManager.FindByEmailAsync(loginRequest.Email);
+        if (user == null || !await userManager.CheckPasswordAsync(user, loginRequest.Password))
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var token = tokenService.CreateToken(user); // Your custom JWT logic
+        Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult, UnauthorizedHttpResult>
+            result = TypedResults.Ok(new AccessTokenResponse
+        {
+            AccessToken = token,
+            ExpiresIn = 3600,
+            RefreshToken = ""
+        });
+        
+        return result;
+    })
+    .WithName("Token")
+    .WithOpenApi();
+
 
 app.MapGet("/api/hannibal/v1/rules/{ruleId}", async (
     IHannibalService hannibalService,

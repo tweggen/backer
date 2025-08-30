@@ -12,6 +12,7 @@ public interface IIdentityApiService
 {
     Task<Results<Ok, ValidationProblem>> RegisterUserAsync(RegisterRequest request, CancellationToken cancellationToken);
     Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>> LoginUserAsync(LoginRequest loginRequest, CancellationToken cancellationToken);
+    Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>> TokenAsync(LoginRequest loginRequest, CancellationToken cancellationToken);
     Task<Results<Ok<AccessTokenResponse>, UnauthorizedHttpResult, SignInHttpResult, ChallengeHttpResult>> RefreshAsync(RefreshRequest refreshRequest, CancellationToken cancellationToken);
     Task<Results<ContentHttpResult, UnauthorizedHttpResult>> ConfirmEmail(string userId, string code, string? changedEmail, CancellationToken cancellationToken);
     Task<Ok> ResendConfirmationEmail(ResendConfirmationEmailRequest resendConfirmationEmailRequest, CancellationToken cancellationToken);
