@@ -99,6 +99,7 @@ builder.Services.AddSingleton(provider =>
     };
 });
 
+
 // Build the application
 var app = builder.Build();
 

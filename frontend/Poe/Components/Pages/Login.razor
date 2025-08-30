@@ -42,9 +42,12 @@
         // Stubbed auth logic — replace with real validation
         if (result.Result is Ok<AccessTokenResponse> okResult)
         {
+            var token = okResult.Value!.AccessToken;
+            
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, loginModel.Username)
+                new Claim(ClaimTypes.Name, loginModel.Username),
+                new Claim("access_token", token)
             };
 
             var identity = new ClaimsIdentity(claims, "Cookies");

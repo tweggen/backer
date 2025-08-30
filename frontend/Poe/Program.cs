@@ -1,6 +1,9 @@
+using System.Text;
 using Hannibal;
 using Poe.Components;
 using Hannibal.Client;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Tools;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,14 +20,20 @@ builder.Services
 builder.Services
     .AddFrontendHannibalServiceClient(builder.Configuration);
 
-builder.Services.AddAuthentication("Cookies")
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITokenProvider, HttpContextTokenProvider>();
+
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    })
     .AddCookie("Cookies", options =>
     {
         options.LoginPath = "/login";
         options.LogoutPath = "/logout";
         options.AccessDeniedPath = "/access-denied";
-    });
-
+    })
+    ;
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -54,8 +63,8 @@ app.Run();
 #if false
 {
   "tokenType": "Bearer",
-  "accessToken": "CfDJ8MC0VvYWPSlElKGQXtpGGkDNDR317H1t4NWn82BjEaRFZmTSdCh5FCaASdXhJC_HRzeHt3dwpVH-Kf2QyDFWY0uEM811SktuzJ6tysCwJuk0KQ9pbVf4K2bYKyf7V9iH-o6bndL5-BIYl72URrNzJDKLO0uqzG-e1dCURg8yeXQGVdzPK4JCN_LT7qU6cyOLeu1ZPLgpVFRGK11Bifr2JSg-RrETHnCkBXzTf3bB_Z1tGC8Tie05rvtooBOhnn8VZvVTSOl2BT0QH0Gny7mpViCHGbc70iHyHdDN3Annp7VsE8k4Da8ZEQzVqMSDJJ4Eboha2aYU6BFDr4TP57H0d7syUwA_mr6cWySOVA3_sO5PsRKr8HSVn7ZV4dsi9ZseyHpzfD1_kSdpmctj4-5M1n8N_LUP_LIie-9kJMFATPsiqOK5M_CFM-MBKv1EAf_vHHV4M8FANPOlLBMgyIO4mgu9V47TVdyrXN24IYIlp0qlV-_p2ODF5GRcIzn662jVDz2-vg2LPd1FCDx0CXE68Nl0sWU1Ow-89vdiqCqG4YT4_YKXEnvVxMcnx-Dcl8uKlJUdhJuE9sYoJj52JuG2vFResj1EgZTj7v47AnfEM9APBp6mEt0cOGLxMyZvlpg7aAbfgwvStaKhXPph6loV_niSi2Se5o9q5xIuEQ-P4blnX22zN9scXAnhQWVjIAI2YN8eDbpmvTgdF6BmfXJSF0M",
+  "accessToken": "CfDJ8GjUggLe6g5BqPAD5yeBor2q4SZ7usA9BiYzKcBrksAxUMkq5_Jg2GoHvvwK3v7NA2MFF3b6RtJQt72xdZl73nWs8DGdDS1Tvd9dATWoTR23GLGCzZhHjuWPmkg3xkMfbABYuGpvJYksrlP6gvoIZ0r3U2A8uuKG4CnzKobuXIZ7punlFmPI79zlL7cRTvkiaOo5JZnpmILSCCS_xrrbHOzpH-teKgFnviCl_PpgaZvcqqDyk4Om0gMgR2QxCsx4WJHHueoFciwUvbI4NSaAGTmxKCFfyrSfnFHDd_rtxpirqBAoK3xfaXyKdny05uwDYwP3TVjFRTRD-rbFyyQEKL4l0HBzIgmhC9ifMSBJSxsaCDliiOzH6RocgxSmIQ9Uu-SlBcqm_v2UlhxExwxcI1GEI8OSqBl6RFRPZH9n4Xu_bCR2eARdv0QWS_0o-td03ZXQpKGJjZsSiWtjrgCfLLh2PyjIeRtZyGKRSQSooPfG-CVRr9LoCGm95hIOpSBiKVrIzq5WwQusfb7ssU_4RW51OOOX4hgttr-uvQ9g4gcCbdwBuZMlu9QGQEkOUBBAwxqEesc4kP61EKCyo7GFWVflQS5l9deJ9wUXjg-GTDmYtoONFE0nxvHXCXf4ZzkOLh5kYB0U4KW7MBxbbW5U2MhkSx5jmCFKupuUrerdyDYaL_Ms4e4CKlvxJ88tUfZC88ezVgaXs5Az_lX_atPtrm4",
   "expiresIn": 3600,
-  "refreshToken": "CfDJ8MC0VvYWPSlElKGQXtpGGkA_lWdxJgI3XTpqXTgn7ZczgJEYAqTNg3MKfgHZpnLLIWtom9EyzO6xnp61vaCaD0qt9jnIuP9fdES2RPwRHGjtAI9hzDNSeLpeP8bNTsW1d0GV_0UpUlpn1_zXy-WWo1ptUxAw72Z64xaf_DfCpIZluLI5JwYZVf_Hu10jEPgAoPuiKjFRqhQ5pbzaK_oXOgjea0oAV17JDfvd95MBELKPY-Nvnbx3DpB-u0QuAbl6KtDFoT891zJNM527JTIypuApL0FXBY6tROZpedvjPsEhJTDPOrtasb-nSirwBgRPYZ6gqCkdVlg_IXtbnv_OudcV58dMKUAf1hc6lX5J7sXaBzbqlHh3KxwrtVBoXrma-Ab0vjOZkbGlzEuWpOLwUFt1VC-y8gTxtYDlfWZR3rSodqp_TZEgrw2ND5pz8c1gkejPr_XsjPCQLcoB0zNoGkwUlzsioaj1UEo9j2VW5AJOFwD7M45RPRYBbFuADwjSbDA6wNtGfYzr0sLo1dT5UsKbJ_H_wiGQ0WmM4XdA_41DqWqS4aBWpMtcPSRV6QaVexKuDVFK7WV6QmaxIrAwdriTeeZtESgg-TD6NY8RTNL8zFroohPEg7--ZDVD_Av3Hg4f1nrG0NmygTWznT_2x5oNVVhcSRdImaBbO0JcSUajJbUSKcaL4QzTRhENVFkyxbrNfvkH6DIXrh8KDF5Fmu4"
+  "refreshToken": "CfDJ8GjUggLe6g5BqPAD5yeBor30tE8fLffqabBAIvhpZibMR76H3OleUSy0oPQNB9B0_041Tfqskzjce6JUVmgLv--Cb5okfipCT9eh7Ed7pNyHJx53CI-i4CUDnr0QX3SRBnFrtrATMSxORZJoi9e-7W4R93y-UKU6pEoa9_JjF66MInE1dN-1emM2YIH8eHZXpyC09RWV5ljJSB6sNV52xJeFjMJIy9JAya3lcSCs78XrsvemXWwPOkJxLlSozCBVZZS--4sHErDlZ0tsGo2SQ4TXZOAgOZ16sHsAZqLwYUBcfNVan7fp64jgc3wMcRGVhTV7GNTV0JdgRNl3tKxPFxn25FPfetTZfpu_JXbIs7xxbmI7Q8cXgkaQCogIGI3RYuXKa_eTmdWRlCBhqFxP_P5HMZyPB6wejdi-PS5LzQpdnwRWzhTu4gLsT-pf7rBKSt1x6gc0xIycYxThfa0aeYwsSJBItgtNo_V1yc2kEg_GSigG4adv1JXslIT9JndJGWz3DYqczvifzEsQAjqtU058dq2ulsZ7LaY_zamsZMm5zR-oRYzw7kNEGFqxTcyztqOWIrT-xVvcjxnKvzjyPzPskDtYyHJn5pzLQrZnTgRgOMf3MhP9weUEBwfVyBYfiQInuf_5qG_THbRZvj_VxVBehJyr6O86TjBopNeGZ7gzBz-yV2wC95l-FOXABDjhCHFR_X64xcR2Y76poRoJwSg"
 }
 #endif

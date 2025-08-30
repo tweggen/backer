@@ -1,3 +1,4 @@
+using System.Text;
 using Api;
 using Api.Configuration;
 using Hannibal;
@@ -5,11 +6,14 @@ using Hannibal.Client;
 using Hannibal.Data;
 using Hannibal.Models;
 using Hannibal.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Tools;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -86,6 +90,24 @@ builder.Services.AddSingleton(provider =>
         { "hannibal", hannibalConnection }
     };
 });
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = "yourIssuer",
+            ValidAudience = "yourAudience",
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes("yourSuperSecretKey"))
+        };
+    });
+
+builder.Services.AddScoped<ITokenProvider, HttpContextTokenProvider>();
 
 builder.Services.AddAuthorization();
 
