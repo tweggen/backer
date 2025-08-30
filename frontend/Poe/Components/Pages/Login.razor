@@ -59,7 +59,7 @@
         }
 
 
-        var tokenResult = await IdentityApiService.LoginTokenAsync(
+        var tokenResult = await IdentityApiService.TokenAsync(
                 loginRequest, CancellationToken.None);
         if (tokenResult.Result is Ok<AccessTokenResponse> okTokenResult)
         {

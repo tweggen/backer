@@ -24,17 +24,10 @@ public class IdentityApiService : IIdentityApiService
 
     public string ApiPrefix = "/api/auth/v1/";
 
-    private readonly UserManager<IdentityUser> _userManager;
-    private readonly ITokenService _tokenService;
-    
     public IdentityApiService(
-        HttpClient httpClient,
-        UserManager<IdentityUser> userManager,
-        ITokenService tokenService)
+        HttpClient httpClient)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
-        _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
     }
 
     private async Task<T> SendRequestAsync<T>(HttpMethod method, string endpoint, object? data,
