@@ -28,14 +28,6 @@ public static class DependencyInjection
                 var options = serviceProvider.GetRequiredService<IOptions<HannibalServiceClientOptions>>().Value;
                 client.BaseAddress = new Uri(options.BaseUrl);
             })
-            #if false
-            .ConfigureHttpClient((sp, client) => {
-                var tokenProvider = sp.GetRequiredService<ITokenProvider>();
-                var token = tokenProvider.GetToken();
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            })
-            #endif
-            //.AddHttpMessageHandler<IdentityCookieHandler>()
             ;
 
         return services;

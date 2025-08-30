@@ -1,4 +1,7 @@
-﻿@inherits LayoutComponentBase
+﻿@using Tools
+@inherits LayoutComponentBase
+@inject ITokenProvider StaticTokenProvider
+@inject IHttpContextAccessor HttpContextAccessor
 
 <div class="page">
     <div class="sidebar">
@@ -17,3 +20,14 @@
     <a href="" class="reload">Reload</a>
     <a class="dismiss">🗙</a>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        var token = HttpContextAccessor.HttpContext?.Request.Cookies["access_token"];
+        if (!string.IsNullOrEmpty(token))
+        {
+            (StaticTokenProvider as IStaticTokenProvider)!.SetToken(token);
+        }
+    }
+}

@@ -18,6 +18,10 @@ using Tools;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
 // Add basic services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(opt =>
@@ -74,6 +78,7 @@ builder.Services
     .AddHannibalBackofficeService(builder.Configuration)
     ;
 
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
@@ -105,8 +110,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes("yourSuperSecretKey"))
         };
+        // 🔍 Hook into JWT events for debugging
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"❌ Authentication failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine($"✅ Token validated for: {context.Principal.Identity?.Name}");
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                Console.WriteLine($"⚠️ Challenge triggered: {context.Error}, {context.ErrorDescription}");
+                return Task.CompletedTask;
+            }
+        };
     });
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITokenProvider, HttpContextTokenProvider>();
 
 builder.Services.AddAuthorization();
@@ -114,9 +139,11 @@ builder.Services.AddAuthorization();
 // Build the application
 var app = builder.Build();
 
-app.MapGroup("/api/auth/v1/").MapIdentityApi<IdentityUser>();
+app.UseRouting();           // Enables endpoint routing
+app.UseAuthentication();    // Parses and validates tokens
+app.UseAuthorization();     // Applies authorization policies
 
-// app.MapGroup("/identity").MapIdentityApi<IdentityUser>();
+app.MapGroup("/api/auth/v1/").MapIdentityApi<IdentityUser>();
 
 {
     app.Lifetime.ApplicationStarted.Register(async () =>
@@ -161,6 +188,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseHttpLogging();
 // app.UseAntiforgery();
+
 
 // Health check endpoint
 app.MapHealthChecks("/health");

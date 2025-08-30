@@ -20,12 +20,12 @@ public class HannibalServiceClient : IHannibalServiceClient
     public HannibalServiceClient(
         IOptions<HannibalServiceClientOptions> options,
         HttpClient httpClient,
-        IHttpContextAccessor? httpContextAccessor = null,
+        //IHttpContextAccessor? httpContextAccessor = null,
         ITokenProvider? tokenProvider = null
     )
     {
         _httpClient = httpClient;
-        _httpContextAccessor = httpContextAccessor;
+        _httpContextAccessor = null; //httpContextAccessor;
         _tokenProvider = tokenProvider;
     }
 
@@ -35,7 +35,7 @@ public class HannibalServiceClient : IHannibalServiceClient
         string? token = null;
         
         // For Blazor Server
-        if (_httpContextAccessor?.HttpContext != null)
+        if (string.IsNullOrEmpty(token) && _httpContextAccessor?.HttpContext != null)
         {
             var user =  _httpContextAccessor.HttpContext?.User;
             if (user != null && user.Identity.IsAuthenticated)
@@ -48,7 +48,7 @@ public class HannibalServiceClient : IHannibalServiceClient
                 }
             }
         }
-        else if (_tokenProvider != null)
+        if (string.IsNullOrEmpty(token) && _tokenProvider != null)
         {
             var accessToken = await _tokenProvider.GetToken();
             if (null != accessToken)

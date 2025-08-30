@@ -47,12 +47,19 @@
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, loginModel.Username),
-                new Claim("access_token", token)
+                // new Claim("access_token", token)
             };
 
             var identity = new ClaimsIdentity(claims, "Cookies");
             var principal = new ClaimsPrincipal(identity);
 
+            HttpContextAccessor.HttpContext!.Response.Cookies.Append("access_token", token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict
+            });
+            
             await HttpContextAccessor.HttpContext!.SignInAsync("Cookies", principal);
             Navigation.NavigateTo("/");
         }

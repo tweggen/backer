@@ -11,7 +11,9 @@ using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Tools;
 
 
 namespace Hannibal.Client;
@@ -22,9 +24,17 @@ public class IdentityApiService : IIdentityApiService
 
     public string ApiPrefix = "/api/auth/v1/";
 
-    public IdentityApiService(HttpClient httpClient)
+    private readonly UserManager<IdentityUser> _userManager;
+    private readonly ITokenService _tokenService;
+    
+    public IdentityApiService(
+        HttpClient httpClient,
+        UserManager<IdentityUser> userManager,
+        ITokenService tokenService)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
+        _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
     }
 
     private async Task<T> SendRequestAsync<T>(HttpMethod method, string endpoint, object? data,
@@ -100,6 +110,26 @@ public class IdentityApiService : IIdentityApiService
         
     }
 
+    public async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult, UnauthorizedHttpResult>> LoginTokenAsync(
+        LoginRequest loginRequest, 
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.FindByEmailAsync(loginRequest.Email);
+        if (user == null || !await _userManager.CheckPasswordAsync(user, loginRequest.Password))
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        var token = _tokenService.CreateToken(user); // Your custom JWT logic
+        return TypedResults.Ok(new AccessTokenResponse
+        {
+            AccessToken = token,
+            ExpiresIn = 3600,
+            RefreshToken = ""
+        });
+    }
+
+    
     public Task<Results<Ok<AccessTokenResponse>, UnauthorizedHttpResult, SignInHttpResult, ChallengeHttpResult>>
         RefreshAsync(RefreshRequest refreshRequest, CancellationToken cancellationToken) =>
         SendRequestAsync<
