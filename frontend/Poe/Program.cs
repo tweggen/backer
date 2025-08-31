@@ -17,6 +17,8 @@ builder.Services
     .AddHttpClient("AuthenticatedClient")
         .AddHttpMessageHandler<IdentityCookieHandler>();
 
+builder.Services.AddScoped<AddTokenHandler>();
+
 builder.Services
     .AddFrontendHannibalServiceClient(builder.Configuration);
 

@@ -19,15 +19,18 @@ public static class DependencyInjection
         /*
          * Apply the hannibal client options.
          */
-        services.Configure<HannibalServiceClientOptions>(configuration.GetSection("HannibalServiceClient"));
+        services
+            .Configure<HannibalServiceClientOptions>(configuration.GetSection("HannibalServiceClient"));
         
         
         // Combine the HTTP client registration with the service registration
-        services.AddHttpClient<IHannibalServiceClient, HannibalServiceClient>((serviceProvider, client) =>
+        services
+            .AddHttpClient<IHannibalServiceClient, HannibalServiceClient>((serviceProvider, client) =>
             {
                 var options = serviceProvider.GetRequiredService<IOptions<HannibalServiceClientOptions>>().Value;
                 client.BaseAddress = new Uri(options.BaseUrl);
             })
+            .AddHttpMessageHandler<AddTokenHandler>()
             ;
 
         return services;

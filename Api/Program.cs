@@ -108,10 +108,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = "yourIssuer",
-            ValidAudience = "yourAudience",
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes("yourSuperSecretKey"))
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
         // 🔍 Hook into JWT events for debugging
         options.Events = new JwtBearerEvents

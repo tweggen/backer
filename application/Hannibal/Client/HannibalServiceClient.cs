@@ -19,14 +19,14 @@ public class HannibalServiceClient : IHannibalServiceClient
     
     public HannibalServiceClient(
         IOptions<HannibalServiceClientOptions> options,
-        HttpClient httpClient,
+        HttpClient httpClient
         //IHttpContextAccessor? httpContextAccessor = null,
-        ITokenProvider? tokenProvider = null
+        //ITokenProvider? tokenProvider = null
     )
     {
         _httpClient = httpClient;
         _httpContextAccessor = null; //httpContextAccessor;
-        _tokenProvider = tokenProvider;
+        _tokenProvider = null; //tokenProvider;
     }
 
     
@@ -86,6 +86,8 @@ public class HannibalServiceClient : IHannibalServiceClient
 
     public async Task<CreateEndpointResult> CreateEndpointAsync(Endpoint endpoint, CancellationToken cancellationToken)
     {
+        await SetAuthorizationHeader();
+
         var response = await _httpClient.PostAsJsonAsync(
             $"/api/hannibal/v1/endpoints", endpoint,
             cancellationToken);
