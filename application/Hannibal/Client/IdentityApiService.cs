@@ -23,6 +23,7 @@ public class IdentityApiService : IIdentityApiService
     private readonly HttpClient _httpClient;
 
     public string ApiPrefix = "/api/auth/v1/";
+    public string ApiBPrefix = "/api/authb/v1/";
 
     public IdentityApiService(
         HttpClient httpClient)
@@ -103,12 +104,54 @@ public class IdentityApiService : IIdentityApiService
         
     }
 
-    public Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>>
-        TokenAsync(LoginRequest loginRequest, CancellationToken cancellationToken) =>
-        SendRequestAsync<
-        Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>>(
-            HttpMethod.Post, $"{ApiPrefix}token", loginRequest, cancellationToken);
+    public async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>>
+        TokenAsync(LoginRequest loginRequest, CancellationToken cancellationToken)
+    {
+        string endpoint = $"{ApiBPrefix}token";
+        
+        var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
 
+        if (loginRequest != null)
+        {
+            var jsonData = JsonSerializer.Serialize(loginRequest);
+            request.Content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+        }
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        
+        
+        if (response.IsSuccessStatusCode)
+        {
+            try
+            {
+                var responseString = await response.Content.ReadAsStringAsync(cancellationToken); 
+                var tokenResponse =
+                    JsonSerializer.Deserialize<AccessTokenResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                
+                if (!String.IsNullOrWhiteSpace(tokenResponse?.AccessToken))
+                {
+                    var tokenString = tokenResponse.AccessToken;
+                    return TypedResults.Ok(new AccessTokenResponse()
+                        { AccessToken = tokenString, ExpiresIn = 3600, RefreshToken = "" });
+                }
+            }
+            catch (Exception e)
+            {
+            }
+
+            return TypedResults.Empty;
+        }
+        else
+        {
+            // Try to parse error details
+            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken)
+                                 ?? new ProblemDetails { Title = "Token Login failed", Status = (int)response.StatusCode };
+            
+            return TypedResults.Problem(problemDetails);
+        }
+        
+    }
     
     public Task<Results<Ok<AccessTokenResponse>, UnauthorizedHttpResult, SignInHttpResult, ChallengeHttpResult>>
         RefreshAsync(RefreshRequest refreshRequest, CancellationToken cancellationToken) =>

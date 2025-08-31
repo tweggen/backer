@@ -224,6 +224,7 @@ app.MapPost("/api/authb/v1/token", async (
         
         return result;
     })
+    .DisableAntiforgery()
     .WithName("Token")
     .WithOpenApi();
 
