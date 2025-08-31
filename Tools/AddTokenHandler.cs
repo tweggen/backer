@@ -16,6 +16,7 @@ public class AddTokenHandler : DelegatingHandler
         CancellationToken cancellationToken)
     {
         var token = await _tokenProvider.GetToken();
+        Console.WriteLine($"[AddTokenHandler] Token: {token}");
         if (!string.IsNullOrEmpty(token))
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
