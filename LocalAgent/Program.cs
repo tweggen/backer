@@ -59,6 +59,8 @@ builder.Services
     .AddHttpContextAccessor()
     ;
 
+builder.Services.AddScoped<IStaticTokenProvider, ConstantTokenProvider>();
+
 // Configure HTTP logging
 builder.Services.AddHttpLogging(logging =>
 {

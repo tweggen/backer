@@ -13,57 +13,41 @@ public class AutoAuthHandler : DelegatingHandler
     private readonly string _authEndpoint;
     private readonly string _username;
     private readonly string _password;
-    private readonly Func<ServiceProvider, CancellationToken, Task<string>> _getAuthCookieAsync;
-    private readonly ServiceProvider _serviceProvider;
-    private readonly CookieContainer _cookieContainer;
+    private readonly Func<IServiceProvider, CancellationToken, Task<string>> _obtainTokenAsync;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly IStaticTokenProvider _staticTokenProvider;
 
-    public static void AddSetCookieToContainer(
-        CookieContainer container, 
-        Uri uri, 
-        string setCookie,
-        HttpRequestMessage? request = null)
-    {
-        string[] parts = setCookie.Split(';');
-        string[] nameValue = parts[0].Split('=', 2);
-
-        var cookie = new Cookie(nameValue[0].Trim(), nameValue[1].Trim());
-
-        foreach (var part in parts[1..])
-        {
-            var trimmed = part.Trim().ToLowerInvariant();
-            if (trimmed.StartsWith("path=")) cookie.Path = part.Substring(5).Trim();
-            else if (trimmed == "secure") cookie.Secure = true;
-            else if (trimmed == "httponly") cookie.HttpOnly = true;
-            else if (trimmed.StartsWith("domain=")) cookie.Domain = part.Substring(7).Trim();
-            // You could add more logic for SameSite if needed
-        }
-
-        request?.Headers.Add("Cookie", cookie.ToString());
-        container.Add(uri, cookie);
-    }
     
     public AutoAuthHandler(
-        ServiceProvider serviceProvider, 
-        CookieContainer cookieContainer,
+        IServiceProvider serviceProvider, 
+        IStaticTokenProvider staticTokenProvider,
         HttpClient authClient, 
-        Func<ServiceProvider, 
+        Func<IServiceProvider, 
             CancellationToken, 
-            Task<string>> getAuthCookieAsync)
+            Task<string>> obtainTokenAsync)
     {
         _serviceProvider = serviceProvider;
-        _getAuthCookieAsync = getAuthCookieAsync;
-        _cookieContainer = cookieContainer;
+        _obtainTokenAsync = obtainTokenAsync;
+        _staticTokenProvider = staticTokenProvider;
     }
 
     
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        var token = await _staticTokenProvider.GetToken();
+        if (!string.IsNullOrEmpty(token))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
         var response = await base.SendAsync(request, cancellationToken);
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            var setCookieValue = await _getAuthCookieAsync(_serviceProvider, cancellationToken); // Get token with credentials
-            System.Console.WriteLine($"Got set cookie value: {setCookieValue}");
+            var newToken = await _obtainTokenAsync(_serviceProvider, cancellationToken); // Get token with credentials
+            _staticTokenProvider.SetToken(newToken);
+            
+            System.Console.WriteLine($"Set new jwt token: {newToken}");
             
             var originalUri = request.RequestUri;
 
@@ -77,7 +61,6 @@ public class AutoAuthHandler : DelegatingHandler
              */
             var newRequest = await CloneHttpRequestMessageAsync(request);
 
-            AddSetCookieToContainer(_cookieContainer, domainUri, setCookieValue, newRequest);
 
             return await base.SendAsync(newRequest, cancellationToken);
         }

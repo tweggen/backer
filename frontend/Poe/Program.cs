@@ -23,8 +23,7 @@ builder.Services
     .AddFrontendHannibalServiceClient(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
-// builder.Services.AddScoped<ITokenProvider, HttpContextTokenProvider>();
-builder.Services.AddScoped<ITokenProvider, StaticTokenProvider>();
+builder.Services.AddScoped<ITokenProvider, HttpContextTokenProvider>();
 
 builder.Services.AddAuthentication(options =>
     {
