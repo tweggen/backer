@@ -168,6 +168,14 @@ public class HannibalContext : IdentityDbContext
 
     private async Task _createDevContent()
     {
+        if (await Storages.AnyAsync() || await Endpoints.AnyAsync())
+        {
+            /*
+             * No need to create any data.
+             */
+            return;
+        }
+        
         string userTimo = "timo";
 
         Credentials timosOnedriveCredentials = new()
