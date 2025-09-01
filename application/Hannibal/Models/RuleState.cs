@@ -18,4 +18,10 @@ public class RuleState
      * When do we need to reevaluate this rule. 
      */
     public DateTime ExpiredAfter { get; set; }
+
+    
+    /**
+     * Which was the most recently triggered job?
+     */
+    public virtual Job RecentJob { get; set; }
 }

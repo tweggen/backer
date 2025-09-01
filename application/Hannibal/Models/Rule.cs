@@ -40,6 +40,12 @@ public class Rule
     public TimeSpan MaxDestinationAge { get; set; }
     
     /**
+     * When after the last failed try may we restart this
+     * rule?
+     */
+    public TimeSpan MinRetryTime { get; set; }
+    
+    /**
      * How long after the latest modification in the source
      * must an operation be triggered?
      */

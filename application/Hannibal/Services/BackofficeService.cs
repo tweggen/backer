@@ -76,6 +76,8 @@ public class BackofficeService : BackgroundService
         {
             RuleState? rs = null;
             bool isNewState = false;
+            bool shallCompute = false;
+
             if (!dictRuleStates.TryGetValue(r, out rs))
             {
                 rs = new()
@@ -84,9 +86,35 @@ public class BackofficeService : BackgroundService
                     ExpiredAfter = DateTime.MinValue,
                 };
                 isNewState = true;
+                shallCompute = true;
+            }
+            else
+            {
+                switch (rs.RecentJob.State)
+                {
+                    case Job.JobState.Ready:
+                        break;
+                    case Job.JobState.DoneFailure:
+                        if (rs.RecentJob.LastReported + r.MinRetryTime <= now)
+                        {
+                            shallCompute = true;
+                        }
+
+                        break;
+                    case Job.JobState.DoneSuccess:
+                        if (rs.ExpiredAfter <= now)
+                        {
+                            shallCompute = true;
+                        }
+
+                        break;
+                    case Job.JobState.Executing:
+                        break;
+                    case Job.JobState.Preparing:
+                        break;
+                }
             }
 
-            bool shallCompute = rs.ExpiredAfter < now;
 
             if (shallCompute)
             {
@@ -114,6 +142,7 @@ public class BackofficeService : BackgroundService
                 };
                 await context.Jobs.AddAsync(job, cancellationToken);
                 rs.ExpiredAfter = now + r.MaxDestinationAge;
+                rs.RecentJob = job;
             }
 
             if (isNewState)
