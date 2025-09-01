@@ -396,6 +396,7 @@ public partial class HannibalService : IHannibalService
             _logger.LogInformation("owner {owner} acquired job {jobId}.", acquireParams.Owner, job.Id);
             job.Owner = acquireParams.Owner;
             job.State = Job.JobState.Executing;
+            job.LastReported = DateTime.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
             return job;
         }
