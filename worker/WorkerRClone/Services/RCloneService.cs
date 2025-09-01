@@ -75,15 +75,23 @@ public class RCloneService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        var rCloneServiceParams = await _taskChannel.Reader.ReadAsync(cancellationToken);
-        
-        /*
-         * Initially, we trigger reading all matching todos from hannibal.
-         * Whatever we got we execute.
-         * If we have nothing, we sleep until receiving an signalr update.
-         */
-        _triggerFetchJob(cancellationToken);
-        
+        RCloneServiceParams rCloneServiceParams;
+
+        try
+        {
+            // rCloneServiceParams = await _taskChannel.Reader.ReadAsync(cancellationToken);
+            /*
+             * Initially, we trigger reading all matching todos from hannibal.
+             * Whatever we got we execute.
+             * If we have nothing, we sleep until receiving an signalr update.
+             */
+            _triggerFetchJob(cancellationToken);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError($"Exception while Startup in Execute Async: {e}");
+        }
+
         while (!cancellationToken.IsCancellationRequested)
         {
             // using IServiceScope scope = _serviceScopeFactory.CreateScope();
@@ -91,8 +99,15 @@ public class RCloneService : BackgroundService
             // var context = scope.ServiceProvider.GetRequiredService<HannibalContext>();
             
             // await _rules2Jobs(context, cancellationToken);
-            
-            await _checkFinishedJobs(cancellationToken);
+            try
+            {
+                await _checkFinishedJobs(cancellationToken);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Exception while checking for finished jobs in Execute Async: {e}");
+            }
+
             await Task.Delay(5_000, cancellationToken);
         }
     }
@@ -149,7 +164,7 @@ public class RCloneService : BackgroundService
                     {
                         _logger.LogWarning(
                             "Unable to perform job {jobId} from {sourceEndpoint} to {destEndpoint} : {error}.",
-                            jobId, job.SourceEndpoint, job.DestinationEndpoint, jobStatus.error);
+                            jobId, job.SourceEndpoint.Path, job.DestinationEndpoint.Path, jobStatus.error);
 
                         /*
                          * Report back the error.
