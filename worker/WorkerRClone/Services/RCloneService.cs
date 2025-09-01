@@ -272,7 +272,7 @@ public class RCloneService : BackgroundService
             /*
              * Then get the next job.
              */
-            Job job;
+            Job? job;
             {
                 using var scope = _serviceScopeFactory.CreateScope();
                 var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
@@ -402,7 +402,7 @@ public class RCloneService : BackgroundService
                     throw new InvalidOperationException("rclone did not start with the expected output,");
                 }
 
-                strErrorOutput += output;
+                strErrorOutput += output + "\n";
                 Match match = reUrl.Match(output);
                 if (match.Success)
                 {

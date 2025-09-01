@@ -481,6 +481,10 @@ public partial class HannibalService : IHannibalService
 
         if (listTimedOut.Count > 0)
         {
+            foreach (var job in listTimedOut)
+            {
+                job.State = Job.JobState.DoneFailure;
+            }
             await _context.SaveChangesAsync();
         }
 

@@ -76,8 +76,8 @@ public class RCloneClient
             dstFs = uriDest,
             _config = new Config()
             {
-            Exclude = new() { "_backer" }
-        }
+                Exclude = new() { "_backer" } 
+            }
         };
         
         JsonContent content = JsonContent.Create(syncParams, typeof(SyncParams), new MediaTypeHeaderValue("application/json"));

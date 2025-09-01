@@ -247,15 +247,21 @@ public class HannibalServiceClient : IHannibalServiceClient
     }
 
     
-    public async Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken)
+    public async Task<Job?> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken)
     {
         var response = await _httpClient.PostAsJsonAsync(
             "/api/hannibal/v1/acquireNextJob", acquireParams,
             cancellationToken);
-        response.EnsureSuccessStatusCode(); 
-        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
-        return JsonSerializer.Deserialize<Job>(
-            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<Job>(
+                content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            return null;
+        }
     }
 
     
