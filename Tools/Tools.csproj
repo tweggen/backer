@@ -6,11 +6,10 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
-    <ItemGroup>
+    <!-- ItemGroup>
       <Reference Include="Microsoft.AspNetCore.Http.Abstractions">
         <HintPath>..\..\..\..\..\..\Program Files\dotnet\shared\Microsoft.AspNetCore.App\9.0.6\Microsoft.AspNetCore.Http.Abstractions.dll</HintPath>
       </Reference>
-      <Reference Include="Microsoft.AspNetCore.Http.Features" />
       <Reference Include="Microsoft.Extensions.Hosting.Abstractions">
         <HintPath>..\..\..\..\..\..\Program Files\dotnet\shared\Microsoft.AspNetCore.App\8.0.1\Microsoft.Extensions.Hosting.Abstractions.dll</HintPath>
       </Reference>
@@ -20,9 +19,11 @@
       <Reference Include="Microsoft.Extensions.Identity.Stores">
         <HintPath>..\..\..\..\..\..\Program Files\dotnet\shared\Microsoft.AspNetCore.App\9.0.6\Microsoft.Extensions.Identity.Stores.dll</HintPath>
       </Reference>
-    </ItemGroup>
+    </ItemGroup -->
 
     <ItemGroup>
+      <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
+      <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.5" />
       <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.5" />
       <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" />
