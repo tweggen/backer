@@ -8,7 +8,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Api/Api.csproj", "Api/"]
-COPY ["application/Hannibal/Hannibal.csproj", "application/Hannibal/Hannibal.csproj"]
+COPY ["application/Hannibal/Hannibal.csproj", "application/Hannibal/"]
 COPY ["Tools/Tools.csproj", "Tools/"]
 RUN dotnet restore "Api/Api.csproj"
 COPY . "Api/"
