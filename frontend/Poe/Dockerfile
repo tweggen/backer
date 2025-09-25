@@ -7,7 +7,7 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["Poe.csproj", "Poe/"]
+COPY ["frontend/Poe/Poe.csproj", "Poe/"]
 RUN dotnet restore "Poe/Poe.csproj"
 COPY . "Poe/".
 WORKDIR "/src/Poe"

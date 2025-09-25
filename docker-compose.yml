@@ -1,8 +1,8 @@
 services:
   api:
     build:
-      context: ./Api
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: Api/Dockerfile
     image: hannibal-api:latest
     labels:
       - "traefik.enable=true"
@@ -13,8 +13,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend/Poe
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: frontend/Poe/Dockerfile
     image: poe-ui:latest
     labels:
       - "traefik.enable=true"
