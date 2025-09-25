@@ -10,8 +10,9 @@ WORKDIR /src
 COPY ["Api/Api.csproj", "Api/"]
 COPY ["application/Hannibal/Hannibal.csproj", "application/Hannibal/"]
 COPY ["Tools/Tools.csproj", "Tools/"]
-RUN dotnet restore "Api/Api.csproj"
 COPY . .
+
+RUN dotnet restore "Api/Api.csproj"
 WORKDIR "/src/Api"
 RUN dotnet build "./Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
