@@ -16,11 +16,11 @@ RUN dotnet restore "frontend/Poe/Poe.csproj"
 WORKDIR "/src/frontend/Poe"
 RUN dotnet build "./Poe.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-FROM build AS publish
+FROM build AS publish-poe
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./Poe.csproj" -c $BUILD_CONFIGURATION -o /app/publish/poe /p:UseAppHost=false
 
-FROM base AS final
+FROM base AS final-poe
 WORKDIR /app
-COPY --from=publish/poe /app/publish/poe .
+COPY --from=publish-poe /app/publish/poe .
 ENTRYPOINT ["dotnet", "Poe.dll"]

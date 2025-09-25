@@ -16,11 +16,11 @@ RUN dotnet restore "Api/Api.csproj"
 WORKDIR "/src/Api"
 RUN dotnet build "./Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-FROM build AS publish
+FROM build AS publish-api
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish/api /p:UseAppHost=false
 
-FROM base AS final
+FROM base AS final-api
 WORKDIR /app
-COPY --from=publish/api /app/publish/api .
+COPY --from=publish-api /app/publish/api .
 ENTRYPOINT ["dotnet", "Api.dll"]
