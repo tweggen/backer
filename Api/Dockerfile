@@ -11,7 +11,7 @@ COPY ["Api/Api.csproj", "Api/"]
 COPY ["application/Hannibal/Hannibal.csproj", "application/Hannibal/"]
 COPY ["Tools/Tools.csproj", "Tools/"]
 RUN dotnet restore "Api/Api.csproj"
-COPY . "Api/"
+COPY . .
 WORKDIR "/src/Api"
 RUN dotnet build "./Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 

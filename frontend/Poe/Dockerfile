@@ -11,7 +11,7 @@ COPY ["frontend/Poe/Poe.csproj", "frontend/Poe/"]
 COPY ["application/Hannibal/Hannibal.csproj", "application/Hannibal/"]
 COPY ["Tools/Tools.csproj", "Tools/"]
 RUN dotnet restore "frontend/Poe/Poe.csproj"
-COPY . "frontend/Poe/"
+COPY . .
 WORKDIR "/src/frontend/Poe"
 RUN dotnet build "./Poe.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
