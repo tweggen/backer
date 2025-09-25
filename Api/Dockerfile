@@ -9,13 +9,13 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Api.csproj", "Api/"]
 RUN dotnet restore "Api.csproj"
-COPY . .
+COPY . "Api/"
 WORKDIR "/src/Api"
-RUN dotnet build "Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
