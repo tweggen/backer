@@ -15,9 +15,14 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        var hannibalOptions = configuration
+            .GetSection("HannibalService")
+            .Get<HannibalServiceOptions>();
+        
         services.Configure<HannibalServiceOptions>(
             configuration.GetSection("HannibalService"));
 
+        #if false
         var dbPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Backer",
@@ -32,8 +37,20 @@ public static class DependencyInjection
                 //configuration.GetConnectionString("HannibalDatabase")
                 connectionString
             ));
-
         ;
+        #endif
+        #if true
+        
+        var connectionString = Environment.GetEnvironmentVariable("HANNIBAL_DB_CONNECTION");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            connectionString = "Host=localhost;Port=5432;Database=hannibal;Username=postgres;Password=admin";
+        }
+
+        services.AddDbContext<HannibalContext>(options =>
+            options.UseNpgsql(connectionString));
+        #endif
 
         services.AddIdentityApiEndpoints<IdentityUser>(options => 
             {

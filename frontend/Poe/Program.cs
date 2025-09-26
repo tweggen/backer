@@ -42,7 +42,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
     ;
 
-var basePath = "/app1";
+    var basePath = ""; //""/app1";
 builder.Services.AddSingleton(new AppBasePath(basePath));
 
 var app = builder.Build();
@@ -58,6 +58,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UsePathBase(basePath);
 app.UseRouting();
+app.UseAuthorization();
 
 app.UseAntiforgery();
 
