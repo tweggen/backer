@@ -53,7 +53,9 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UsePathBase("/app1");
+var basePath = "/app1";
+builder.Services.AddSingleton(new AppBasePath(basePath));
+app.UsePathBase(basePath);
 app.UseRouting();
 
 app.UseAntiforgery();

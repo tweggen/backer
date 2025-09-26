@@ -1,17 +1,16 @@
 ﻿@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject Tools.AppBasePath BasePath
 
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-@{
-    var basePath = HttpContextAccessor.HttpContext?.Request.PathBase.Value ?? "";
-
-}
-<link bla="@($"{basePath}")" 
-      rel="stylesheet" href="@($"{basePath}/{Assets["lib/bootstrap/dist/css/bootstrap.min.css"]}")" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @{
+        var basePath = BasePath;
+    }
+    <link rel="stylesheet" href="@($"{basePath}/{Assets["lib/bootstrap/dist/css/bootstrap.min.css"]}")" />
     <link rel="stylesheet" href="@($"{basePath}/{Assets["app.css"]}")" />
     <link rel="stylesheet" href="@($"{basePath}/{Assets["Poe.styles.css"]}")" />
 
@@ -22,9 +21,7 @@
 </head>
 
 <body>
-<Routes />
-<p>PathBase: @HttpContextAccessor.HttpContext?.Request.PathBase.Value</p>
-<p>Path: @HttpContextAccessor.HttpContext?.Request.Path.Value</p>
+    <Routes />
     <script src="_framework/blazor.web.js"></script>
 </body>
 
