@@ -76,6 +76,20 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
+app.Use(async (context, next) =>
+{
+    if (context.Request.Query.TryGetValue("ReturnUrl", out var returnUrl))
+    {
+        if (!returnUrl.ToString().StartsWith("/app1"))
+        {
+            var corrected = $"/app1{returnUrl}";
+            context.Request.QueryString = new QueryString($"?ReturnUrl={Uri.EscapeDataString(corrected)}");
+        }
+    }
+
+    await next();
+});
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
