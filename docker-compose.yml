@@ -9,7 +9,7 @@ services:
       - "traefik.http.routers.api.rule=PathPrefix(`/api/v1`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls=true"
-      - "traefik.http.services.api.loadbalancer.server.port=80"
+      - "traefik.http.services.api.loadbalancer.server.port=8080"
 
   frontend:
     build:
@@ -21,4 +21,4 @@ services:
       - "traefik.http.routers.frontend.rule=PathPrefix(`/app1`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.services.frontend.loadbalancer.server.port=8080"
