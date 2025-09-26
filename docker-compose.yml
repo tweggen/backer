@@ -10,8 +10,6 @@ services:
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls=true"
       - "traefik.http.services.api.loadbalancer.server.port=8080"
-      - "traefik.http.middlewares.frontend-strip-prefix.stripprefix.prefixes=/api/v1"
-      - "traefik.http.routers.frontend.middlewares=frontend-strip-prefix"
   frontend:
     build:
       context: ./
@@ -23,5 +21,3 @@ services:
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.services.frontend.loadbalancer.server.port=8080"
-      - "traefik.http.middlewares.frontend-strip-prefix.stripprefix.prefixes=/app1"
-      - "traefik.http.routers.frontend.middlewares=frontend-strip-prefix"
