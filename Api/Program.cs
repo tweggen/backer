@@ -230,6 +230,36 @@ app.MapPost("/api/authb/v1/token", async (
     .WithOpenApi();
 
 
+app.MapDelete("/api/authb/v1/deleteUser", async (
+        SignInManager<IdentityUser> signInManager,
+        UserManager<IdentityUser> userManager,
+        ITokenService tokenService,
+        string userId) =>
+    {
+        Results<Ok, NotFound, InternalServerError> callResult;
+        
+        var user = await userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return TypedResults.NotFound();
+        }
+        var deleteResult = await userManager.DeleteAsync(user);
+        if (deleteResult.Succeeded)
+        {
+            callResult = TypedResults.Ok();
+        }
+        else
+        {
+            callResult = TypedResults.InternalServerError();
+        }
+
+        return callResult;
+    })
+    .DisableAntiforgery()
+    .WithName("DeleteUser")
+    .WithOpenApi();
+
+
 app.MapGet("/api/hannibal/v1/rules/{ruleId}", async (
     IHannibalService hannibalService,
     int ruleId,
@@ -423,8 +453,15 @@ app.MapGet("/api/hannibal/v1/users/{id}", async (
         int id,
         CancellationToken cancellationToken) =>
     {
-        var result = await higginsService.GetUserAsync(id, cancellationToken);
-        return Results.Ok(result);
+        IdentityUser? result = await higginsService.GetUserAsync(id, cancellationToken);
+        if (null != result)
+        {
+            return Results.Ok(result);
+        }
+        else
+        {
+            return Results.NotFound();
+        }
     })
     .RequireAuthorization()
     .WithName("GetUser")

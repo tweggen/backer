@@ -38,7 +38,7 @@ public class IdentityApiService : IIdentityApiService
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
     }
 
-    
+
     private async Task<T> SendRequestAsync<T>(HttpMethod method, string endpoint, object? data,
         CancellationToken cancellationToken)
     {
@@ -56,15 +56,15 @@ public class IdentityApiService : IIdentityApiService
         return JsonSerializer.Deserialize<T>(jsonResponse,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
-    
-    
+
+
     public async Task<Results<Ok, ValidationProblem>> RegisterUserAsync(RegisterRequest registerRequest,
         CancellationToken cancellationToken)
-    { 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiPrefix}register" );
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiPrefix}register");
 
-        
-        var jsonData = JsonSerializer.Serialize(registerRequest); 
+
+        var jsonData = JsonSerializer.Serialize(registerRequest);
         request.Content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
@@ -87,14 +87,14 @@ public class IdentityApiService : IIdentityApiService
                     errors.Select(kvp => $"{kvp.Key}: [{string.Join("; ", kvp.Value)}]"))
             );
         }
-        
+
     }
 
     public async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>> LoginUserAsync(
         LoginRequest loginRequest, CancellationToken cancellationToken)
     {
         string endpoint = $"{ApiPrefix}login?useCookies=true&useSessionCookies=true";
-        
+
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
 
         if (loginRequest != null)
@@ -104,12 +104,12 @@ public class IdentityApiService : IIdentityApiService
         }
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
-        
+
         if (response.IsSuccessStatusCode)
         {
             var contentString = await response.Content.ReadAsStringAsync(cancellationToken);
             IEnumerable<string> cookies = response.Headers.SingleOrDefault(header => header.Key == "Set-Cookie").Value;
-            string? authToken= default;
+            string? authToken = default;
 
             foreach (var cookie in cookies)
             {
@@ -121,7 +121,8 @@ public class IdentityApiService : IIdentityApiService
 
             if (authToken != null)
             {
-                return TypedResults.Ok(new AccessTokenResponse() { AccessToken = authToken, ExpiresIn = 3600, RefreshToken = ""});
+                return TypedResults.Ok(new AccessTokenResponse()
+                    { AccessToken = authToken, ExpiresIn = 3600, RefreshToken = "" });
             }
 
             return TypedResults.Empty;
@@ -129,19 +130,20 @@ public class IdentityApiService : IIdentityApiService
         else
         {
             // Try to parse error details
-            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken)
-                                 ?? new ProblemDetails { Title = "Login failed", Status = (int)response.StatusCode };
-            
+            var problemDetails =
+                await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken)
+                ?? new ProblemDetails { Title = "Login failed", Status = (int)response.StatusCode };
+
             return TypedResults.Problem(problemDetails);
         }
-        
+
     }
 
     public async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>>
         TokenAsync(LoginRequest loginRequest, CancellationToken cancellationToken)
     {
         string endpoint = $"{ApiBPrefix}token";
-        
+
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
 
         if (loginRequest != null)
@@ -152,16 +154,17 @@ public class IdentityApiService : IIdentityApiService
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
-        
-        
+
+
         if (response.IsSuccessStatusCode)
         {
             try
             {
-                var responseString = await response.Content.ReadAsStringAsync(cancellationToken); 
+                var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
                 var tokenResponse =
-                    JsonSerializer.Deserialize<AccessTokenResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                
+                    JsonSerializer.Deserialize<AccessTokenResponse>(responseString,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
                 if (!String.IsNullOrWhiteSpace(tokenResponse?.AccessToken))
                 {
                     var tokenString = tokenResponse.AccessToken;
@@ -178,14 +181,15 @@ public class IdentityApiService : IIdentityApiService
         else
         {
             // Try to parse error details
-            var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken)
-                                 ?? new ProblemDetails { Title = "Token Login failed", Status = (int)response.StatusCode };
-            
+            var problemDetails =
+                await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken)
+                ?? new ProblemDetails { Title = "Token Login failed", Status = (int)response.StatusCode };
+
             return TypedResults.Problem(problemDetails);
         }
-        
+
     }
-    
+
     public Task<Results<Ok<AccessTokenResponse>, UnauthorizedHttpResult, SignInHttpResult, ChallengeHttpResult>>
         RefreshAsync(RefreshRequest refreshRequest, CancellationToken cancellationToken) =>
         SendRequestAsync<
@@ -227,8 +231,19 @@ public class IdentityApiService : IIdentityApiService
         SendRequestAsync<Results<Ok<InfoResponse>, ValidationProblem, NotFound>>(HttpMethod.Post,
             $"{ApiPrefix}set-info", request, cancellationToken);
 
-    public Task<bool> DeleteUserAsync(string userId) =>
-        SendRequestAsync<bool>(HttpMethod.Delete, $"{ApiPrefix}delete-user?userId={userId}", null,
-            CancellationToken.None);
+    public async Task<bool> DeleteUserAsync(string userId, CancellationToken cancellationToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Delete, $"{ApiBPrefix}deleteUser?userId={userId}");
 
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 }

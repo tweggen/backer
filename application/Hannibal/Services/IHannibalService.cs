@@ -5,7 +5,7 @@ namespace Hannibal.Services;
 
 public interface IHannibalService
 {
-    public Task<IdentityUser> GetUserAsync(
+    public Task<IdentityUser?> GetUserAsync(
         int id,
         CancellationToken cancellationToken);
 

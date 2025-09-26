@@ -21,5 +21,5 @@ public interface IIdentityApiService
     Task<Results<Ok<TwoFactorResponse>, ValidationProblem, NotFound>> TwoFactorAsync(ClaimsPrincipal claimsPrincipal, TwoFactorRequest twoFactorRequest, CancellationToken cancellationToken);
     Task<Results<Ok<InfoResponse>, ValidationProblem, NotFound>> GetInfo(ClaimsPrincipal claimsPrincipal, CancellationToken cancellationToken);
     Task<Results<Ok<InfoResponse>, ValidationProblem, NotFound>> SetInfo(ClaimsPrincipal claimsPrincipal, InfoRequest infoRequest, CancellationToken cancellationToken);
-    Task<bool> DeleteUserAsync(string userId);
+    Task<bool> DeleteUserAsync(string userId, CancellationToken cancellationToken);
 }

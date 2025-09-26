@@ -70,17 +70,28 @@ public class HannibalServiceClient : IHannibalServiceClient
         return this;
     }
 
-    public async Task<IdentityUser> GetUserAsync(int id, CancellationToken cancellationToken)
+    public async Task<IdentityUser?> GetUserAsync(int id, CancellationToken cancellationToken)
     {
         await SetAuthorizationHeader();
         
         var response = await _httpClient.GetAsync(
             $"/api/hannibal/v1/users/{id}",
             cancellationToken);
-        response.EnsureSuccessStatusCode(); 
-        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
-        return JsonSerializer.Deserialize<IdentityUser>(
-            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (String.IsNullOrWhiteSpace(content))
+            {
+                return null;
+            }
+
+            return JsonSerializer.Deserialize<IdentityUser>(
+                content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            return null;
+        }
     }
 
 

@@ -1,0 +1,59 @@
+@page "/backer/account"
+@using Hannibal.Client
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore.Metadata.Internal
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IJSRuntime JsRuntime
+@inject IIdentityApiService IdentityApiService
+@inject NavigationManager Navigation
+@inject IHannibalServiceClient HannibalServiceClient
+@rendermode InteractiveServer
+@attribute [Authorize]
+<h3>Account</h3>
+
+<a href="/logout">Logout</a>
+
+<table>
+    <tr>
+        <td>eMail-Address</td>
+        <td>@_user?.Email</td>
+    </tr>
+</table>
+
+<button @onclick="_onDeleteAccount">Delete Account</button>
+
+@code {
+    private IdentityUser? _user = null;
+
+    private async void _onDeleteAccount()
+    {
+        bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        await HttpContextAccessor.HttpContext!.SignOutAsync("Cookies");
+        var result = await IdentityApiService.DeleteUserAsync(_user!.Id, CancellationToken.None);
+        if (!result)
+        {
+            return;
+        }
+        else
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+    }
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
+        if (null == _user)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+    }
+
+}
