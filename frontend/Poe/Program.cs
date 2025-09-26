@@ -42,6 +42,9 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
     ;
 
+var basePath = "/app1";
+builder.Services.AddSingleton(new AppBasePath(basePath));
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -53,8 +56,6 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-var basePath = "/app1";
-builder.Services.AddSingleton(new AppBasePath(basePath));
 app.UsePathBase(basePath);
 app.UseRouting();
 
