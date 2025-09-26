@@ -1,7 +1,58 @@
 @page "/SignUp"
+@using System.Security.Claims
+@using Hannibal.Client
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Http.HttpResults
+@using Microsoft.AspNetCore.Identity.Data
+@inject IIdentityApiService IdentityApiService
+@inject NavigationManager Navigation
 
-<h3>SignUp</h3>
+<h3>Sign Up</h3>
+
+
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <p style="color:red">@ErrorMessage</p>
+}
+
+
+<EditForm Model="@signupModel" OnValidSubmit="@HandleSignup" FormName="SingupForm">
+    <InputText @bind-Value="signupModel.Username" placeholder="Username" />
+    <InputText @bind-Value="signupModel.Password" placeholder="Password" type="password" />
+    <button type="submit">Sign up!</button>
+</EditForm>
 
 @code {
+    private string? ErrorMessage;
     
+    [SupplyParameterFromForm(FormName = "SingupForm")]
+    private SignupModel signupModel { get; set; } = new();
+
+    private async Task HandleSignup()
+    {
+        var registerRequest = new RegisterRequest()
+        {
+            Email = signupModel.Username, Password = signupModel.Password
+        };
+
+        var result = await IdentityApiService.RegisterUserAsync(
+            registerRequest, CancellationToken.None);
+        if (result.Result is Ok okResult)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        } 
+        else if (result.Result is ValidationProblem validationProblem)
+        {
+            ErrorMessage = $"{validationProblem.ProblemDetails.Title}\n"
+                + $"{string.Join(", ", validationProblem.ProblemDetails.Errors.Select(kvp => $"{kvp.Key}: [{string.Join("; ", kvp.Value)}]"))}";
+            return;
+        }
+    }
+    
+    public class SignupModel
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+    }
 }

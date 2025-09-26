@@ -18,6 +18,13 @@ using Tools;
 
 namespace Hannibal.Client;
 
+internal class RegisterErrorResult
+{
+    public string? Title { get; set; } = null;
+    public int? Status { get; set; } = 0;
+    public SortedDictionary<string, string[]>? Errors { get; set; } = new();
+}
+
 public class IdentityApiService : IIdentityApiService
 {
     private readonly HttpClient _httpClient;
@@ -31,6 +38,7 @@ public class IdentityApiService : IIdentityApiService
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
     }
 
+    
     private async Task<T> SendRequestAsync<T>(HttpMethod method, string endpoint, object? data,
         CancellationToken cancellationToken)
     {
@@ -43,17 +51,44 @@ public class IdentityApiService : IIdentityApiService
         }
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
 
         var jsonResponse = await response.Content.ReadAsStringAsync();
         return JsonSerializer.Deserialize<T>(jsonResponse,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
     
-    public Task<Results<Ok, ValidationProblem>> RegisterUserAsync(RegisterRequest request,
-        CancellationToken cancellationToken) =>
-        SendRequestAsync<Results<Ok, ValidationProblem>>(HttpMethod.Post, $"{ApiPrefix}register", request,
-            cancellationToken);
+    
+    public async Task<Results<Ok, ValidationProblem>> RegisterUserAsync(RegisterRequest registerRequest,
+        CancellationToken cancellationToken)
+    { 
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{ApiPrefix}register" );
+
+        
+        var jsonData = JsonSerializer.Serialize(registerRequest); 
+        request.Content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return TypedResults.Ok();
+        }
+        else
+        {
+            string? jsonResponse = await response.Content.ReadAsStringAsync();
+            var problem = JsonSerializer.Deserialize<RegisterErrorResult>(jsonResponse,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            IEnumerable<KeyValuePair<string, string[]>> errors =
+                problem.Errors != null ? problem.Errors.ToList() : new List<KeyValuePair<string, string[]>>();
+            return TypedResults.ValidationProblem(
+                errors,
+                title: problem.Title ?? "Registration failed",
+                detail: string.Join(", ",
+                    errors.Select(kvp => $"{kvp.Key}: [{string.Join("; ", kvp.Value)}]"))
+            );
+        }
+        
+    }
 
     public async Task<Results<Ok<AccessTokenResponse>, EmptyHttpResult, ProblemHttpResult>> LoginUserAsync(
         LoginRequest loginRequest, CancellationToken cancellationToken)
@@ -69,8 +104,6 @@ public class IdentityApiService : IIdentityApiService
         }
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
         
         if (response.IsSuccessStatusCode)
         {
