@@ -42,7 +42,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
     ;
 
-    var basePath = ""; //""/app1";
+var basePath = "/app1";
 builder.Services.AddSingleton(new AppBasePath(basePath));
 
 var app = builder.Build();
