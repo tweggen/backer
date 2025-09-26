@@ -4,6 +4,7 @@ using Poe.Components;
 using Hannibal.Client;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Tools;
 
 var basePath = "/app1";
@@ -59,6 +60,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
+app.UsePathBase(basePath);
 app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
@@ -70,7 +72,6 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UsePathBase(basePath);
 app.UseRouting();
 app.UseAuthorization();
 
