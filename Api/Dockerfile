@@ -10,7 +10,9 @@ WORKDIR /src
 COPY ["Api/Api.csproj", "Api/"]
 COPY ["application/Hannibal/Hannibal.csproj", "application/Hannibal/"]
 COPY ["Tools/Tools.csproj", "Tools/"]
-COPY ["Api","application","Tools","./"]
+COPY Api/ Api/
+COPY application/ application/
+COPY Tools/ Tools/
 
 RUN dotnet restore "Api/Api.csproj"
 RUN find /src -ls
