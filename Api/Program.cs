@@ -142,6 +142,7 @@ builder.Services.AddAuthorization();
 // Build the application
 var app = builder.Build();
 
+app.UsePathBase("/api/v1");
 app.UseRouting();           // Enables endpoint routing
 app.UseAuthentication();    // Parses and validates tokens
 app.UseAuthorization();     // Applies authorization policies
