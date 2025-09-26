@@ -4,13 +4,14 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    @{
-        var basePath = HttpContextAccessor.HttpContext?.Request.PathBase.Value ?? "";
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+@{
+    var basePath = HttpContextAccessor.HttpContext?.Request.PathBase.Value ?? "";
 
-    }
-    <link bla="fasel" rel="stylesheet" href="@($"{basePath}/{Assets["lib/bootstrap/dist/css/bootstrap.min.css"]}")" />
+}
+<link bla="@($"{basePath}")" 
+      rel="stylesheet" href="@($"{basePath}/{Assets["lib/bootstrap/dist/css/bootstrap.min.css"]}")" />
     <link rel="stylesheet" href="@($"{basePath}/{Assets["app.css"]}")" />
     <link rel="stylesheet" href="@($"{basePath}/{Assets["Poe.styles.css"]}")" />
 
