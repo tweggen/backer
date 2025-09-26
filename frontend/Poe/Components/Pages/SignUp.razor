@@ -4,8 +4,10 @@
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Http.HttpResults
 @using Microsoft.AspNetCore.Identity.Data
+@using Tools
 @inject IIdentityApiService IdentityApiService
 @inject NavigationManager Navigation
+@inject Tools.AppBasePath BasePath
 
 <h3>Sign Up</h3>
 
@@ -16,7 +18,7 @@
 }
 
 
-<EditForm Model="@signupModel" OnValidSubmit="@HandleSignup" FormName="SingupForm">
+<EditForm Model="@signupModel" OnValidSubmit="@HandleSignup" FormName="SignupForm">
     <InputText @bind-Value="signupModel.Username" placeholder="Username" />
     <InputText @bind-Value="signupModel.Password" placeholder="Password" type="password" />
     <button type="submit">Sign up!</button>
@@ -25,7 +27,7 @@
 @code {
     private string? ErrorMessage;
     
-    [SupplyParameterFromForm(FormName = "SingupForm")]
+    [SupplyParameterFromForm(FormName = "SignupForm")]
     private SignupModel signupModel { get; set; } = new();
 
     private async Task HandleSignup()
@@ -39,7 +41,7 @@
             registerRequest, CancellationToken.None);
         if (result.Result is Ok okResult)
         {
-            Navigation.NavigateTo("/login");
+            Navigation.NavigateTo($"{BasePath.Value}/login");
             return;
         } 
         else if (result.Result is ValidationProblem validationProblem)
