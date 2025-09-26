@@ -24,7 +24,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\application\Hannibal\Hannibal.csproj" />
-      <ProjectReference Include="..\frontend\Poe\Poe.csproj" />
     </ItemGroup>
 
 </Project>
