@@ -9,6 +9,8 @@
 @inject IIdentityApiService IdentityApiService
 @inject NavigationManager Navigation
 @inject IHannibalServiceClient HannibalServiceClient
+@inject Tools.AppBasePath BasePath
+
 @rendermode InteractiveServer
 @attribute [Authorize]
 <h3>Account</h3>
@@ -43,7 +45,7 @@
         }
         else
         {
-            Navigation.NavigateTo("/login", forceLoad: true);
+            Navigation.NavigateTo($"{BasePath.Value}/login", forceLoad: true);
         }
     }
     
@@ -52,7 +54,7 @@
         _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
         if (null == _user)
         {
-            Navigation.NavigateTo("/login", forceLoad: true);
+            Navigation.NavigateTo($"{BasePath.Value}/login", forceLoad: true);
         }
     }
 

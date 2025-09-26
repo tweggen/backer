@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Authentication
 @inject IHttpContextAccessor HttpContextAccessor
 @inject NavigationManager Navigation
+@inject Tools.AppBasePath BasePath
 
 <h3>Logging out...</h3>
 
@@ -9,6 +10,6 @@
     protected override async Task OnInitializedAsync()
     {
         await HttpContextAccessor.HttpContext!.SignOutAsync("Cookies");
-        Navigation.NavigateTo("/login", forceLoad: true);
+        Navigation.NavigateTo($"{BasePath.Value}/login", forceLoad: true);
     }
 }
