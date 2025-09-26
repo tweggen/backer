@@ -13,7 +13,7 @@ COPY ["Tools/Tools.csproj", "Tools/"]
 COPY ["Api","application","Tools","./"]
 
 RUN dotnet restore "Api/Api.csproj"
-RUN find -ls /src
+RUN find /src -ls
 WORKDIR "/src/Api"
 RUN dotnet build "./Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
