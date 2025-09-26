@@ -53,14 +53,13 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
     options.RequireHeaderSymmetry = false;
     options.ForwardLimit = null; // Remove limit on number of forwarders
+    options.KnownNetworks.Clear(); // Optional: trust all
+    options.KnownProxies.Clear();  // Optional: trust all
 });
 
 var app = builder.Build();
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
-{
-    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
-});
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
