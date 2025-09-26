@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Tools;
 
+var basePath = "/app1";
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
@@ -32,9 +35,9 @@ builder.Services.AddAuthentication(options =>
     })
     .AddCookie("Cookies", options =>
     {
-        options.LoginPath = "/login";
-        options.LogoutPath = "/logout";
-        options.AccessDeniedPath = "/access-denied";
+        options.LoginPath = $"{basePath}/login";
+        options.LogoutPath = $"{basePath}/logout";
+        options.AccessDeniedPath = $"{basePath}/access-denied";
     })
     ;
 
@@ -43,7 +46,6 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
     ;
 
-var basePath = "/app1";
 builder.Services.AddSingleton(new AppBasePath(basePath));
 
 var app = builder.Build();
@@ -71,6 +73,16 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+
+app.MapGet("/debug", (HttpRequest req) =>
+{
+    return new
+    {
+        Scheme = req.Scheme,
+        Headers = req.Headers["X-Forwarded-Proto"].ToString()
+    };
+});
 
 app.Run();
 #if false
