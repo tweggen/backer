@@ -48,6 +48,13 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddSingleton(new AppBasePath(basePath));
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.RequireHeaderSymmetry = false;
+    options.ForwardLimit = null; // Remove limit on number of forwarders
+});
+
 var app = builder.Build();
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
