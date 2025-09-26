@@ -27,7 +27,7 @@
 </EditForm>
 
 <br/>
-Or <a href="@($"{BasePath}/signup")">register</a> if you don't have an account.
+Or <a href="@($"{BasePath.Value}/signup")">register</a> if you don't have an account.
 
 @code {
     private string? ErrorMessage;
@@ -80,7 +80,7 @@ Or <a href="@($"{BasePath}/signup")">register</a> if you don't have an account.
             return;
         }
 
-        Navigation.NavigateTo($"{BasePath}/");
+        Navigation.NavigateTo($"{BasePath.Value}/");
     }
 
     public class LoginModel
