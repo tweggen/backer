@@ -2,7 +2,7 @@
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Backer</a>
+        <a class="navbar-brand" href="@($"{BasePath.Value}/backer/")">Backer</a>
     </div>
 </div>
 
@@ -11,31 +11,31 @@
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="@($"{BasePath.Value}backer/")" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="@($"{BasePath.Value}/backer/")" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Backer
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="@($"{BasePath.Value}backer/rules")">
+            <NavLink class="nav-link" href="@($"{BasePath.Value}/backer/rules")">
                 <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Rules
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="@($"{BasePath.Value}backer/endpoints")">
+            <NavLink class="nav-link" href="@($"{BasePath.Value}/backer/endpoints")">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Endpoints
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="@($"{BasePath.Value}backer/jobs")">
+            <NavLink class="nav-link" href="@($"{BasePath.Value}/backer/jobs")">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Jobs
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="@($"{BasePath.Value}backer/account")">
+            <NavLink class="nav-link" href="@($"{BasePath.Value}/backer/account")">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Account
             </NavLink>
         </div>
