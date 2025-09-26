@@ -54,6 +54,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UsePathBase("/app1");
+app.UseRouting();
 
 app.UseAntiforgery();
 
