@@ -235,6 +235,7 @@ else
     private Hannibal.Models.Endpoint? _newSourceEndpoint = null;
     private int _newDestinationEndpointId { get; set; } = -1;
     private Hannibal.Models.Endpoint? _newDestinationEndpoint = null;
+    private bool _hasRendered;
 
     public void Dispose()
     {
@@ -381,26 +382,36 @@ else
         await InvokeAsync(StateHasChanged);      
     }
 
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_hasRendered)
+        {
+            _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
+
+            _listEndpoints = new List<Hannibal.Models.Endpoint>(
+                await HannibalServiceClient.GetEndpointsAsync(CancellationToken.None)
+            );
+
+            _newRule = new() { UserId = _user.Id };
+            _newSourceEndpoint = _listEndpoints.FirstOrDefault(ep => true);
+            _newSourceEndpointId = (_newSourceEndpoint!=null)?_newSourceEndpoint.Id:-1;
+            _newDestinationEndpoint = _listEndpoints.FirstOrDefault(ep => true);
+            _newDestinationEndpointId = (_newDestinationEndpoint!=null)?_newDestinationEndpoint.Id:-1;
+            _newRule.SourceEndpoint = _newSourceEndpoint;
+            _newRule.SourceEndpointId = _newSourceEndpointId;
+            _newRule.DestinationEndpoint = _newDestinationEndpoint;
+            _newRule.DestinationEndpointId = _newDestinationEndpointId; 
+
+            await _reloadRulePage(CancellationToken.None);
+ 
+            _hasRendered = true;
+        }
+    }
+    
     
     protected override async Task OnInitializedAsync()
     {
-        _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
-
-        _listEndpoints = new List<Hannibal.Models.Endpoint>(
-            await HannibalServiceClient.GetEndpointsAsync(CancellationToken.None)
-        );
-
-        _newRule = new() { UserId = _user.Id };
-        _newSourceEndpoint = _listEndpoints.FirstOrDefault(ep => true);
-        _newSourceEndpointId = (_newSourceEndpoint!=null)?_newSourceEndpoint.Id:-1;
-        _newDestinationEndpoint = _listEndpoints.FirstOrDefault(ep => true);
-        _newDestinationEndpointId = (_newDestinationEndpoint!=null)?_newDestinationEndpoint.Id:-1;
-        _newRule.SourceEndpoint = _newSourceEndpoint;
-        _newRule.SourceEndpointId = _newSourceEndpointId;
-        _newRule.DestinationEndpoint = _newDestinationEndpoint;
-        _newRule.DestinationEndpointId = _newDestinationEndpointId; 
-
-        await _reloadRulePage(CancellationToken.None);
     }
 
 
