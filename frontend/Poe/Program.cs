@@ -98,6 +98,7 @@ app.Use(async (context, next) =>
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+app.MapFallbackToPage("/_Host");
 
 
 app.MapGet("/debug", (HttpRequest req) =>
