@@ -7,7 +7,11 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Tools;
 
-var basePath = "/app1";
+var basePath =  Environment.GetEnvironmentVariable("ASPNETCORE_BASEPATH");
+if (null == basePath)
+{
+    basePath = "";
+}
 
 
 var builder = WebApplication.CreateBuilder(args);

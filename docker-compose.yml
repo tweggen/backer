@@ -26,6 +26,8 @@ services:
       - "traefik.http.routers.api.tls=true"
       - "traefik.http.services.api.loadbalancer.server.port=8080"
   frontend:
+    environment:
+      - ASPNETCORE_BASEPATH=/app1
     build:
       context: ./
       dockerfile: frontend/Poe/Dockerfile
