@@ -136,13 +136,21 @@ public class HannibalContext : IdentityDbContext
 
     public async Task InitializeDatabaseAsync()
     {
-        try
+        bool haveDatabase = false;
+        while (!haveDatabase)
         {
-            await Database.EnsureCreatedAsync();
-        }
-        catch (Exception e)
-        {
-            Console.Error.WriteLine($"Unable to create DB: {e}");
+            try
+            {
+                await Database.EnsureCreatedAsync();
+                haveDatabase = true;
+                break;
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"Unable to create DB: {e}");
+            }
+
+            Thread.Sleep(5000);
         }
 
         if (!await Rules.AnyAsync())
