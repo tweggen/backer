@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Hannibal.Configuration;
 using Hannibal.Data;
 using Hannibal.Models;
@@ -40,17 +41,24 @@ public static class DependencyInjection
         ;
         #endif
         #if true
-        
-        var connectionString = Environment.GetEnvironmentVariable("HANNIBAL_DB_CONNECTION");
 
-        if (string.IsNullOrWhiteSpace(connectionString))
+        try
         {
-            connectionString = "Host=localhost;Port=5432;Database=hannibal;Username=postgres;Password=admin";
-        }
+            var connectionString = Environment.GetEnvironmentVariable("HANNIBAL_DB_CONNECTION");
 
-        services.AddDbContext<HannibalContext>(options =>
-            options.UseNpgsql(connectionString));
-        #endif
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                connectionString = "Host=localhost;Port=5432;Database=hannibal;Username=postgres;Password=admin";
+            }
+
+            services.AddDbContext<HannibalContext>(options =>
+                options.UseNpgsql(connectionString));
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine($"Unable to create DB Context: {e}");
+        }
+#endif
 
         services.AddIdentityApiEndpoints<IdentityUser>(options => 
             {
