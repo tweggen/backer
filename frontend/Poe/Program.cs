@@ -99,8 +99,8 @@ app.Use(async (context, next) =>
 });
 
 app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+//app.MapRazorComponents<App>()
+//    .AddInteractiveServerRenderMode();
 app.MapFallbackToPage("/_Host");
 
 
