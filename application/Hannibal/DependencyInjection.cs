@@ -45,6 +45,7 @@ public static class DependencyInjection
         try
         {
             var connectionString = Environment.GetEnvironmentVariable("HANNIBAL_DB_CONNECTION");
+            Console.WriteLine($"Trying to connect to database with string {connectionString}");
 
             if (string.IsNullOrWhiteSpace(connectionString))
             {
@@ -56,7 +57,7 @@ public static class DependencyInjection
         }
         catch (Exception e)
         {
-            Debug.WriteLine($"Unable to create DB Context: {e}");
+            Console.Error.WriteLine($"Unable to create DB Context: {e}");
         }
 #endif
 
