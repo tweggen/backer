@@ -47,7 +47,10 @@ builder.Services.AddAuthentication(options =>
     ;
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
+builder.Services.AddRazorPages();
+
+builder.Services
+    .AddRazorComponents()
     .AddInteractiveServerComponents();
     ;
 
