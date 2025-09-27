@@ -1,5 +1,6 @@
 ﻿@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @inject Tools.AppBasePath BasePath
+@inject NavigationManager Nav
 
 <!DOCTYPE html>
 <html lang="en">
@@ -23,6 +24,7 @@
 <body>
     <Routes />
     <script src="@($"{basePath}/_framework/blazor.web.js")"></script>
+    <p>Base URI: @Nav.BaseUri</p>
 </body>
 
 </html>
