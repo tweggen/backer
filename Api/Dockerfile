@@ -6,7 +6,7 @@ USER root
 RUN apt-get update && apt-get install -y iputils-ping && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /home/app/.aspnet/DataProtection-Keys \
-    && chown -R $APP_UID /home/app/.aspnet \
+    && chown -R $APP_UID /home/app/.aspnet
     
 # Switch back to app user
 USER $APP_UID
