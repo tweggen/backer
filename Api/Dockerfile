@@ -1,4 +1,11 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+# Switch back to root temporarily to install ping
+USER root
+
+# Install ping (from iputils-ping)
+RUN apt-get update && apt-get install -y iputils-ping && rm -rf /var/lib/apt/lists/*
+
+# Switch back to app user
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
