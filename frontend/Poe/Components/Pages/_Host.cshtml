@@ -1,0 +1,26 @@
+@using Poe.Components
+
+@page "/"
+@namespace Poe.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+    var basePath = Environment.GetEnvironmentVariable("ASPNETCORE_BASEPATH") ?? "/";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <base href="@basePath" />
+    <link rel="stylesheet" href="@($"{basePath}/lib/bootstrap/dist/css/bootstrap.min.css")" />
+    <link rel="stylesheet" href="@($"{basePath}/app.css")" />
+    <link rel="stylesheet" href="@($"{basePath}/Poe.styles.css")" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+</head>
+<body>
+<app>
+    <component type="typeof(App)" render-mode="ServerPrerendered" />
+</app>
+<script src="@($"{basePath}/_framework/blazor.server.js")"></script>
+</body>
+</html>
