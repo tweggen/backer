@@ -30,6 +30,8 @@ services:
       context: ./
       dockerfile: frontend/Poe/Dockerfile
     image: poe-ui:latest
+    volumes:
+      - dataprotection:/home/app/.aspnet/DataProtection-Keys
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=PathPrefix(`/app1`)"
