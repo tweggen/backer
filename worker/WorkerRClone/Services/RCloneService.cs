@@ -384,6 +384,7 @@ public class RCloneService : BackgroundService
     {
         await base.StartAsync(cancellationToken);
 
+        #if false
         _processRClone = _processManager.StartManagedProcess(new ProcessStartInfo()
             {
                 FileName = _decodePath(_options.RClonePath),
@@ -394,6 +395,18 @@ public class RCloneService : BackgroundService
                 CreateNoWindow = true
             }
         );
+        #else
+        var startInfo = new ProcessStartInfo()
+        {
+            FileName =  _decodePath(_options.RClonePath),
+            Arguments = _options.RCloneOptions,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        _processRClone = CrossPlatformProcessManager.StartManagedProcess(startInfo);
+        #endif
 
         string? urlRClone = null;
         
