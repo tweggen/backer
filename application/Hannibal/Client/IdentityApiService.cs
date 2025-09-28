@@ -129,10 +129,19 @@ public class IdentityApiService : IIdentityApiService
         }
         else
         {
+            ProblemDetails? problemDetails = null;
+            var contentString = await response.Content.ReadAsStringAsync(cancellationToken);
             // Try to parse error details
-            var problemDetails =
-                await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken)
-                ?? new ProblemDetails { Title = "Login failed", Status = (int)response.StatusCode };
+            if (!String.IsNullOrWhiteSpace(contentString))
+            {
+                problemDetails = JsonSerializer.Deserialize<ProblemDetails>(contentString,
+                    new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+            }
+
+            if (null == problemDetails)
+            {
+                problemDetails = new ProblemDetails { Title = "Login failed", Status = (int)response.StatusCode };
+            }
 
             return TypedResults.Problem(problemDetails);
         }
