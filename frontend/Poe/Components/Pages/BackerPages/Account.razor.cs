@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components;
 
-namespace Poe.Components.Pages;
+namespace Poe.Components.Pages.BackerPages;
 
 public partial class Account : ComponentBase
 {
