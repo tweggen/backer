@@ -87,35 +87,10 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
-#if false
-app.Use(async (context, next) =>
-{
-    if (context.Request.Query.TryGetValue("ReturnUrl", out var returnUrl))
-    {
-        if (!returnUrl.ToString().StartsWith("/app1"))
-        {
-            var corrected = $"/app1{returnUrl}";
-            context.Request.QueryString = new QueryString($"?ReturnUrl={Uri.EscapeDataString(corrected)}");
-        }
-    }
-
-    await next();
-});
-#endif
-
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-
-app.MapGet("/debug", (HttpRequest req) =>
-{
-    return new
-    {
-        Scheme = req.Scheme,
-        Headers = req.Headers["X-Forwarded-Proto"].ToString()
-    };
-});
 
 app.Run();
 #if false

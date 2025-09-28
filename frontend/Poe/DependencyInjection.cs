@@ -3,6 +3,7 @@ using Hannibal.Client;
 using Hannibal.Client.Configuration;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Options;
+using Poe.Services;
 using Tools;
 
 namespace Poe;
@@ -10,11 +11,11 @@ namespace Poe;
 
 internal class FrontendHttpRedirectHandler : DelegatingHandler
 {
-    private readonly NavigationManager _nav;
+    private readonly AuthState _authState;
 
-    public FrontendHttpRedirectHandler(NavigationManager nav)
+    public FrontendHttpRedirectHandler(AuthState authState)
     {
-        _nav = nav;
+        _authState = authState;
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -23,7 +24,7 @@ internal class FrontendHttpRedirectHandler : DelegatingHandler
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            _nav.NavigateTo("/login", forceLoad: true);
+            _authState.ShouldRedirectToLogin = true;
         }
 
         return response;
@@ -52,7 +53,6 @@ public static class DependencyInjection
                 client.BaseAddress = new Uri(options.BaseUrl);
             })
             .AddHttpMessageHandler<AddTokenHandler>()
-            .AddHttpMessageHandler<FrontendHttpRedirectHandler>()
             ;
 
         return services;
