@@ -12,12 +12,15 @@ public class Job
     {
         Id = o.Id;
         Tag = o.Tag;
+        Operation = o.Operation;
+        FromRuleId = o.FromRuleId;
         Owner = o.Owner;
         State = o.State;
-        StartFrom = o.StartFrom;
-        EndBy = o.EndBy;
-        SourceEndpoint = o.SourceEndpoint;
-        DestinationEndpoint = o.DestinationEndpoint;
+        StartFrom = o.StartFrom.ToUniversalTime();
+        EndBy = o.EndBy.ToUniversalTime();
+        LastReported = o.LastReported.ToUniversalTime();
+        SourceEndpointId = o.SourceEndpointId;
+        DestinationEndpointId = o.DestinationEndpointId;
         Status = o.Status;
     }
 
@@ -66,18 +69,35 @@ public class Job
     /**
      * This job is supposed to start earliest at this point in time.
      */
-    public DateTime StartFrom { get; set; }
-    
+    private DateTime _startFrom;
+
+    public DateTime StartFrom
+    {
+        get => _startFrom;
+        set => _startFrom = value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime();
+    }
+
+    private DateTime _endBy;
+
     /**
      * This job is supposed to end by that particular date.
      */
-    public DateTime EndBy { get; set; }
+    public DateTime EndBy
+    {
+        get => _endBy;
+        set => _endBy = value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime(); 
+        
+    }
     
-    
+
+    private DateTime _lastReported;
     /**
      * When was this job reported back the last time?
      */
-    public DateTime LastReported { get; set; }
+    public DateTime LastReported {
+        get => _lastReported;
+        set => _lastReported = value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime(); 
+    }
     
     public int SourceEndpointId { get; set; }
     public virtual Endpoint SourceEndpoint { get; set; }

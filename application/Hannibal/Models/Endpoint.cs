@@ -38,8 +38,21 @@ public class Endpoint
     public string Path { get; set; }
     
     public string Comment { get; set; }
+
+    private DateTime _createdAt;
+
+    public DateTime CreatedAt
+    {
+        get => _createdAt;
+        set => _createdAt = value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime();
+    }
+
+    private DateTime _updatedAt;
     
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+    public DateTime UpdatedAt { 
+        get => _updatedAt;
+        set => _updatedAt = value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime();
+    }
+    
     public bool IsActive { get; set; }
 }

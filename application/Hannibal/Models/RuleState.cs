@@ -14,11 +14,14 @@ public class RuleState
     
     // TXWTODO: allow inactive rules etc.
     
+    private DateTime _expiredAfter;
     /**
      * When do we need to reevaluate this rule. 
      */
-    public DateTime ExpiredAfter { get; set; }
-
+    public DateTime ExpiredAfter {
+        get => _expiredAfter;
+        set => _expiredAfter = value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime();
+    }
     
     /**
      * Which was the most recently triggered job?
