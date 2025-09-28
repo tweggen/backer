@@ -28,5 +28,12 @@
 @code {
     protected override void OnInitialized()
     {
+        #if false
+        var token = HttpContextAccessor.HttpContext?.Request.Cookies["access_token"];
+        if (!string.IsNullOrEmpty(token))
+        {
+            (StaticTokenProvider as IStaticTokenProvider)!.SetToken(token);
+        }
+        #endif
     }
 }
