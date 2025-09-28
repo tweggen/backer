@@ -26,8 +26,6 @@ services:
       - "traefik.http.routers.api.tls=true"
       - "traefik.http.services.api.loadbalancer.server.port=8080"
   frontend:
-    environment:
-      - ASPNETCORE_BASEPATH=/app1
     build:
       context: ./
       dockerfile: frontend/Poe/Dockerfile
@@ -36,7 +34,6 @@ services:
       - dataprotection:/home/app/.aspnet/DataProtection-Keys
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=PathPrefix(`/app1`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.services.frontend.loadbalancer.server.port=8080"

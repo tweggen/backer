@@ -81,6 +81,7 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
+#if false
 app.Use(async (context, next) =>
 {
     if (context.Request.Query.TryGetValue("ReturnUrl", out var returnUrl))
@@ -94,6 +95,7 @@ app.Use(async (context, next) =>
 
     await next();
 });
+#endif
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
