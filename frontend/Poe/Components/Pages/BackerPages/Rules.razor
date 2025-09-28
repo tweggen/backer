@@ -5,7 +5,8 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
 @inject IHannibalServiceClient HannibalServiceClient
-@inject NavigationManager NavigationManager
+@inject NavigationManager Navigation
+@inject Tools.AppBasePath BasePath
 @implements IDisposable
 @rendermode InteractiveServer
 @attribute [Authorize]
@@ -385,6 +386,10 @@ else
     protected override async Task OnInitializedAsync()
     {
         _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
+        if (null == _user)
+        {
+            Navigation.NavigateTo($"{BasePath.Value}/login");
+        }
 
         _listEndpoints = new List<Hannibal.Models.Endpoint>(
             await HannibalServiceClient.GetEndpointsAsync(CancellationToken.None)

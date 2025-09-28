@@ -2,7 +2,8 @@
 @using Hannibal.Client
 @using Microsoft.AspNetCore.Identity
 @inject IHannibalServiceClient HigginsServiceClient
-@inject NavigationManager NavigationManager
+@inject NavigationManager Navigation
+@inject Tools.AppBasePath BasePath
 @implements IDisposable
 @rendermode InteractiveServer
 
@@ -215,6 +216,11 @@ else
     protected override async Task OnInitializedAsync()
     {
         _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+        if (null == _user)
+        {
+            Navigation.NavigateTo($"{BasePath.Value}/login");
+        }
+
         _newEndpoint = new() { UserId = _user.Id, IsActive = true };
         
         _listEndpoints = new List<Hannibal.Models.Endpoint>(

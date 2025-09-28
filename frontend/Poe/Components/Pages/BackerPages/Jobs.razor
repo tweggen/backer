@@ -1,9 +1,13 @@
 @page "/backer/jobs"
 @using Hannibal.Client
 @using Hannibal.Models
+@using Microsoft.AspNetCore.Identity
 @rendermode InteractiveServer
 
+@inject IHannibalServiceClient HigginsServiceClient
 @inject IHannibalServiceClient HannibalServiceClient
+@inject NavigationManager Navigation
+@inject Tools.AppBasePath BasePath
 
 <h3>Jobs</h3>
 
@@ -46,9 +50,16 @@ else
 
 @code {
     private List<Job> listJobs;
+    private IdentityUser? _user;
 
     protected override async Task OnInitializedAsync()
     {
+        _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+        if (null == _user)
+        {
+            Navigation.NavigateTo($"{BasePath.Value}/login");
+        }
+
         listJobs = new List<Job>(
             await HannibalServiceClient.GetJobsAsync(
                 new ResultPage() { Offset = 0, Length = 20},
