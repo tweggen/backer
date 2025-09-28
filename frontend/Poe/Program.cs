@@ -5,6 +5,7 @@ using Hannibal.Client;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Poe;
 using Tools;
 
 var basePath =  Environment.GetEnvironmentVariable("ASPNETCORE_BASEPATH");
