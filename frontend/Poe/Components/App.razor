@@ -1,11 +1,30 @@
-﻿@using Poe.Components.Layout
-<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-    </Found>
-    <NotFound>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <p>Sorry, there's nothing at this address.</p>
-        </LayoutView>
-    </NotFound>
-</Router>
+﻿@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject Tools.AppBasePath BasePath
+@inject NavigationManager Nav
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @{
+        var basePath = BasePath.Value;
+    }
+    <link rel="stylesheet" href="@($"{basePath}/{Assets["lib/bootstrap/dist/css/bootstrap.min.css"]}")" />
+    <link rel="stylesheet" href="@($"{basePath}/{Assets["app.css"]}")" />
+    <link rel="stylesheet" href="@($"{basePath}/{Assets["Poe.styles.css"]}")" />
+
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+    <base href="@basePath/" />
+</head>
+
+<body>
+    <Routes />
+    <script src="@($"{basePath}/_framework/blazor.web.js")"></script>
+    <p>Base URI: @Nav.BaseUri</p>
+</body>
+
+</html>
