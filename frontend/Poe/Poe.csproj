@@ -12,7 +12,7 @@
     <ProjectReference Include="..\..\application\Hannibal\Hannibal.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="wwwroot\lib\bootstrap\dist\css\bootstrap.min.css">
+    <Content Include="wwwroot\lib\**\*">
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>
