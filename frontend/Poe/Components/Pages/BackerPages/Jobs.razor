@@ -51,21 +51,26 @@ else
 @code {
     private List<Job> listJobs;
     private IdentityUser? _user;
+    private bool _isInitialized;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
-        if (null == _user)
+        if (firstRender && !_isInitialized)
         {
-            Navigation.NavigateTo($"{BasePath.Value}/login");
-        }
+            _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+            if (null == _user)
+            {
+                Navigation.NavigateTo($"{BasePath.Value}/login");
+            }
 
-        listJobs = new List<Job>(
-            await HannibalServiceClient.GetJobsAsync(
-                new ResultPage() { Offset = 0, Length = 20},
-                new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing},
-                CancellationToken.None
-            ));
+            listJobs = new List<Job>(
+                await HannibalServiceClient.GetJobsAsync(
+                    new ResultPage() { Offset = 0, Length = 20 },
+                    new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing },
+                    CancellationToken.None
+                ));
+            _isInitialized = true;
+        }
     }
 
     public void Dispose()

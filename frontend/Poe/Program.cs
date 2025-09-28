@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Poe;
+using Poe.Services;
 using Tools;
 
 var basePath =  Environment.GetEnvironmentVariable("ASPNETCORE_BASEPATH");
@@ -16,6 +17,9 @@ if (null == basePath)
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services
+    .AddScoped<AuthState>();
 
 builder.Services
     // Clients

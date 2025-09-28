@@ -49,12 +49,17 @@
         }
     }
     
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
-        if (null == _user)
+        if (firstRender && !_isInitialized)
         {
-            Navigation.NavigateTo($"{BasePath.Value}/login", forceLoad: true);
+            _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
+            if (null == _user)
+            {
+                Navigation.NavigateTo($"{BasePath.Value}/login", forceLoad: true);
+            }
+
+            _isInitialized = true;
         }
     }
 

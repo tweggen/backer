@@ -4,4 +4,5 @@ namespace Poe.Components.Pages.BackerPages;
 
 public partial class Account : ComponentBase
 {
+    private bool _isInitialized;
 }

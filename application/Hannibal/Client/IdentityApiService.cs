@@ -162,7 +162,6 @@ public class IdentityApiService : IIdentityApiService
         }
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
 
 
         if (response.IsSuccessStatusCode)

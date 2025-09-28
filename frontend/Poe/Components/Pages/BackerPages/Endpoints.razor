@@ -151,6 +151,7 @@ else
     [SupplyParameterFromForm] private Hannibal.Models.Endpoint? _newEndpoint { get; set; } = null;
 
     private Hannibal.Models.Storage? _selectedStorage = null;
+    private bool _isInitialized;
 
 
     public void Dispose()
@@ -213,22 +214,26 @@ else
     }
     
     
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
-        if (null == _user)
+        if (firstRender && !_isInitialized)
         {
-            Navigation.NavigateTo($"{BasePath.Value}/login");
-        }
+            _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+            if (null == _user)
+            {
+                Navigation.NavigateTo($"{BasePath.Value}/login");
+            }
 
-        _newEndpoint = new() { UserId = _user.Id, IsActive = true };
-        
-        _listEndpoints = new List<Hannibal.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
-        );
-        _listStorages = new List<Hannibal.Models.Storage>(
-            await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
-        );
+            _newEndpoint = new() { UserId = _user.Id, IsActive = true };
+
+            _listEndpoints = new List<Hannibal.Models.Endpoint>(
+                await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
+            );
+            _listStorages = new List<Hannibal.Models.Storage>(
+                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
+            );
+            _isInitialized = true;
+        }
     }
 
 

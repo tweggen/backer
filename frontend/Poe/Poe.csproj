@@ -11,4 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\application\Hannibal\Hannibal.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Services\" />
+  </ItemGroup>
 </Project>
