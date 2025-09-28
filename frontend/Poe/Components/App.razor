@@ -9,8 +9,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     @{
         var basePath = BasePath.Value;
+        var a = Assets;
+        var b = (a["lib/bootstrap/dist/css/bootstrap.min.css"]);
+        Console.WriteLine(b);
     }
     <link rel="stylesheet" href="@($"{basePath}/{Assets["lib/bootstrap/dist/css/bootstrap.min.css"]}")" />
+  
     <link rel="stylesheet" href="@($"{basePath}/{Assets["app.css"]}")" />
     <link rel="stylesheet" href="@($"{basePath}/{Assets["Poe.styles.css"]}")" />
 
