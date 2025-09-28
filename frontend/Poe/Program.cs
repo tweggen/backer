@@ -19,6 +19,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
     // Clients
+    .AddTransient<Poe.FrontendHttpRedirectHandler>()
     .AddTransient<IdentityCookieHandler>()
     .AddIdentityApiClient(builder.Configuration)
     .AddHttpContextAccessor();
