@@ -4,12 +4,14 @@
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore.Metadata.Internal
+@using Poe.Services
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IJSRuntime JsRuntime
 @inject IIdentityApiService IdentityApiService
 @inject NavigationManager Navigation
 @inject IHannibalServiceClient HannibalServiceClient
 @inject Tools.AppBasePath BasePath
+@inject AuthState AuthState
 
 @rendermode InteractiveServer
 @attribute [Authorize]
@@ -49,17 +51,33 @@
         }
     }
     
+    
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !_isInitialized)
+        if (AuthState.ReadResetRedirectToLogin())
+        {
+            await InvokeAsync(() =>
+            {
+                Task.Delay(200);
+                Navigation.NavigateTo("/login");
+            });
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
         {
             _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
             if (null == _user)
             {
-                Navigation.NavigateTo($"{BasePath.Value}/login", forceLoad: true);
+                AuthState.TriggerRedirectToLogin();
             }
-
-            _isInitialized = true;
+        }
+        catch (Exception e)
+        {
+            // TXWTODO: Catch 401 ?
         }
     }
 

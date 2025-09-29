@@ -1,9 +1,11 @@
 @page "/backer/endpoints"
 @using Hannibal.Client
 @using Microsoft.AspNetCore.Identity
+@using Poe.Services
 @inject IHannibalServiceClient HigginsServiceClient
 @inject NavigationManager Navigation
 @inject Tools.AppBasePath BasePath
+@inject AuthState AuthState
 @implements IDisposable
 @rendermode InteractiveServer
 
@@ -151,7 +153,6 @@ else
     [SupplyParameterFromForm] private Hannibal.Models.Endpoint? _newEndpoint { get; set; } = null;
 
     private Hannibal.Models.Storage? _selectedStorage = null;
-    private bool _isInitialized;
 
 
     public void Dispose()
@@ -214,29 +215,6 @@ else
     }
     
     
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender && !_isInitialized)
-        {
-            _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
-            if (null == _user)
-            {
-                Navigation.NavigateTo($"{BasePath.Value}/login");
-            }
-
-            _newEndpoint = new() { UserId = _user.Id, IsActive = true };
-
-            _listEndpoints = new List<Hannibal.Models.Endpoint>(
-                await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
-            );
-            _listStorages = new List<Hannibal.Models.Storage>(
-                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
-            );
-            _isInitialized = true;
-        }
-    }
-
-
     private async Task _onEditEndpointCancel()
     {
         _editingEndpointId = -1;
@@ -272,5 +250,43 @@ else
             await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
         );
         await InvokeAsync(StateHasChanged);      
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (AuthState.ReadResetRedirectToLogin())
+        {
+            await InvokeAsync(() =>
+            {
+                Task.Delay(200);
+                Navigation.NavigateTo("/login");
+            });
+        }
+    }
+    
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+            if (null == _user)
+            {
+                Navigation.NavigateTo($"{BasePath.Value}/login");
+            }
+
+            _newEndpoint = new() { UserId = _user.Id, IsActive = true };
+
+            _listEndpoints = new List<Hannibal.Models.Endpoint>(
+                await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
+            );
+            _listStorages = new List<Hannibal.Models.Storage>(
+                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
+            );
+        }
+        catch (Exception e)
+        {
+            // TXWTODO: Catch 401 ?            
+        }
     }
 }

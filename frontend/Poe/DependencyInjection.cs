@@ -24,7 +24,7 @@ internal class FrontendHttpRedirectHandler : DelegatingHandler
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            _authState.ShouldRedirectToLogin = true;
+            _authState.TriggerRedirectToLogin();
         }
 
         return response;
@@ -53,6 +53,7 @@ public static class DependencyInjection
                 client.BaseAddress = new Uri(options.BaseUrl);
             })
             .AddHttpMessageHandler<AddTokenHandler>()
+            .AddHttpMessageHandler<FrontendHttpRedirectHandler>()
             ;
 
         return services;

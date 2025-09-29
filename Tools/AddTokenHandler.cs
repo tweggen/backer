@@ -8,12 +8,10 @@ namespace Tools;
 public class AddTokenHandler : DelegatingHandler
 {
     private readonly ITokenProvider _tokenProvider;
-    private readonly AuthState _authState;
 
-    public AddTokenHandler(ITokenProvider tokenProvider, AuthState authState)
+    public AddTokenHandler(ITokenProvider tokenProvider)
     {
         _tokenProvider = tokenProvider;
-        _authState = authState;
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
@@ -27,10 +25,6 @@ public class AddTokenHandler : DelegatingHandler
         }
 
         var response = await base.SendAsync(request, cancellationToken);
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            _authState.ShouldRedirectToLogin = true;
-        }
 
         return response;
     }
