@@ -23,25 +23,6 @@ public static class DependencyInjection
         services.Configure<HannibalServiceOptions>(
             configuration.GetSection("HannibalService"));
 
-        #if false
-        var dbPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Backer",
-            "hannibal.db"
-        );
-        
-        Directory.CreateDirectory(Path.GetDirectoryName(dbPath));
-        var connectionString = $"Data Source={dbPath}";
-
-        services.AddDbContext<HannibalContext>(options =>
-            options.UseSqlite(
-                //configuration.GetConnectionString("HannibalDatabase")
-                connectionString
-            ));
-        ;
-        #endif
-        #if true
-
         try
         {
             var connectionString = Environment.GetEnvironmentVariable("HANNIBAL_DB_CONNECTION");
@@ -59,7 +40,6 @@ public static class DependencyInjection
         {
             Console.Error.WriteLine($"Unable to create DB Context: {e}");
         }
-#endif
 
         services.AddIdentityApiEndpoints<IdentityUser>(options => 
             {

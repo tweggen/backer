@@ -2,10 +2,12 @@
 @using Hannibal.Client
 @using Hannibal.Models
 @using Microsoft.AspNetCore.Identity
+@using Poe.Services
 @rendermode InteractiveServer
 
 @inject IHannibalServiceClient HigginsServiceClient
 @inject IHannibalServiceClient HannibalServiceClient
+@inject AuthState AuthState
 @inject NavigationManager Navigation
 @inject Tools.AppBasePath BasePath
 
@@ -51,16 +53,35 @@ else
 @code {
     private List<Job> listJobs;
     private IdentityUser? _user;
-    private bool _isInitialized;
 
+    
+    public void Dispose()
+    {
+        // Dispose logic if needed
+    }
+
+    
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !_isInitialized)
+        if (AuthState.ReadResetRedirectToLogin())
         {
-            _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+            await InvokeAsync(() =>
+            {
+                Task.Delay(200);
+                Navigation.NavigateTo("/login");
+            });
+        }
+    }
+
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
             if (null == _user)
             {
-                Navigation.NavigateTo($"{BasePath.Value}/login");
+                AuthState.TriggerRedirectToLogin();
             }
 
             listJobs = new List<Job>(
@@ -69,12 +90,10 @@ else
                     new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing },
                     CancellationToken.None
                 ));
-            _isInitialized = true;
         }
-    }
-
-    public void Dispose()
-    {
-        // Dispose logic if needed
+        catch (Exception e)
+        {
+            // TXWTODO: Catch 401 ?
+        }
     }
 }

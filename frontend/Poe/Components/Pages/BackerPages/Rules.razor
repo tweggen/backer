@@ -4,9 +4,11 @@
 @using Hannibal.Models
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Identity
+@using Poe.Services
 @inject IHannibalServiceClient HannibalServiceClient
 @inject NavigationManager Navigation
 @inject Tools.AppBasePath BasePath
+@inject AuthState AuthState
 @implements IDisposable
 @rendermode InteractiveServer
 @attribute [Authorize]
@@ -236,7 +238,6 @@ else
     private Hannibal.Models.Endpoint? _newSourceEndpoint = null;
     private int _newDestinationEndpointId { get; set; } = -1;
     private Hannibal.Models.Endpoint? _newDestinationEndpoint = null;
-    private bool _isInitialized;
 
     public void Dispose()
     {
@@ -383,15 +384,28 @@ else
         await InvokeAsync(StateHasChanged);      
     }
 
-    
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !_isInitialized)
+        if (AuthState.ReadResetRedirectToLogin())
+        {
+            await InvokeAsync(() =>
+            {
+                Task.Delay(200);
+                Navigation.NavigateTo("/login");
+            });
+        }
+    }
+    
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
         {
             _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
             if (null == _user)
             {
-                Navigation.NavigateTo($"{BasePath.Value}/login");
+                AuthState.TriggerRedirectToLogin();
             }
 
             _listEndpoints = new List<Hannibal.Models.Endpoint>(
@@ -409,7 +423,10 @@ else
             _newRule.DestinationEndpointId = _newDestinationEndpointId;
 
             await _reloadRulePage(CancellationToken.None);
-            _isInitialized = true;
+        }
+        catch (Exception e)
+        {
+            // TXWTODO: Catch 401 ?
         }
     }
 
