@@ -292,7 +292,7 @@ public class RCloneService : BackgroundService
                 using var scope = _serviceScopeFactory.CreateScope();
                 var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
                 job = await hannibalService.AcquireNextJobAsync(
-                    new() { Username = "timo", Capabilities = "rclone", Owner = _ownerId },
+                    new() { Username = "timo.weggen@gmail.com", Capabilities = "rclone", Owner = _ownerId },
                     cancellationToken);
             }
             if (null == job)
