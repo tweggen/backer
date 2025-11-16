@@ -258,13 +258,6 @@ public class RCloneService : BackgroundService
     }
     
 
-    public override async Task StopAsync(CancellationToken cancellationToken)
-    {
-        _processRClone.Dispose();
-        await base.StopAsync(cancellationToken);
-    }
-    
-
     private async Task _triggerFetchJob(CancellationToken cancellationToken)
     {
         try
@@ -464,12 +457,18 @@ public class RCloneService : BackgroundService
     }
 
 
-    public async Task StopAsync()
+    public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        return;
+        if (_processRClone != null)
+        {
+            var processRClone = _processRClone;
+            _processRClone = null;
+            processRClone.Dispose();
+            await base.StopAsync(cancellationToken); 
+        }
     }
 
-
+    
     public async Task ConfigAsync()
     {
         return;

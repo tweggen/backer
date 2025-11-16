@@ -1,19 +1,9 @@
-﻿using System.Security.Claims;
-using Hannibal;
+﻿using Hannibal;
 using Hannibal.Client;
 using LocalAgent;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.BearerToken;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Tools;
 using WorkerRClone.Configuration;
@@ -107,9 +97,14 @@ builder.Services.AddSingleton(provider =>
 var app = builder.Build();
 
 app.MapPost("/quit", async (
-    RCloneService rcloneSErvice, 
-    HttpContext ctx
-) => { /* trigger shutdown */ });
+    RCloneService rCloneService,
+    HttpContext ctx,
+    CancellationToken cancellationToken
+) =>
+{
+    await rCloneService.StopAsync(cancellationToken);
+    
+});
 app.MapPost("/restart", async (
     RCloneService rcloneSErvice, 
     HttpContext ctx
