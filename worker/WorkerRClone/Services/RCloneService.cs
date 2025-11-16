@@ -463,4 +463,15 @@ public class RCloneService : BackgroundService
 
     }
 
+
+    public async Task StopAsync()
+    {
+        return;
+    }
+
+
+    public async Task ConfigAsync()
+    {
+        return;
+    }
 }

@@ -87,6 +87,7 @@ builder.Services
 
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
+builder.Services.AddHostedService<RCloneService>();
 builder.Services.AddSingleton<HubConnectionFactory>();
 builder.Services.AddSingleton(provider =>
 {
@@ -104,6 +105,19 @@ builder.Services.AddSingleton(provider =>
 
 // Build the application
 var app = builder.Build();
+
+app.MapPost("/quit", async (
+    RCloneService rcloneSErvice, 
+    HttpContext ctx
+) => { /* trigger shutdown */ });
+app.MapPost("/restart", async (
+    RCloneService rcloneSErvice, 
+    HttpContext ctx
+    ) => { /* restart logic */ });
+app.MapPost("/config", async (
+    RCloneService rcloneSErvice, 
+    HttpContext ctx
+) => { /* apply config */ });
 
 
 {
