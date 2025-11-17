@@ -34,7 +34,7 @@ public class RCloneService : BackgroundService
     private ProcessManager _processManager;
     private HubConnection _hannibalConnection;
 
-    private readonly RCloneServiceOptions _options;
+    private RCloneServiceOptions _options;
 
     private Process? _processRClone;
     private HttpClient _rcloneHttpClient;
@@ -376,6 +376,18 @@ public class RCloneService : BackgroundService
 
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
+        _logger.LogInformation($"Starting RCloneService with options {_options}");
+        if (String.IsNullOrWhiteSpace(_options.BackerUsername)
+            || String.IsNullOrWhiteSpace(_options.BackerPassword)
+            || String.IsNullOrWhiteSpace(_options.RClonePath)
+            || String.IsNullOrWhiteSpace(_options.RCloneOptions)
+            || String.IsNullOrWhiteSpace(_options.UrlSignalR))
+        {
+            throw new InvalidOperationException("Missing configuration.");
+        }
+
+        _isStarted = true;
+        
         await base.StartAsync(cancellationToken);
 
         #if false
@@ -460,18 +472,31 @@ public class RCloneService : BackgroundService
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        bool wasStarted = _isStarted;
+        _isStarted = false;
+        
         if (_processRClone != null)
         {
             var processRClone = _processRClone;
             _processRClone = null;
             processRClone.Dispose();
-            await base.StopAsync(cancellationToken); 
+        }
+
+        if (wasStarted)
+        {
+            await base.StopAsync(cancellationToken);
         }
     }
 
     
     public async Task ConfigAsync(RCloneServiceOptions rcloneServiceOptions, CancellationToken cancellationToken )
     {
+        _logger.LogDebug("ConfigAsync called");
+        if (rcloneServiceOptions != _options)
+        {
+            _logger.LogDebug("ConfigAsync: Receiving a new options object: {rcloneServiceOptions}", rcloneServiceOptions);
+            _options = new RCloneServiceOptions(rcloneServiceOptions);
+        }
         return;
     }
 }
