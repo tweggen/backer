@@ -13,10 +13,9 @@ namespace BackerControl;
 public partial class App : System.Windows.Application
 {
     private NotifyIcon trayIcon;
-    private HttpClient http = new() { BaseAddress = new Uri("http://localhost:5931") };
 
     private ConfigWindow? _winConfig = null;
-    
+    private HttpClient http = new() { BaseAddress = new Uri("http://localhost:5931") };
     
     private void _showConfigWindow()
     {
@@ -52,11 +51,10 @@ public partial class App : System.Windows.Application
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("Restart Service", null, async (s, ev) => await http.PostAsync("/restart", null));
-        //menu.Items.Add("Quit Service", null, async (s, ev) => await http.PostAsync("/quit", null));
+        menu.Items.Add("Quit Service", null, async (s, ev) => await http.PostAsync("/quit", null));
         menu.Items.Add("Configure...", null, async (s, ev) =>
         {
-            //var config = new { SettingA = "Value1" };
-            //await http.PostAsJsonAsync("/config", config);
+
             _showConfigWindow();
         });
         menu.Items.Add("Exit Tray", null, (s, ev) =>

@@ -83,6 +83,7 @@ builder.Services
 
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
+builder.Services.AddSingleton<RCloneService>();
 builder.Services.AddHostedService<RCloneService>();
 builder.Services.AddSingleton<HubConnectionFactory>();
 builder.Services.AddSingleton(provider =>
@@ -99,6 +100,11 @@ builder.Services.AddSingleton(provider =>
 });
 
 
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(5931); // Default port override
+});
+
 // Build the application
 var app = builder.Build();
 
@@ -110,6 +116,8 @@ app.MapPost("/quit", async (
 {
     await rCloneService.StopAsync(cancellationToken);
 });
+
+
 app.MapPost("/restart", async (
     RCloneService rcloneService,
     HttpContext ctx,
@@ -119,6 +127,8 @@ app.MapPost("/restart", async (
     await rcloneService.StopAsync(cancellationToken);
     await rcloneService.StartAsync(cancellationToken);
 });
+
+
 app.MapPut("/config", async (
     RCloneService rcloneService,
     HttpContext ctx,
@@ -151,7 +161,7 @@ app.MapPut("/config", async (
     app.Lifetime.ApplicationStarted.Register(async () =>
     {
         var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
-        await Task.WhenAll(connections.Values.Select(conn =>
+        await Task.WhenAll(connections.Values.Select(async conn =>
         {
             while (true)
             {
@@ -165,7 +175,7 @@ app.MapPut("/config", async (
                 {
                     Console.WriteLine($"Error starting connection: {e.Message}");
                 }
-                Task.Delay(1000);
+                await Task.Delay(1000);
             }
         }).ToArray());
     });

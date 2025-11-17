@@ -59,4 +59,4 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
         File.WriteAllText(tempFile, json);
         File.Move(tempFile, _configFilePath, overwrite: true);
     }
-}}
+}

@@ -1,15 +1,20 @@
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Windows;
+using WorkerRClone.Configuration;
 
 namespace BackerControl;
 
 public partial class ConfigWindow : Window
 {
+    private HttpClient http = new() { BaseAddress = new Uri("http://localhost:5931") };
+
     public ConfigWindow()
     {
         InitializeComponent();
     }
     
-    private void OnSaveClicked(object sender, RoutedEventArgs e)
+    private async void OnSaveClicked(object sender, RoutedEventArgs e)
     {
         // Dummy implementation: just read values and show a message
         string cloudUrl = CloudUrlTextBox.Text;
@@ -22,6 +27,17 @@ public partial class ConfigWindow : Window
             MessageBoxButton.OK,
             MessageBoxImage.Information
         );
+        
+        
+        RCloneServiceOptions options = new ()
+        {
+            BackerUsername = email,
+            BackerPassword = password,
+            UrlSignalR = cloudUrl,
+            RClonePath = "",
+            RCloneOptions = ""
+        };
+        await http.PutAsJsonAsync("/config", options);
 
         // Close the window after "saving"
         Close();
