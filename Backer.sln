@@ -17,7 +17,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Frontend", "Frontend", "{3B
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Poe", "frontend\Poe\Poe.csproj", "{91E01B6D-70E2-4951-ABA2-D4F68F03CC0E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalAgent", "LocalAgent\LocalAgent.csproj", "{BE5B4831-547E-4333-83AF-1770A0C46503}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackerAgent", "BackerAgent\BackerAgent.csproj", "{BE5B4831-547E-4333-83AF-1770A0C46503}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackerControl", "BackerControl\BackerControl.csproj", "{32E1F07B-A3D2-4DA4-BDCA-1BC154EB7268}"
 EndProject

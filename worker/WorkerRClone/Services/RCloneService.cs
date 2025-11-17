@@ -470,7 +470,7 @@ public class RCloneService : BackgroundService
     }
 
     
-    public async Task ConfigAsync(RCloneServiceConfig rcloneServiceConfig, CancellationToken cancellationToken )
+    public async Task ConfigAsync(RCloneServiceOptions rcloneServiceOptions, CancellationToken cancellationToken )
     {
         return;
     }

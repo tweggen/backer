@@ -1,8 +1,10 @@
 ﻿using Hannibal;
 using Hannibal.Client;
-using LocalAgent;
+using BackerAgent;
+using Microsoft.AspNetCore.Http.HttpResults;
 using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.OpenApi.Models;
 using Tools;
@@ -60,6 +62,9 @@ builder.Services.AddHttpLogging(logging =>
     logging.ResponseHeaders.Add("Content-Type");
 });
 
+var configHelper = new ConfigHelper<RCloneServiceOptions>();
+builder.Configuration.AddConfiguration(configHelper.Configuration);
+
 builder.Services.Configure<RCloneServiceOptions>(
     builder.Configuration.GetSection("RCloneService"));
 
@@ -114,16 +119,31 @@ app.MapPost("/restart", async (
     await rcloneService.StopAsync(cancellationToken);
     await rcloneService.StartAsync(cancellationToken);
 });
-app.MapPost("/config", async (
+app.MapPut("/config", async (
     RCloneService rcloneService,
     HttpContext ctx,
-    RCloneServiceConfig rcloneServiceConfig,
+    [FromBody] RCloneServiceOptions rcloneServiceOptions,
     CancellationToken cancellationToken
 ) =>
 {
+    if (string.IsNullOrWhiteSpace(rcloneServiceOptions.UrlSignalR))
+    {
+        return Results.BadRequest("Cloud URL must be provided.");
+    }
+
+    if (string.IsNullOrWhiteSpace(rcloneServiceOptions.BackerUsername)
+        || string.IsNullOrWhiteSpace(rcloneServiceOptions.BackerPassword))
+    {
+        return Results.BadRequest("Backer username and password must both be provided.");
+    }
+
+    configHelper.Save(rcloneServiceOptions);
+
     await rcloneService.StopAsync(cancellationToken);
-    await rcloneService.ConfigAsync(rcloneServiceConfig, cancellationToken);
+    // TXWTODO: Don't manually start/stop because service better would reload automatically.
+    await rcloneService.ConfigAsync(rcloneServiceOptions, cancellationToken);
     await rcloneService.StartAsync(cancellationToken);
+    return Results.Ok();
 });
 
 

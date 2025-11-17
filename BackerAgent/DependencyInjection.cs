@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 using Tools;
 using WorkerRClone.Configuration;
 
-namespace LocalAgent;
+namespace BackerAgent;
 
 public static class DependencyInjection
 {
