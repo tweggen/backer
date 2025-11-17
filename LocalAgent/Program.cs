@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.OpenApi.Models;
 using Tools;
 using WorkerRClone.Configuration;
+using WorkerRClone.Models;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -103,16 +104,27 @@ app.MapPost("/quit", async (
 ) =>
 {
     await rCloneService.StopAsync(cancellationToken);
-    
 });
 app.MapPost("/restart", async (
-    RCloneService rcloneSErvice, 
-    HttpContext ctx
-    ) => { /* restart logic */ });
+    RCloneService rcloneService,
+    HttpContext ctx,
+    CancellationToken cancellationToken
+) =>
+{
+    await rcloneService.StopAsync(cancellationToken);
+    await rcloneService.StartAsync(cancellationToken);
+});
 app.MapPost("/config", async (
-    RCloneService rcloneSErvice, 
-    HttpContext ctx
-) => { /* apply config */ });
+    RCloneService rcloneService,
+    HttpContext ctx,
+    RCloneServiceConfig rcloneServiceConfig,
+    CancellationToken cancellationToken
+) =>
+{
+    await rcloneService.StopAsync(cancellationToken);
+    await rcloneService.ConfigAsync(rcloneServiceConfig, cancellationToken);
+    await rcloneService.StartAsync(cancellationToken);
+});
 
 
 {

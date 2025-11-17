@@ -15,6 +15,7 @@ using Tools;
 using WorkerRClone.Client;
 using WorkerRClone.Client.Models;
 using WorkerRClone.Configuration;
+using WorkerRClone.Models;
 using Result = WorkerRClone.Models.Result;
 
 namespace WorkerRClone;
@@ -469,7 +470,7 @@ public class RCloneService : BackgroundService
     }
 
     
-    public async Task ConfigAsync()
+    public async Task ConfigAsync(RCloneServiceConfig rcloneServiceConfig, CancellationToken cancellationToken )
     {
         return;
     }
