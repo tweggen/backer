@@ -116,6 +116,8 @@ public class RCloneService : BackgroundService
             _ownerId = $"worker-rclone-{_nextId++}";
         }
         _logger = logger;
+        _logger.LogInformation($"RCloneService: Starting {_ownerId}.");
+        
         _processManager = processManager;
         _options = optionsMonitor.CurrentValue;
         optionsMonitor.OnChange(async updated =>
@@ -147,6 +149,7 @@ public class RCloneService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
+        _logger.LogInformation("RCloneService: Starting ExecuteAsync.");
         bool wasStart = false;
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -200,6 +203,7 @@ public class RCloneService : BackgroundService
 
             await Task.Delay(5_000, cancellationToken);
         }
+        _logger.LogInformation("RCloneService: Exiting ExecuteAsync.");
     }
 
 

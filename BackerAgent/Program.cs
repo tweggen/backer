@@ -84,14 +84,14 @@ builder.Services
         // ClientHannibalServiceClient
     .AddBackgroundHannibalServiceClient(builder.Configuration)
         // Workers
-    .AddRCloneService(builder.Configuration)
+    // .AddRCloneService(builder.Configuration)
     ;
 
 
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
 builder.Services.AddSingleton<RCloneService>();
-builder.Services.AddHostedService<RCloneService>();
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<RCloneService>());
 builder.Services.AddSingleton<HubConnectionFactory>();
 builder.Services.AddSingleton(provider =>
 {
