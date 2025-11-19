@@ -106,9 +106,10 @@ public class RCloneService : BackgroundService
     public RCloneService(
         ILogger<RCloneService> logger,
         ProcessManager processManager,
-        IOptions<RCloneServiceOptions> options,
+        IOptionsMonitor<RCloneServiceOptions> optionsMonitor,
         Dictionary<string, HubConnection> connections,
-        IServiceScopeFactory serviceScopeFactory)
+        IServiceScopeFactory serviceScopeFactory,
+        ConfigHelper<RCloneServiceOptions> configHelper)
     {
         lock (_classLock)
         {
@@ -116,7 +117,21 @@ public class RCloneService : BackgroundService
         }
         _logger = logger;
         _processManager = processManager;
-        _options = options.Value;
+        _options = optionsMonitor.CurrentValue;
+        optionsMonitor.OnChange(async updated =>
+        {
+            _logger.LogInformation("RCloneService: Options changed.");
+
+            if (_serviceState == ServiceState.WaitConfig)
+            {
+                _options = updated;
+                await _checkConfig();
+            }
+            else
+            {
+                _logger.LogError($"RCloneService: Options changed while not in WaitConfig state (but {_serviceState}. This is not supported. Ignoring.");
+            }
+        });
         _hannibalConnection = connections["hannibal"];
         _serviceScopeFactory = serviceScopeFactory;
     }
@@ -132,30 +147,48 @@ public class RCloneService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        RCloneServiceParams rCloneServiceParams;
-
-        try
-        {
-            // rCloneServiceParams = await _taskChannel.Reader.ReadAsync(cancellationToken);
-            /*
-             * Initially, we trigger reading all matching todos from hannibal.
-             * Whatever we got we execute.
-             * If we have nothing, we sleep until receiving an signalr update.
-             */
-            _triggerFetchJob(cancellationToken);
-        }
-        catch (Exception e)
-        {
-            _logger.LogError($"Exception while Startup in Execute Async: {e}");
-        }
-
+        bool wasStart = false;
         while (!cancellationToken.IsCancellationRequested)
         {
-            // using IServiceScope scope = _serviceScopeFactory.CreateScope();
-            
-            // var context = scope.ServiceProvider.GetRequiredService<HannibalContext>();
-            
-            // await _rules2Jobs(context, cancellationToken);
+            switch (_serviceState)
+            {
+                case ServiceState.Starting:
+                case ServiceState.CheckOnline:
+                case ServiceState.CheckRCloneProcess:
+                case ServiceState.WaitConfig:
+                case ServiceState.StartRCloneProcess:
+                case ServiceState.Exiting:
+                    /*
+                     * No action required,
+                     */
+                    break;
+                
+                case ServiceState.Running:
+                    /*
+                     * If we transitioned to start and haven't started before, do now.
+                     */
+                    if (!wasStart)
+                    {
+                        wasStart = true;
+                        try
+                        {
+                            // rCloneServiceParams = await _taskChannel.Reader.ReadAsync(cancellationToken);
+                            /*
+                             * Initially, we trigger reading all matching todos from hannibal.
+                             * Whatever we got we execute.
+                             * If we have nothing, we sleep until receiving an signalr update.
+                             */
+                            _triggerFetchJob(cancellationToken);
+                        }
+                        catch (Exception e)
+                        {
+                            wasStart = false;
+                            _logger.LogError($"Exception while Startup in Execute Async: {e}");
+                        }
+                    }
+
+                    break;
+            }
             try
             {
                 await _checkFinishedJobs(cancellationToken);
@@ -719,7 +752,12 @@ public class RCloneService : BackgroundService
         _isStarted = true;
 
         await base.StartAsync(cancellationToken);
-        
+
+        /*
+         * Initially, we wait for the configuration
+         * to arrive.
+         */
+        _serviceState = ServiceState.WaitConfig;
         await _checkConfig();
     }
 
@@ -747,25 +785,5 @@ public class RCloneService : BackgroundService
         {
             await base.StopAsync(cancellationToken);
         }
-    }
-
-    
-    public async Task ConfigAsync(RCloneServiceOptions rcloneServiceOptions, CancellationToken cancellationToken )
-    {
-        _logger.LogInformation("ConfigAsync called");
-
-        if (_isStarted)
-        {
-            throw new InvalidOperationException("Cannot change configuration while running.");
-        }
-        
-        if (rcloneServiceOptions != _options)
-        {
-            _logger.LogDebug("ConfigAsync: Receiving a new options object: {rcloneServiceOptions}", rcloneServiceOptions);
-            _options = new RCloneServiceOptions(rcloneServiceOptions);
-
-            await _checkConfig();
-        }
-        return;
     }
 }

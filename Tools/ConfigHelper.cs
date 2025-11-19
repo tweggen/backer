@@ -4,7 +4,7 @@ using System.IO;
 using System.Text.Json;
 
 
-namespace BackerAgent;
+namespace Tools;
 
 public class ConfigHelper<TOptions> where TOptions : class, new()
 {

@@ -62,8 +62,15 @@ builder.Services.AddHttpLogging(logging =>
     logging.ResponseHeaders.Add("Content-Type");
 });
 
-var configHelper = new ConfigHelper<RCloneServiceOptions>();
-builder.Configuration.AddConfiguration(configHelper.Configuration);
+builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(sp =>
+{
+    var helper = new ConfigHelper<RCloneServiceOptions>();
+
+    // Merge its configuration into the global pipeline
+    builder.Configuration.AddConfiguration(helper.Configuration);
+
+    return helper;
+});
 
 builder.Services.Configure<RCloneServiceOptions>(
     builder.Configuration.GetSection("RCloneService"));
@@ -133,6 +140,7 @@ app.MapPut("/config", async (
     RCloneService rcloneService,
     HttpContext ctx,
     [FromBody] RCloneServiceOptions rcloneServiceOptions,
+    ConfigHelper<RCloneServiceOptions> configHelper,
     CancellationToken cancellationToken
 ) =>
 {
@@ -147,12 +155,11 @@ app.MapPut("/config", async (
         return Results.BadRequest("Backer username and password must both be provided.");
     }
 
+    /*
+     * Changing the configuration should trigger a change in the current configuration part.
+     */
     configHelper.Save(rcloneServiceOptions);
-
-    await rcloneService.StopAsync(cancellationToken);
-    // TXWTODO: Don't manually start/stop because service better would reload automatically.
-    await rcloneService.ConfigAsync(rcloneServiceOptions, cancellationToken);
-    await rcloneService.StartAsync(cancellationToken);
+    
     return Results.Ok();
 });
 
