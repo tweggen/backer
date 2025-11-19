@@ -15,6 +15,67 @@ public class RCloneClient
     }
 
 
+    public async Task Quit(CancellationToken cancellationToken, int exitCode = 0)
+    {
+        JobQuitParams jobQuitParamsParams = new()
+        {
+            exitCode = exitCode 
+        };
+        
+        JsonContent content = JsonContent.Create(jobQuitParamsParams, typeof(JobQuitParams), new MediaTypeHeaderValue("application/json"));
+
+        var response = await _httpClient.PostAsync("/core/quit", content, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+        else
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+    }
+
+
+    public async Task<JobPathsResult> GetPathsAsync(CancellationToken cancellationToken)
+    {
+        JobPathsParams jobPathsParams = new();
+        
+        JsonContent content = JsonContent.Create(jobPathsParams, typeof(JobPathsParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/config/paths", content, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<JobPathsResult>(
+                responseString, 
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+    }
+    
+
+    public async Task<JobStatsResult> GetJobStatsAsync(CancellationToken cancellationToken)
+    {
+        JobStatsParams jobStatsParams = new();
+        
+        JsonContent content = JsonContent.Create(jobStatsParams, typeof(JobStatsParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/core/stats", content, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<JobStatsResult>(
+                responseString, 
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+    }
+    
+
     public async Task<JobStatusResult> GetJobStatusAsync(int jobId, CancellationToken cancellationToken)
     {
         JobStatusParams jobStatusParamsParams = new()

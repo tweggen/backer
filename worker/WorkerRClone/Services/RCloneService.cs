@@ -37,7 +37,7 @@ public class RCloneService : BackgroundService
     private RCloneServiceOptions _options;
 
     private Process? _processRClone;
-    private HttpClient _rcloneHttpClient;
+    private HttpClient? _rcloneHttpClient;
 
     private SortedDictionary<int, Job> _mapRCloneToJob = new();
     
@@ -46,6 +46,8 @@ public class RCloneService : BackgroundService
     private bool _isStarted = false;
     
     private readonly IServiceScopeFactory _serviceScopeFactory;
+
+    private const string _defaultRCloneUrl = "localhost:5572";
     
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -372,36 +374,14 @@ public class RCloneService : BackgroundService
         }
         _logger.LogInformation("rclone terminates.");
     }
-    
 
-    public override async Task StartAsync(CancellationToken cancellationToken)
+
+    private async Task _startRCloneProcess(CancellationToken cancellationToken)
     {
-        _logger.LogInformation($"Starting RCloneService with options {_options}");
-        if (String.IsNullOrWhiteSpace(_options.BackerUsername)
-            || String.IsNullOrWhiteSpace(_options.BackerPassword)
-            || String.IsNullOrWhiteSpace(_options.RClonePath)
-            || String.IsNullOrWhiteSpace(_options.RCloneOptions)
-            || String.IsNullOrWhiteSpace(_options.UrlSignalR))
+        if (null == _options)
         {
-            throw new InvalidOperationException("Missing configuration.");
+            throw new InvalidOperationException("RCloneService: No options available.");
         }
-
-        _isStarted = true;
-        
-        await base.StartAsync(cancellationToken);
-
-        #if false
-        _processRClone = _processManager.StartManagedProcess(new ProcessStartInfo()
-            {
-                FileName = _decodePath(_options.RClonePath),
-                Arguments = _options.RCloneOptions,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            }
-        );
-        #else
         var startInfo = new ProcessStartInfo()
         {
             FileName =  _decodePath(_options.RClonePath),
@@ -412,7 +392,6 @@ public class RCloneService : BackgroundService
             CreateNoWindow = true
         };
         _processRClone = CrossPlatformProcessManager.StartManagedProcess(startInfo);
-        #endif
 
         string? urlRClone = null;
         
@@ -453,14 +432,87 @@ public class RCloneService : BackgroundService
         if (null == urlRClone)
         {
             _logger.LogWarning("rclone did not start at all, trying to use an already started instance");
-            urlRClone = "localhost:5572";
+            urlRClone = _defaultRCloneUrl;
         }
-        
+    }
+
+
+    /**
+     * Test if we have an rclone process running using our authentication scheme.
+     * This creates an http service, leaving it in useful condition if the test was
+     * successful.
+     */
+    private async Task<bool> _haveRCloneProcess(string urlRClone)
+    {
         _rcloneHttpClient = new HttpClient() { BaseAddress = new Uri($"http://{urlRClone}") };
         var byteArray = new UTF8Encoding().GetBytes("who:how");
         _rcloneHttpClient.DefaultRequestHeaders.Authorization = 
             new AuthenticationHeaderValue(
                 "Basic", Convert.ToBase64String(byteArray));
+        var rcloneClient = new RCloneClient(_rcloneHttpClient);
+
+        bool haveRClone = false;
+        try
+        {
+            var result = await rcloneClient.GetPathsAsync(CancellationToken.None);
+            haveRClone = true;
+            _logger.LogInformation($"RCloneService: found working rclone instance with paths: {result}");
+        }
+        catch (Exception e)
+        {
+            
+        }
+
+        if (!haveRClone)
+
+        {
+            _rcloneHttpClient.Dispose();
+            _rcloneHttpClient = null;
+        }
+
+        return haveRClone;
+    }
+    
+    
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation($"StartAsync: Starting RCloneService with options {_options}");
+
+        if (_isStarted)
+        {
+            throw new InvalidOperationException("Already started.");
+        }
+        
+        if (String.IsNullOrWhiteSpace(_options.BackerUsername)
+            || String.IsNullOrWhiteSpace(_options.BackerPassword)
+            || String.IsNullOrWhiteSpace(_options.RClonePath)
+            || String.IsNullOrWhiteSpace(_options.RCloneOptions)
+            || String.IsNullOrWhiteSpace(_options.UrlSignalR))
+        {
+            throw new InvalidOperationException("Missing configuration.");
+        }
+
+        _isStarted = true;
+
+        bool haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);
+        if (!haveRCloneProcess)
+        {
+            int nTries = 2;
+            while (--nTries > 0)
+            {
+                await _startRCloneProcess(cancellationToken);
+                haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);;
+                if (haveRCloneProcess) break;
+            }
+        }
+
+        if (!haveRCloneProcess)
+        {
+            _isStarted = false;
+            throw new InvalidOperationException("Unable to start rclone.");
+        }
+        
+        await base.StartAsync(cancellationToken);
 
         _hannibalConnection.On("NewJobAvailable", async () =>
         {
@@ -472,7 +524,14 @@ public class RCloneService : BackgroundService
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        _logger.LogDebug("StopAsync called");
+
         bool wasStarted = _isStarted;
+        if (!wasStarted)
+        {
+            return;
+        }
+        
         _isStarted = false;
         
         if (_processRClone != null)
@@ -492,6 +551,12 @@ public class RCloneService : BackgroundService
     public async Task ConfigAsync(RCloneServiceOptions rcloneServiceOptions, CancellationToken cancellationToken )
     {
         _logger.LogDebug("ConfigAsync called");
+
+        if (_isStarted)
+        {
+            throw new InvalidOperationException("Cannot change configuration while running.");
+        }
+        
         if (rcloneServiceOptions != _options)
         {
             _logger.LogDebug("ConfigAsync: Receiving a new options object: {rcloneServiceOptions}", rcloneServiceOptions);
