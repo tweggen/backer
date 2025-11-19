@@ -51,7 +51,19 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
     /// </summary>
     public void Save(TOptions options)
     {
-        var json = JsonSerializer.Serialize(options,
+        var sectionName = typeof(TOptions).Name;
+        if (sectionName.EndsWith("Options", StringComparison.OrdinalIgnoreCase))
+        {
+            sectionName = sectionName.Substring(0, sectionName.Length - "Options".Length);
+        }
+
+        // Wrap the options under the section
+        var wrapper = new Dictionary<string, TOptions>
+        {
+            { sectionName, options }
+        };
+
+        var json = JsonSerializer.Serialize(wrapper,
             new JsonSerializerOptions { WriteIndented = true });
 
         // Write atomically: temp file + replace

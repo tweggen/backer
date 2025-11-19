@@ -400,7 +400,7 @@ public class RCloneService : BackgroundService
                  * Execute the job.
                  */
                 var asyncResult = await _startJob(job, cancellationToken);
-                _logger.LogError($"Started executing job {job.Id}");
+                _logger.LogInformation($"Started executing job {job.Id}");
                 
                 /*
                  * Job is running, we will poll the result-
