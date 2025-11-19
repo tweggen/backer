@@ -88,7 +88,7 @@ public class RCloneService : BackgroundService
     private HubConnection _hannibalConnection;
 
     private RCloneServiceOptions? _options = null;
-    private bool _areOptionsValid = false;
+    private bool _areOptionsValid = true;
 
     private Process? _processRClone;
     private HttpClient? _rcloneHttpClient;
@@ -679,7 +679,7 @@ public class RCloneService : BackgroundService
             return;
         }
 
-        if (_areOptionsValid)
+        if (!_areOptionsValid)
         {
             _logger.LogWarning("RCloneService: Invalidated configuration found.");
         
@@ -763,6 +763,8 @@ public class RCloneService : BackgroundService
         {
             _logger.LogDebug("ConfigAsync: Receiving a new options object: {rcloneServiceOptions}", rcloneServiceOptions);
             _options = new RCloneServiceOptions(rcloneServiceOptions);
+
+            await _checkConfig();
         }
         return;
     }
