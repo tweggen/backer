@@ -6,6 +6,7 @@ using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Tools;
 using WorkerRClone.Configuration;
@@ -136,8 +137,17 @@ app.MapPost("/restart", async (
 });
 
 
+app.MapGet("/config", async (
+    HttpContext ctx,
+    IOptions<RCloneServiceOptions> options,
+    CancellationToken CancellationToken
+) =>
+{
+    return Results.Ok(options.Value);
+});
+
+
 app.MapPut("/config", async (
-    RCloneService rcloneService,
     HttpContext ctx,
     [FromBody] RCloneServiceOptions rcloneServiceOptions,
     ConfigHelper<RCloneServiceOptions> configHelper,

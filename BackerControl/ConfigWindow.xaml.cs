@@ -12,7 +12,32 @@ public partial class ConfigWindow : Window
     public ConfigWindow()
     {
         InitializeComponent();
+        Loaded += _onLoaded;
     }
+
+
+    private async void _onLoaded(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // LoadingIndicator.Visibility = Visibility.Visible;
+
+            //var data = await FetchDataAsync("https://api.example.com/data");
+            var options = await http.GetFromJsonAsync<RCloneServiceOptions>("/config");
+            CloudUrlTextBox.Text = options?.UrlSignalR ?? "nothing";
+            EmailTextBox.Text = options?.BackerUsername ?? "your@email.com";
+            PasswordBox.Password = options?.BackerPassword ?? "secret";
+        }
+        catch (HttpRequestException ex)
+        {
+            System.Windows.MessageBox.Show($"Error loading data: {ex.Message}");
+        }
+        finally
+        {
+            // LoadingIndicator.Visibility = Visibility.Collapsed;
+        }
+    }
+    
     
     private async void OnSaveClicked(object sender, RoutedEventArgs e)
     {
