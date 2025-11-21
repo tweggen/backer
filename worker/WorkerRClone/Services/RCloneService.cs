@@ -23,6 +23,15 @@ namespace WorkerRClone;
 public class RCloneService : BackgroundService
 {
     private Models.RCloneServiceState.ServiceState _serviceState = RCloneServiceState.ServiceState.Starting;
+
+    enum PendingRequest
+    {
+        None,
+        Start,
+        Stop
+    }
+    
+    private PendingRequest _lastPendingRequest = PendingRequest.None;
     
     private static object _classLock = new();
     private static int _nextId;
@@ -514,33 +523,16 @@ public class RCloneService : BackgroundService
     }
 
 
-    private void _onNewState()
+    /**
+     * We are running and supposed to wait until the jobs are done.
+     */
+    private async void _toWaitStop()
     {
-        switch (_serviceState)
-        {
-            case RCloneServiceState.ServiceState.Starting:
-                _logger.LogInformation("RCloneService: Starting.");
-                break;
-            case RCloneServiceState.ServiceState.WaitConfig:
-                _logger.LogInformation("RCloneService: Waiting for configuration.");
-                break;
-            case RCloneServiceState.ServiceState.CheckOnline:
-                _logger.LogInformation("RCloneService: Checking online.");
-                break;
-            case RCloneServiceState.ServiceState.CheckRCloneProcess:
-                _logger.LogInformation("RCloneService: Checking rclone process.");
-                break;
-            case RCloneServiceState.ServiceState.StartRCloneProcess:
-                _logger.LogInformation("RCloneService: Starting rclone process.");
-                break;
-            case RCloneServiceState.ServiceState.Running:
-                _logger.LogInformation("RCloneService: Running.");
-                break;
-            case RCloneServiceState.ServiceState.Exiting:
-                _logger.LogInformation("RCloneService: Exiting.");
-                break;
-            
-        }
+        _serviceState = RCloneServiceState.ServiceState.WaitStop;
+        _logger.LogInformation("RCloneService: Waiting for stop request.");
+        
+        var rcloneClient = new RCloneClient(_rcloneHttpClient);
+        
     }
 
 
@@ -613,16 +605,30 @@ public class RCloneService : BackgroundService
     }
 
 
+    /**
+     * We are ready to go and just need a start request or an
+     * autostart option.
+     */
     private async Task _toWaitStart()
     {
         _serviceState = RCloneServiceState.ServiceState.WaitStart;
         _logger.LogInformation("RCloneService: ToWaitStart");
+        
         /*
          * Must not happen, checked in previous state.
          */
         if (_options == null)
         {
             _toWaitConfig();
+        }
+
+        if (_options!.Autostart)
+        {
+            await _toRunning();
+        }
+        else
+        {
+            _logger.LogInformation("RCloneService: Waiting for explicit start request.");
         }
     }
     
@@ -705,8 +711,107 @@ public class RCloneService : BackgroundService
         await _toCheckOnline();
 
     }
-    
 
+
+    /**
+     * If not running yet, start rclone job processing.
+     */
+    public async Task StartJobsAsync(CancellationToken cancellationToken)
+    {
+        switch (_serviceState)
+        {
+            case RCloneServiceState.ServiceState.Starting:
+            case RCloneServiceState.ServiceState.WaitConfig:
+            case RCloneServiceState.ServiceState.CheckOnline:
+            case RCloneServiceState.ServiceState.CheckRCloneProcess:
+            case RCloneServiceState.ServiceState.StartRCloneProcess:
+                /*
+                 * Still booting up, remember request.
+                 */
+                _lastPendingRequest = PendingRequest.Start;
+                break;
+            
+            case RCloneServiceState.ServiceState.WaitStart:
+                /*
+                 * Already started up, kick it.
+                 * But clear any contradicting requets.
+                 */
+                _lastPendingRequest = PendingRequest.None;
+                await _toRunning();
+                break;
+            
+            case RCloneServiceState.ServiceState.Running:
+                /*
+                 * Already running, ignore request.
+                 */
+                break;
+
+            case RCloneServiceState.ServiceState.WaitStop:
+                /*
+                 * Remember request to restart.
+                 */
+                _lastPendingRequest = PendingRequest.Start;
+                break;
+            
+            case RCloneServiceState.ServiceState.Exiting:
+                /*
+                 * Ignore, we are shutting down.
+                 */
+                break;
+        }
+    }
+
+
+    /**
+     * If running, stop rclone job processing.
+     */
+    public async Task StopJobsAsync(CancellationToken cancellationToken)
+    {
+        switch (_serviceState)
+        {
+            case RCloneServiceState.ServiceState.Starting:
+            case RCloneServiceState.ServiceState.WaitConfig:
+            case RCloneServiceState.ServiceState.CheckOnline:
+            case RCloneServiceState.ServiceState.CheckRCloneProcess:
+            case RCloneServiceState.ServiceState.StartRCloneProcess:
+                /*
+                 * Still booting up, remember request.
+                 */
+                // TXWTODO: What should that do with autostart enabled?
+                _lastPendingRequest = PendingRequest.Stop;
+                break;
+            
+            case RCloneServiceState.ServiceState.WaitStart:
+                /*
+                 * Not started at all.
+                 * Clear any contradicting requets.
+                 */
+                _lastPendingRequest = PendingRequest.None;
+                break;
+            
+            case RCloneServiceState.ServiceState.Running:
+                /*
+                 * Ask to shup down, clear any pending requests.
+                 */
+                _lastPendingRequest = PendingRequest.None;
+                await _toWaitStop();
+                break;
+
+            case RCloneServiceState.ServiceState.WaitStop:
+                /*
+                 * Already stopping
+                 */
+                _lastPendingRequest = PendingRequest.None;
+                break;
+            
+            case RCloneServiceState.ServiceState.Exiting:
+                /*
+                 * Ignore, we are shutting down.
+                 */
+                break;
+        }
+    }
+    
     
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
