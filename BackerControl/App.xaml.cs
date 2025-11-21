@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Threading;
+using WorkerRClone.Models;
 
 namespace BackerControl;
 
@@ -16,6 +18,10 @@ public partial class App : System.Windows.Application
 
     private ConfigWindow? _winConfig = null;
     private HttpClient http = new() { BaseAddress = new Uri("http://localhost:5931") };
+    
+    private ToolStripMenuItem _startStopItem;
+    private ToolStripMenuItem _statusItem;
+    private DispatcherTimer  _pollTimer;
     
     private void _showConfigWindow()
     {
@@ -36,6 +42,49 @@ public partial class App : System.Windows.Application
     }
     
     
+    private async Task _updateServiceState()
+    {
+        try
+        {
+            // Example: GET /status returns JSON { "running": true }
+            var status = await http.GetFromJsonAsync<RCloneServiceState>("/status");
+            if (status != null)
+            {
+                _statusItem.Text = status.StateString;
+                switch (status.State)
+                {
+                    case RCloneServiceState.ServiceState.CheckRCloneProcess:
+                    case RCloneServiceState.ServiceState.StartRCloneProcess:
+                    case RCloneServiceState.ServiceState.WaitStop:
+                    case RCloneServiceState.ServiceState.Starting:
+                    case RCloneServiceState.ServiceState.WaitConfig:
+                    case RCloneServiceState.ServiceState.Exiting:
+                    case RCloneServiceState.ServiceState.CheckOnline:
+                        _startStopItem.Text = "";
+                        _startStopItem.Enabled = false;
+                        break;
+                    
+                    case RCloneServiceState.ServiceState.WaitStart:
+                        _startStopItem.Text = "Stop Service";
+                        _startStopItem.Enabled = true;
+                        break;
+                        
+                    case RCloneServiceState.ServiceState.Running:
+                        _startStopItem.Text = "Stop Service";
+                        _startStopItem.Enabled = true;
+                        break;
+                }
+            }
+        }
+        catch
+        {
+            _statusItem.Text = "Service unavailable";
+            _startStopItem.Text = "Service unavailable";
+            _startStopItem.Enabled = false;
+        }
+    }
+    
+    
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -49,12 +98,33 @@ public partial class App : System.Windows.Application
             Visible = true
         };
 
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("Restart Service", null, async (s, ev) => await http.PostAsync("/restart", null));
-        menu.Items.Add("Quit Service", null, async (s, ev) => await http.PostAsync("/quit", null));
-        menu.Items.Add("Configure...", null, async (s, ev) =>
-        {
+        _statusItem = new ToolStripMenuItem("Checking state...");
+        _statusItem.Enabled = false;
 
+        _startStopItem = new ToolStripMenuItem("Checking state...");
+        
+        _startStopItem.Click += async (s, ev) =>
+        {
+            if (_startStopItem.Text.StartsWith("Start"))
+            {
+                await http.PostAsync("/start", null);
+            }
+            else
+            {
+                await http.PostAsync("/stop", null);
+            }
+        };
+        
+        var menu = new ContextMenuStrip();
+        menu.Items.Add(_statusItem);
+        menu.Items.Add(_startStopItem);
+        menu.Items.Add("Restart Service", null, 
+            async (s, ev) => await http.PostAsync("/restart", null));
+        menu.Items.Add("Quit Service", null,
+            async (s, ev) => await http.PostAsync("/quit", null));
+        menu.Items.Add("Configure...", null, 
+            async (s, ev) =>
+        {
             _showConfigWindow();
         });
         menu.Items.Add("Exit Tray", null, (s, ev) =>
@@ -64,5 +134,13 @@ public partial class App : System.Windows.Application
         });
 
         trayIcon.ContextMenuStrip = menu;
+        
+        // Poll service state every second
+        _pollTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
+        _pollTimer.Tick += async (s, ev) => await _updateServiceState();
+        _pollTimer.Start();
     }
 }

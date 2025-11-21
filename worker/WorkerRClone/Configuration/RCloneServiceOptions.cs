@@ -1,5 +1,6 @@
 namespace WorkerRClone.Configuration;
 
+
 public class RCloneServiceOptions
 {
     public string? BackerUsername { get; set; }
@@ -15,6 +16,11 @@ public class RCloneServiceOptions
     
     public string? UrlSignalR { get; set; }
 
+    /**
+     * Shall the rclone operations be started automatically on startup?
+     */
+    public bool Autostart { get; set; }
+
 
     public RCloneServiceOptions(RCloneServiceOptions o)
     {
@@ -23,6 +29,7 @@ public class RCloneServiceOptions
         RClonePath = o.RClonePath;
         RCloneOptions = o.RCloneOptions;
         UrlSignalR = o.UrlSignalR;
+        Autostart = o.Autostart;
     }
 
     public RCloneServiceOptions()

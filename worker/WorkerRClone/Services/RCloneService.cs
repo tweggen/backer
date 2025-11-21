@@ -22,58 +22,7 @@ namespace WorkerRClone;
 
 public class RCloneService : BackgroundService
 {
-    private enum ServiceState {
-        /**
-         * This instance just has started. Do nothing until we found where
-         * we are.
-         */
-        Starting,
-        
-        /**
-         * We found there is no valid configuration.
-         * So wait until we received a valid configuration.
-         * A configuration is valid, if it passes basic checks.
-         * A configuration can be invalidated by a problem logging in
-         * or a path that proves to be wrong.
-         *
-         * If the first validation passes, the state progresses to WaitConfig.
-         */
-        WaitConfig,
-        
-        /**
-         * We appear to have a valid configuration. So try to log in
-         * online by calling something.
-         * If that goes wrong, we return to WaitConfig invalidating the
-         * current configuration.
-         */
-        CheckOnline,
-        
-        /**
-         * We check if there is a running rclone instance fitting our
-         * requirements. If there is, we transition to Running.
-         */
-        CheckRCloneProcess,
-        
-        /**
-         * Most probably, we did not have a running rclone instance.
-         * So try to start one. If this does not work, mark the configuration
-         * invalid and transition to WaitConfig.
-         * Transition to Running otherwiese.
-         */
-        StartRCloneProcess,
-        
-        /**
-         * We are checking for jobs, tryingf to execute them
-         */
-        Running,
-        
-        /**
-         * Exit has been requested.
-         */
-        Exiting
-    }
-
-    private ServiceState _serviceState = ServiceState.Starting;
+    private Models.RCloneServiceState.ServiceState _serviceState = RCloneServiceState.ServiceState.Starting;
     
     private static object _classLock = new();
     private static int _nextId;
@@ -124,7 +73,7 @@ public class RCloneService : BackgroundService
         {
             _logger.LogInformation("RCloneService: Options changed.");
 
-            if (_serviceState == ServiceState.WaitConfig)
+            if (_serviceState == RCloneServiceState.ServiceState.WaitConfig)
             {
                 _options = updated;
                 await _checkConfig();
@@ -155,18 +104,18 @@ public class RCloneService : BackgroundService
         {
             switch (_serviceState)
             {
-                case ServiceState.Starting:
-                case ServiceState.CheckOnline:
-                case ServiceState.CheckRCloneProcess:
-                case ServiceState.WaitConfig:
-                case ServiceState.StartRCloneProcess:
-                case ServiceState.Exiting:
+                case RCloneServiceState.ServiceState.Starting:
+                case RCloneServiceState.ServiceState.CheckOnline:
+                case RCloneServiceState.ServiceState.CheckRCloneProcess:
+                case RCloneServiceState.ServiceState.WaitConfig:
+                case RCloneServiceState.ServiceState.StartRCloneProcess:
+                case RCloneServiceState.ServiceState.Exiting:
                     /*
                      * No action required,
                      */
                     break;
                 
-                case ServiceState.Running:
+                case RCloneServiceState.ServiceState.Running:
                     /*
                      * If we transitioned to start and haven't started before, do now.
                      */
@@ -569,25 +518,25 @@ public class RCloneService : BackgroundService
     {
         switch (_serviceState)
         {
-            case ServiceState.Starting:
+            case RCloneServiceState.ServiceState.Starting:
                 _logger.LogInformation("RCloneService: Starting.");
                 break;
-            case ServiceState.WaitConfig:
+            case RCloneServiceState.ServiceState.WaitConfig:
                 _logger.LogInformation("RCloneService: Waiting for configuration.");
                 break;
-            case ServiceState.CheckOnline:
+            case RCloneServiceState.ServiceState.CheckOnline:
                 _logger.LogInformation("RCloneService: Checking online.");
                 break;
-            case ServiceState.CheckRCloneProcess:
+            case RCloneServiceState.ServiceState.CheckRCloneProcess:
                 _logger.LogInformation("RCloneService: Checking rclone process.");
                 break;
-            case ServiceState.StartRCloneProcess:
+            case RCloneServiceState.ServiceState.StartRCloneProcess:
                 _logger.LogInformation("RCloneService: Starting rclone process.");
                 break;
-            case ServiceState.Running:
+            case RCloneServiceState.ServiceState.Running:
                 _logger.LogInformation("RCloneService: Running.");
                 break;
-            case ServiceState.Exiting:
+            case RCloneServiceState.ServiceState.Exiting:
                 _logger.LogInformation("RCloneService: Exiting.");
                 break;
             
@@ -597,7 +546,7 @@ public class RCloneService : BackgroundService
 
     private void _toWaitConfig()
     {
-        _serviceState = ServiceState.WaitConfig;
+        _serviceState = RCloneServiceState.ServiceState.WaitConfig;
         _logger.LogInformation("RCloneService: Waiting for configuration.");
         
         /*
@@ -608,7 +557,7 @@ public class RCloneService : BackgroundService
 
     private async Task _toStartRClone()
     {
-        _serviceState = ServiceState.StartRCloneProcess;
+        _serviceState = RCloneServiceState.ServiceState.StartRCloneProcess;
         _logger.LogInformation("RCloneService: Starting rclone process.");
         try
         {
@@ -650,7 +599,7 @@ public class RCloneService : BackgroundService
 
     private async Task _toRunning()
     {
-        _serviceState = ServiceState.Running;
+        _serviceState = RCloneServiceState.ServiceState.Running;
         _logger.LogInformation("RCloneService: Running.");
         
         /*
@@ -666,7 +615,7 @@ public class RCloneService : BackgroundService
     
     private async Task _toCheckRCloneProcess()
     {
-        _serviceState = ServiceState.CheckRCloneProcess;
+        _serviceState = RCloneServiceState.ServiceState.CheckRCloneProcess;
         _logger.LogInformation("RCloneService: Checking rclone process.");
         bool haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);
         if (!haveRCloneProcess)
@@ -682,7 +631,7 @@ public class RCloneService : BackgroundService
 
     private async Task _toCheckOnline()
     {
-        _serviceState = ServiceState.CheckOnline;
+        _serviceState = RCloneServiceState.ServiceState.CheckOnline;
         _logger.LogInformation("RCloneService: Checking online.");
         
         try {
@@ -761,7 +710,7 @@ public class RCloneService : BackgroundService
          * Initially, we wait for the configuration
          * to arrive.
          */
-        _serviceState = ServiceState.WaitConfig;
+        _serviceState = RCloneServiceState.ServiceState.WaitConfig;
         await _checkConfig();
     }
 
@@ -789,5 +738,15 @@ public class RCloneService : BackgroundService
         {
             await base.StopAsync(cancellationToken);
         }
+    }
+
+
+    public RCloneServiceState GetState()
+    {
+        return new RCloneServiceState()
+        {
+            State = _serviceState,
+            StateString = _serviceState.ToString()
+        };
     }
 }

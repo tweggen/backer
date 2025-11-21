@@ -174,6 +174,16 @@ app.MapPut("/config", async (
 });
 
 
+app.MapGet("/status", async (
+    HttpContext ctx,
+    RCloneService rcloneService,
+    CancellationToken cancellationToken
+) =>
+{
+    return Results.Ok(rcloneService.GetState());
+});
+
+
 {
     app.Lifetime.ApplicationStarted.Register(async () =>
     {
