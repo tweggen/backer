@@ -585,7 +585,7 @@ public class RCloneService : BackgroundService
             }   
         
             _logger.LogInformation("RCloneService: rclone process started.");
-            await _toRunning();
+            await _toWaitStart();
         }
         catch (Exception e)
         {
@@ -611,6 +611,20 @@ public class RCloneService : BackgroundService
             await _triggerFetchJob(CancellationToken.None);
         });
     }
+
+
+    private async Task _toWaitStart()
+    {
+        _serviceState = RCloneServiceState.ServiceState.WaitStart;
+        _logger.LogInformation("RCloneService: ToWaitStart");
+        /*
+         * Must not happen, checked in previous state.
+         */
+        if (_options == null)
+        {
+            _toWaitConfig();
+        }
+    }
     
     
     private async Task _toCheckRCloneProcess()
@@ -624,7 +638,7 @@ public class RCloneService : BackgroundService
         }
         else
         {
-            await _toRunning();
+            await _toWaitStart();
         }
     }
     
