@@ -415,13 +415,21 @@ public partial class HannibalService : IHannibalService
                 _logger.LogInformation($"Skipping job {candidate.Id} because destination endpoint {candidate.DestinationEndpoint.Name} is not in set of remotes.");
                 continue;
             }
-            
-            if (_mayUseDestinationEndpoint(candidate.DestinationEndpoint, mapStates)
-                && _mayUseSourceEndpoint(candidate.SourceEndpoint, mapStates))
+
+
+            if (!_mayUseSourceEndpoint(candidate.SourceEndpoint, mapStates))
             {
-                job = candidate;
-                break;
+                _logger.LogInformation($"Skipping job {candidate.Id} because source endpoint {candidate.SourceEndpoint.Name} is already in use.");
+                continue;
             }
+            
+            if (!_mayUseDestinationEndpoint(candidate.DestinationEndpoint, mapStates))
+            {
+                _logger.LogInformation($"Skipping job {candidate.Id} because destination endpoint {candidate.DestinationEndpoint.Name} is already in use.");
+                continue;
+            }
+            
+            job = candidate;
         }
         
         if (job != null)
