@@ -44,6 +44,7 @@ public class RCloneService : BackgroundService
     private ILogger<RCloneService> _logger;
     private ProcessManager _processManager;
     private HubConnection _hannibalConnection;
+    private bool _isConnectionSubscribed = false;
 
     private RCloneServiceOptions? _options = null;
     private bool _areOptionsValid = true;
@@ -317,6 +318,13 @@ public class RCloneService : BackgroundService
 
     private async Task _triggerFetchJob(CancellationToken cancellationToken)
     {
+        _logger.LogDebug("RCloneService: _triggerFetchJob called.");
+        if (_serviceState != RCloneServiceState.ServiceState.Running)
+        {
+            _logger.LogDebug($"RCloneService: Spurious call of _triggerFetchJob in state {_serviceState}, ignoring.");
+            return;
+        }
+        
         try
         {
             /*
@@ -328,8 +336,9 @@ public class RCloneService : BackgroundService
                 if (_nRunningJobs >= 10)
                 {
                     /*
-                     * This is too much, I will not execute it now.
-                     */
+                    * This is too much, I will not execute it now.
+                    */
+                    _logger.LogDebug("RCloneService: Too many parallel jobs, refusing to fetch more.");
                     return;
                 }
             }
@@ -389,6 +398,7 @@ public class RCloneService : BackgroundService
             _logger.LogError($"Exception getting job: {e}");
         }
     }
+    
 
     private string _decodePath(string orgPath)
     {
@@ -538,10 +548,20 @@ public class RCloneService : BackgroundService
         
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
         var jobList = await rcloneClient.GetJobListAsync(CancellationToken.None);
-        foreach (var jobid in jobList.running_ids)
+        List<int>? list = null;
+
+        if (jobList.running_ids != null)
         {
-            _logger.LogInformation($"RCloneService: Stopping job {jobid}");
-            await rcloneClient.StopJobAsync(CancellationToken.None);
+            list = jobList.running_ids;
+        }
+
+        if (list != null)
+        {
+            foreach (var jobid in list)
+            {
+                _logger.LogInformation($"RCloneService: Stopping job {jobid}");
+                await rcloneClient.StopJobAsync(CancellationToken.None);
+            }
         }
 
         await _toWaitStart();
@@ -608,12 +628,19 @@ public class RCloneService : BackgroundService
         
         /*
          * Start the actual operation.
+         * Unfortunately we cannot unsubscribe from this subscription, sp we
+         * need to check, if the connection is desired.
          */
-        _hannibalConnection.On("NewJobAvailable", async () =>
+        if (!_isConnectionSubscribed)
         {
-            // TXWTODO: How to cancel this subscription?
-            await _triggerFetchJob(CancellationToken.None);
-        });
+            _hannibalConnection.On("NewJobAvailable", async () =>
+            {
+                if (_serviceState == RCloneServiceState.ServiceState.Running)
+                {
+                    await _triggerFetchJob(CancellationToken.None);
+                }
+            });
+        }
     }
 
 
