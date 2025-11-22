@@ -76,12 +76,14 @@ public class BackofficeService : BackgroundService
          */
         foreach (var r in myRules)
         {
+            _logger.LogWarning($"looking at rule {r}.");
             RuleState? rs = null;
             bool isNewState = false;
             bool shallCompute = false;
 
             if (!dictRuleStates.TryGetValue(r, out rs))
             {
+                _logger.LogWarning($"creating new rule state for rule {r}.");
                 rs = new()
                 {
                     Rule = r,
@@ -92,6 +94,8 @@ public class BackofficeService : BackgroundService
             }
             else
             {
+                _logger.LogWarning($"found existing rule state for rule {r}.");
+                _logger.LogWarning($"recent job {rs.RecentJob?.Id} state {rs.RecentJob?.State}");
                 switch (rs.RecentJob.State)
                 {
                     case Job.JobState.Ready:
@@ -121,6 +125,7 @@ public class BackofficeService : BackgroundService
 
             if (shallCompute)
             {
+                _logger.LogWarning("shall compute");
                 /*
                 * OK, we need a new job, Can we do it in one step or do we need an
                 * intermediate copy?
@@ -146,6 +151,10 @@ public class BackofficeService : BackgroundService
                 await context.Jobs.AddAsync(job, cancellationToken);
                 rs.ExpiredAfter = now + r.MaxDestinationAge;
                 rs.RecentJob = job;
+            }
+            else
+            {
+                _logger.LogWarning("shall not compute");
             }
 
             if (isNewState)
