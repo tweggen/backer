@@ -634,7 +634,31 @@ public class RCloneService : BackgroundService
             _toWaitConfig();
         }
 
-        if (_options!.Autostart)
+
+        /*
+         * Has stop been triggered in the meantime?
+         */
+        if (_lastPendingRequest == PendingRequest.Stop)
+        {
+            _lastPendingRequest = PendingRequest.None;
+            await _toWaitStop();
+        }
+        
+        /*
+         * Shall we transition directly to running without waiting
+         * for a start request?
+         */
+        bool triggerStart = false;
+        if (_lastPendingRequest == PendingRequest.Start || _options!.Autostart)
+        {
+            _lastPendingRequest = PendingRequest.None;
+            triggerStart = true;
+        }
+        
+        /*
+         * So, if we think we should start immediately, do it.
+         */
+        if (triggerStart)
         {
             await _toRunning();
         }

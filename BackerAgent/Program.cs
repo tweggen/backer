@@ -125,7 +125,7 @@ app.MapPost("/quit", async (
     await rCloneService.StopAsync(cancellationToken);
 });
 
-
+#if false
 app.MapPost("/restart", async (
     RCloneService rcloneService,
     HttpContext ctx,
@@ -135,6 +135,7 @@ app.MapPost("/restart", async (
     await rcloneService.StopAsync(cancellationToken);
     await rcloneService.StartAsync(cancellationToken);
 });
+#endif
 
 
 app.MapPost("/start", async (
@@ -143,7 +144,7 @@ app.MapPost("/start", async (
     CancellationToken cancellationToken
 ) =>
 {
-    await rcloneService.StartAsync(cancellationToken);
+    await rcloneService.StartJobsAsync(cancellationToken);
 });
 
 
@@ -153,7 +154,7 @@ app.MapPost("/stop", async (
     CancellationToken cancellationToken
 ) =>
 {
-    await rcloneService.StopAsync(cancellationToken);
+    await rcloneService.StopJobsAsync(cancellationToken);
 });
 
 
