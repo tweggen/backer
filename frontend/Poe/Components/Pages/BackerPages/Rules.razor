@@ -205,7 +205,7 @@ else
                                  placeholder="min retry time (sec)"
                                  class="form-control"
                                  @bind-Value="_newMinRetryTime"/>
-                    <ValidationMessage For="() => _newRule.MaxDestinationAge" class="text-danger"/>
+                    <ValidationMessage For="() => _newRule.MinRetryTime" class="text-danger"/>
                 </div>
                 <div class="mb-3">
                     <label for="dailyTriggerTime" class="form-label">daily trigger time:</label>

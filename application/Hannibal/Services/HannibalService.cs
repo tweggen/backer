@@ -278,6 +278,7 @@ public partial class HannibalService : IHannibalService
         rule.DestinationEndpointId = destinationEndpoint.Id;
         rule.Operation = updatedRule.Operation;
         rule.MaxDestinationAge = updatedRule.MaxDestinationAge;
+        rule.MinRetryTime = updatedRule.MinRetryTime;
         rule.MaxTimeAfterSourceModification = updatedRule.MaxTimeAfterSourceModification;
         rule.DailyTriggerTime = updatedRule.DailyTriggerTime;
 
