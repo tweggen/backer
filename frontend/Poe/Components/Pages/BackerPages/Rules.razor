@@ -84,9 +84,13 @@ else
                             </InputSelect>
                         </td>
                         <td>
-                            
                             <InputNumber id="maxDestAge"
                                          @bind-Value="_editMaxDestAge"
+                                         class="form-control"/>
+                        </td>
+                        <td>
+                            <InputNumber id="minRetryTime"
+                                         @bind-Value="_editMinRetryTime"
                                          class="form-control"/>
                         </td>
                         <td>
@@ -194,6 +198,14 @@ else
                     <ValidationMessage For="() => _newRule.MaxDestinationAge" class="text-danger"/>
                 </div>
                 <div class="mb-3">
+                    <label for="minRetryTime" class="form-label">min retry time:</label>
+                    <InputNumber id="minRetryTime"
+                                 placeholder="min retry time (sec)"
+                                 class="form-control"
+                                 @bind-Value="_newMinRetryTime"/>
+                    <ValidationMessage For="() => _newRule.MaxDestinationAge" class="text-danger"/>
+                </div>
+                <div class="mb-3">
                     <label for="dailyTriggerTime" class="form-label">daily trigger time:</label>
                     <InputNumber id="dailyTriggerTime"
                                  placeholder="daily trigger time (sec)"
@@ -225,6 +237,7 @@ else
     [SupplyParameterFromForm] private Hannibal.Models.Rule? _newRule { get; set; } = null;
 
     [SupplyParameterFromForm] private double _editMaxDestAge { get; set; }
+    [SupplyParameterFromForm] private double _editMinRetryTime { get; set; }
     [SupplyParameterFromForm] private double _editDailyTriggerTime { get; set; }
     private int _editSourceEndpointId { get; set; } = -1;
     private Hannibal.Models.Endpoint? _editSourceEndpoint = null;
@@ -233,6 +246,7 @@ else
     private int _editRuleId { get; set; } = -1;
 
     [SupplyParameterFromForm] private float _newMaxDestAge { get; set; } = 36 * 3600;
+    [SupplyParameterFromForm] private float _newMinRetryTime { get; set; } = 60;
     [SupplyParameterFromForm] private double _newDailyTriggerTime { get; set; } = 2 * 3600;
     private int _newSourceEndpointId { get; set; } = -1;
     private Hannibal.Models.Endpoint? _newSourceEndpoint = null;
@@ -297,6 +311,7 @@ else
         if (_editRule != null)
         {
             _editRule.MaxDestinationAge = TimeSpan.FromSeconds(_editMaxDestAge);
+            _editRule.MinRetryTime = TimeSpan.FromSeconds(_editMinRetryTime);
             _editRule.DailyTriggerTime = TimeSpan.FromSeconds(_editDailyTriggerTime);
             await HannibalServiceClient.UpdateRuleAsync(_editRule.Id, _editRule, CancellationToken.None);
         }
@@ -318,6 +333,7 @@ else
             _editDestinationEndpoint = ru.DestinationEndpoint;
             _editDestinationEndpointId = ru.DestinationEndpointId;
             _editMaxDestAge = ru.MaxDestinationAge.TotalSeconds;
+            _editMinRetryTime = ru.MinRetryTime.TotalSeconds;
             _editDailyTriggerTime = ru.DailyTriggerTime.TotalSeconds;
         }
         else
@@ -370,6 +386,7 @@ else
 
         _newRule.DailyTriggerTime = TimeSpan.FromSeconds(_newDailyTriggerTime);
         _newRule.MaxDestinationAge = TimeSpan.FromSeconds(_newMaxDestAge);
+        _newRule.MinRetryTime = TimeSpan.FromSeconds(_newMinRetryTime);
         
         await HannibalServiceClient.CreateRuleAsync(_newRule, CancellationToken.None);
         await _reloadRulePage(CancellationToken.None);
