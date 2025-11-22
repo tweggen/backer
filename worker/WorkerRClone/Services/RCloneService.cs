@@ -82,9 +82,14 @@ public class RCloneService : BackgroundService
         {
             _logger.LogInformation("RCloneService: Options changed.");
 
-            if (_serviceState == RCloneServiceState.ServiceState.WaitConfig)
+            if (_serviceState == RCloneServiceState.ServiceState.WaitConfig
+                ||_serviceState == RCloneServiceState.ServiceState.WaitStart)
             {
                 _options = updated;
+                /*
+                 * Note: CheckConfig will also start the operation if autostart
+                 * has been set by the update.
+                 */
                 await _checkConfig();
             }
             else

@@ -137,6 +137,26 @@ app.MapPost("/restart", async (
 });
 
 
+app.MapPost("/start", async (
+    RCloneService rcloneService,
+    HttpContext ctx,
+    CancellationToken cancellationToken
+) =>
+{
+    await rcloneService.StartAsync(cancellationToken);
+});
+
+
+app.MapPost("/stop", async (
+    RCloneService rcloneService,
+    HttpContext ctx,
+    CancellationToken cancellationToken
+) =>
+{
+    await rcloneService.StopAsync(cancellationToken);
+});
+
+
 app.MapGet("/config", async (
     HttpContext ctx,
     IOptions<RCloneServiceOptions> options,
