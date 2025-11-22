@@ -39,6 +39,8 @@ public class BackofficeService : BackgroundService
      */
     private async Task _rules2Jobs(HannibalContext context, CancellationToken cancellationToken)
     {
+        _logger.LogWarning("_rules2Jobs called.");
+        
         /*
          * This implementation evaluates per one user.
          */
@@ -95,7 +97,7 @@ public class BackofficeService : BackgroundService
                     case Job.JobState.Ready:
                         break;
                     case Job.JobState.DoneFailure:
-                        _logger.LogInformation($"job last reported {rs.RecentJob.LastReported} min retry time {r.MinRetryTime}, now {now}", rs.RecentJob.Id);
+                        _logger.LogWarning($"job last reported {rs.RecentJob.LastReported} min retry time {r.MinRetryTime}, now {now}", rs.RecentJob.Id);
                         if (rs.RecentJob.LastReported + r.MinRetryTime <= now)
                         {
                             shallCompute = true;
