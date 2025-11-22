@@ -528,7 +528,7 @@ public class RCloneService : BackgroundService
         {
             var listRemotesResult = await rcloneClient.ListRemotesAsync(CancellationToken.None);
             _logger.LogInformation($"RCloneService: found working rclone instance with remotes: {listRemotesResult}");
-
+            haveRClone = true;
             foreach (var remote in listRemotesResult.remotes)
             {
                 try

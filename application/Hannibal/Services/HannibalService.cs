@@ -407,11 +407,13 @@ public partial class HannibalService : IHannibalService
             if (!setRemotes.Contains(candidate.SourceEndpoint.Storage.UriSchema))
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because source endpoint {candidate.SourceEndpoint.Name} is not in set of remotes.");
+                continue;
             }
 
             if (!setRemotes.Contains(candidate.DestinationEndpoint.Storage.UriSchema))
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because destination endpoint {candidate.DestinationEndpoint.Name} is not in set of remotes.");
+                continue;
             }
             
             if (_mayUseDestinationEndpoint(candidate.DestinationEndpoint, mapStates)
