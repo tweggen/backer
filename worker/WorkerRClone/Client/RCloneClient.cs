@@ -113,6 +113,26 @@ public class RCloneClient
     }
     
 
+    public async Task<ListRemotesResult> ListRemotesAsync(CancellationToken cancellationToken)
+    {
+        ListRemotesParams listRemotesParams = new();
+        
+        JsonContent content = JsonContent.Create(listRemotesParams, typeof(ListRemotesParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/config/listremotes", content, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<ListRemotesResult>(
+                responseString, 
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+    }
+    
+
     public async Task<JobStatusResult> GetJobStatusAsync(int jobId, CancellationToken cancellationToken)
     {
         JobStatusParams jobStatusParamsParams = new()

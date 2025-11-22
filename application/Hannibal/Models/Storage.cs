@@ -9,8 +9,15 @@ public class Storage
     public int Id { get; set; }
     public string UserId { get; set; }
     public string Technology { get; set; }
-    
     public string UriSchema { get; set; }
+    
+    /*
+     * A storage can be located in a particular network.
+     * A client may or may not be connected to that network.
+     * If the network is part of the client's network [list],
+     * the client can access the storage.
+     */
+    // public string Network { get; set; }
     
     private DateTime _createdAt;
 

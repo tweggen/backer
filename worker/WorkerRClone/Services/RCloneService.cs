@@ -61,6 +61,8 @@ public class RCloneService : BackgroundService
     private readonly IServiceScopeFactory _serviceScopeFactory;
 
     private const string _defaultRCloneUrl = "http://localhost:5572";
+
+    private HashSet<string> _setRemotes = new();
     
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -351,7 +353,12 @@ public class RCloneService : BackgroundService
                 using var scope = _serviceScopeFactory.CreateScope();
                 var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
                 job = await hannibalService.AcquireNextJobAsync(
-                    new() { Username = "timo.weggen@gmail.com", Capabilities = "rclone", Owner = _ownerId },
+                    new()
+                    {
+                        Username = "timo.weggen@gmail.com",
+                        Capabilities = String.Join(",", _setRemotes.ToList()),
+                        Owner = _ownerId
+                    },
                     cancellationToken);
             }
             if (null == job)
@@ -505,6 +512,7 @@ public class RCloneService : BackgroundService
      * Test if we have an rclone process running using our authentication scheme.
      * This creates an http service, leaving it in useful condition if the test was
      * successful.
+     * Also download the list of remotes supported by rsync.
      */
     private async Task<bool> _haveRCloneProcess(string urlRClone)
     {
@@ -518,9 +526,20 @@ public class RCloneService : BackgroundService
         bool haveRClone = false;
         try
         {
-            var result = await rcloneClient.GetPathsAsync(CancellationToken.None);
-            haveRClone = true;
-            _logger.LogInformation($"RCloneService: found working rclone instance with paths: {result}");
+            var listRemotesResult = await rcloneClient.ListRemotesAsync(CancellationToken.None);
+            _logger.LogInformation($"RCloneService: found working rclone instance with remotes: {listRemotesResult}");
+
+            foreach (var remote in listRemotesResult.remotes)
+            {
+                try
+                {
+                    _setRemotes.Add(remote);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError($"RCloneService: Error adding remote, ignoring. {remote}: {e}");
+                }
+            }
         }
         catch (Exception e)
         {
@@ -660,8 +679,7 @@ public class RCloneService : BackgroundService
         {
             _toWaitConfig();
         }
-
-
+        
         /*
          * Has stop been triggered in the meantime?
          */

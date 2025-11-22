@@ -376,6 +376,23 @@ public partial class HannibalService : IHannibalService
         // var user = await _context.Users.FirstAsync(u => u.Username == acquireParams.Username, cancellationToken); 
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
+        /*
+         * convert the capabilities into a set of remotes.
+         */
+        var setRemotes = new HashSet<string>();
+        var capaList = acquireParams.Capabilities.Split(',');
+        foreach (var capa in capaList)
+        {
+            try
+            {
+                setRemotes.Add(capa.Trim());
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Invalid capability {capa}, ifnoring: {e}");
+            }
+        }
+        
         var listPossibleJobs = await _context.Jobs
             .Where(j => j.State == Job.JobState.Ready && j.Owner == "")
             .Include(j => j.SourceEndpoint)
@@ -387,6 +404,16 @@ public partial class HannibalService : IHannibalService
         var mapStates = await _gatherEndpointAccess(_currentUser.Id);
         foreach (var candidate in listPossibleJobs)
         {
+            if (!setRemotes.Contains(candidate.SourceEndpoint.Storage.UriSchema))
+            {
+                _logger.LogInformation($"Skipping job {candidate.Id} because source endpoint {candidate.SourceEndpoint.Name} is not in set of remotes.");
+            }
+
+            if (!setRemotes.Contains(candidate.DestinationEndpoint.Storage.UriSchema))
+            {
+                _logger.LogInformation($"Skipping job {candidate.Id} because destination endpoint {candidate.DestinationEndpoint.Name} is not in set of remotes.");
+            }
+            
             if (_mayUseDestinationEndpoint(candidate.DestinationEndpoint, mapStates)
                 && _mayUseSourceEndpoint(candidate.SourceEndpoint, mapStates))
             {
