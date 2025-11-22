@@ -65,7 +65,7 @@ public partial class App : System.Windows.Application
                         break;
                     
                     case RCloneServiceState.ServiceState.WaitStart:
-                        _startStopItem.Text = "Stop Service";
+                        _startStopItem.Text = "Start Service";
                         _startStopItem.Enabled = true;
                         break;
                         

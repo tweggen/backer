@@ -27,6 +27,7 @@ public partial class ConfigWindow : Window
             CloudUrlTextBox.Text = options?.UrlSignalR ?? "nothing";
             EmailTextBox.Text = options?.BackerUsername ?? "your@email.com";
             PasswordBox.Password = options?.BackerPassword ?? "secret";
+            AutostartCheckBox.IsChecked = options?.Autostart ?? false;
         }
         catch (HttpRequestException ex)
         {
@@ -45,14 +46,7 @@ public partial class ConfigWindow : Window
         string cloudUrl = CloudUrlTextBox.Text;
         string email = EmailTextBox.Text;
         string password = PasswordBox.Password;
-
-        System.Windows.MessageBox.Show(
-            $"Dummy Save:\nCloud URL: {cloudUrl}\nEmail: {email}\nPassword: {new string('*', password.Length)}",
-            "Save Clicked",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information
-        );
-        
+        bool isAutostartEnabled = AutostartCheckBox.IsChecked ?? false;
         
         RCloneServiceOptions options = new ()
         {
@@ -60,7 +54,8 @@ public partial class ConfigWindow : Window
             BackerPassword = password,
             UrlSignalR = cloudUrl,
             RClonePath = "",
-            RCloneOptions = ""
+            RCloneOptions = "",
+            Autostart = isAutostartEnabled
         };
         await http.PutAsJsonAsync("/config", options);
 

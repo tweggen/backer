@@ -526,13 +526,20 @@ public class RCloneService : BackgroundService
     /**
      * We are running and supposed to wait until the jobs are done.
      */
-    private async void _toWaitStop()
+    private async Task _toWaitStop()
     {
         _serviceState = RCloneServiceState.ServiceState.WaitStop;
         _logger.LogInformation("RCloneService: Waiting for stop request.");
         
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
-        
+        var jobList = await rcloneClient.GetJobListAsync(CancellationToken.None);
+        foreach (var jobid in jobList.running_ids)
+        {
+            _logger.LogInformation($"RCloneService: Stopping job {jobid}");
+            await rcloneClient.StopJobAsync(CancellationToken.None);
+        }
+
+        await _toWaitStart();
     }
 
 

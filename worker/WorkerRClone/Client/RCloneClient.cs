@@ -54,6 +54,43 @@ public class RCloneClient
             throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
         }
     }
+
+
+    public async Task<JobListResult> GetJobListAsync(CancellationToken cancellationToken)
+    {
+        JobListParams jobListParams = new();
+        
+        JsonContent content = JsonContent.Create(jobListParams, typeof(JobListParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/job/list", content, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<JobListResult>(
+                responseString, 
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+    }
+
+
+    public async Task StopJobAsync(CancellationToken cancellationToken)
+    {
+        StopJobParams stopJobParams = new();
+        
+        JsonContent content = JsonContent.Create(stopJobParams, typeof(StopJobParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/job/stop", content, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+        else
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+    }
     
 
     public async Task<JobStatsResult> GetJobStatsAsync(CancellationToken cancellationToken)
