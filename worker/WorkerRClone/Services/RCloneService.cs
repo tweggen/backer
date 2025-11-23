@@ -32,6 +32,7 @@ public class RCloneService : BackgroundService
     }
     
     private PendingRequest _lastPendingRequest = PendingRequest.None;
+    private bool _wasUserStop = false;
     
     private static object _classLock = new();
     private static int _nextId;
@@ -644,6 +645,12 @@ public class RCloneService : BackgroundService
     {
         _serviceState = RCloneServiceState.ServiceState.Running;
         _logger.LogInformation("RCloneService: Running.");
+
+        /*
+        * Now we definitely transition to running.
+        * So this is no user forced stop anymore. 
+        */
+        _wasUserStop = false;
         
         /*
          * Start the actual operation.
@@ -694,9 +701,14 @@ public class RCloneService : BackgroundService
          * for a start request?
          */
         bool triggerStart = false;
-        if (_lastPendingRequest == PendingRequest.Start || _options!.Autostart)
+        if (_lastPendingRequest == PendingRequest.Start)
         {
             _lastPendingRequest = PendingRequest.None;
+            triggerStart = true;
+        }
+
+        if (_options!.Autostart && !_wasUserStop)
+        {
             triggerStart = true;
         }
         
@@ -848,6 +860,8 @@ public class RCloneService : BackgroundService
      */
     public async Task StopJobsAsync(CancellationToken cancellationToken)
     {
+        _wasUserStop = true;
+        
         switch (_serviceState)
         {
             case RCloneServiceState.ServiceState.Starting:
