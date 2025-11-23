@@ -168,6 +168,16 @@ app.MapGet("/config", async (
 });
 
 
+app.MapGet("/transfers", async (
+    RCloneService rcloneService,
+    HttpContext ctx,
+    CancellationToken cancellationToken
+) =>
+{
+    return Results.Ok(rcloneService.GetTransferStatsAsync(cancellationToken));
+});
+
+
 app.MapPut("/config", async (
     HttpContext ctx,
     [FromBody] RCloneServiceOptions rcloneServiceOptions,

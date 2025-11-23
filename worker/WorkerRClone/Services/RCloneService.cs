@@ -908,6 +908,34 @@ public class RCloneService : BackgroundService
     }
     
     
+    public async Task<TransferStatsResult> GetTransferStatsAsync(CancellationToken cancellationToken)
+    {
+        var rcloneClient = new RCloneClient(_rcloneHttpClient);
+
+        var rcloneStats = await rcloneClient.GetJobStatsAsync(CancellationToken.None);
+        _logger.LogInformation($"RCloneService: Transfer stats: {rcloneStats}");
+
+        TransferStatsResult result = new();
+        result.TransferringItems = new();
+        foreach (var rcloneStatus in rcloneStats.transferring)
+        {
+            ItemTransferStatus stat = new()
+            {
+                Speed = (float) rcloneStatus.speed,
+                AverageSpeed = (float) rcloneStatus.speedAvg,
+                BytesTransferred = rcloneStatus.bytes,
+                ETA = rcloneStatus.eta,
+                Name = rcloneStatus.name,
+                PercentDone = (float) rcloneStatus.percentage,
+                TotalSize = rcloneStatus.size
+            };
+            result.TransferringItems.Add(stat);
+        }
+
+        return result;
+    }
+    
+
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation($"StartAsync: Starting RCloneService with options {_options}");
