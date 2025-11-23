@@ -17,11 +17,31 @@ public partial class App : System.Windows.Application
     private NotifyIcon trayIcon;
 
     private ConfigWindow? _winConfig = null;
+    private TransferWindow? _winTransfer = null;
     private HttpClient http = new() { BaseAddress = new Uri("http://localhost:5931") };
     
     private ToolStripMenuItem _startStopItem;
     private ToolStripMenuItem _statusItem;
     private DispatcherTimer  _pollTimer;
+
+
+    private void _showTransferWindow()
+    {
+        if (_winTransfer == null)
+        {
+            _winTransfer = new TransferWindow();
+            _winTransfer.Closed += (s, e) => _winConfig = null; // release reference when closed
+            _winTransfer.Show();
+        }
+        else
+        {
+            if (_winTransfer.WindowState == WindowState.Minimized)
+                _winTransfer.WindowState = WindowState.Normal;
+            
+            _winTransfer.Activate();
+        }
+    }
+    
     
     private void _showConfigWindow()
     {
@@ -127,6 +147,11 @@ public partial class App : System.Windows.Application
         {
             _showConfigWindow();
         });
+        menu.Items.Add("Transfers...", null, 
+            async (s, ev) =>
+            {
+                _showTransferWindow();
+            });
         menu.Items.Add("Exit Tray", null, (s, ev) =>
         {
             trayIcon.Visible = false;

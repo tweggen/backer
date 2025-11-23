@@ -95,10 +95,7 @@ public class RCloneClient
 
     public async Task<JobStatsResult> GetJobStatsAsync(CancellationToken cancellationToken)
     {
-        JobStatsParams jobStatsParams = new();
-        
-        JsonContent content = JsonContent.Create(jobStatsParams, typeof(JobStatsParams), new MediaTypeHeaderValue("application/json"));
-        var response = await _httpClient.PostAsync("/core/stats", content, cancellationToken);
+        var response = await _httpClient.GetAsync("/core/stats", cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             string responseString = await response.Content.ReadAsStringAsync(cancellationToken);

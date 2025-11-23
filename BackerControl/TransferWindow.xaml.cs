@@ -32,29 +32,35 @@ public partial class TransferWindow : Window
         _timer.Start();
     }
 
+    private bool once = true;
+
     private async void Timer_Tick(object? sender, EventArgs e)
     {
-        // Simulate reading fresh stats from your service
-        var transferStatsResult = await http.GetFromJsonAsync<TransferStatsResult>("/transfers");
-        List<FileTransferStats> listStats = new();
-        foreach (var item in transferStatsResult.TransferringItems)
+        if (once)
         {
-            FileTransferStats fts = new()
+            once = false;
+            // Simulate reading fresh stats from your service
+            var transferStatsResult = await http.GetFromJsonAsync<TransferStatsResult>("/transfers");
+            List<FileTransferStats> listStats = new();
+            foreach (var item in transferStatsResult.TransferringItems)
             {
-                Id = item.Name,
-                Speed = item.Speed,
-                Progress = item.PercentDone,
-                State = "transferring...",
-                Size = item.TotalSize,
-                DestinationPath = "",
-                SourcePath = ""
-            };
-            listStats.Add(fts);
-        }
+                FileTransferStats fts = new()
+                {
+                    Id = item.Name,
+                    Speed = item.Speed,
+                    Progress = item.PercentDone,
+                    State = "transferring...",
+                    Size = item.TotalSize,
+                    DestinationPath = "",
+                    SourcePath = ""
+                };
+                listStats.Add(fts);
+            }
 
-        /*
-         * Update the observable collection
-         */
-        _manager.UpdateTransfers(listStats);
+            /*
+             * Update the observable collection
+             */
+            _manager.UpdateTransfers(listStats);
+        }
     }
 }
