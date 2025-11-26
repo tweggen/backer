@@ -36,59 +36,44 @@ public class JobStatsResult
     [JsonPropertyName("listed")]
     public int listed { get; set; }
 
-    [JsonPropertyName("retryError")]
-    public bool retryError { get; set; }
+    [JsonPropertyName("retryError")] public bool retryError { get; set; }
 
-    [JsonPropertyName("serverSideCopies")]
-    public int serverSideCopies { get; set; }
+    [JsonPropertyName("serverSideCopies")] public int serverSideCopies { get; set; }
 
     [JsonPropertyName("serverSideCopyBytes")]
     public long serverSideCopyBytes { get; set; }
 
-    [JsonPropertyName("serverSideMoves")]
-    public int serverSideMoves { get; set; }
+    [JsonPropertyName("serverSideMoves")] public int serverSideMoves { get; set; }
 
     [JsonPropertyName("serverSideMoveBytes")]
     public long serverSideMoveBytes { get; set; }
 
-    [JsonPropertyName("speed")]
-    public double speed { get; set; }
+    [JsonPropertyName("speed")] public double speed { get; set; }
 
-    [JsonPropertyName("totalBytes")]
-    public long totalBytes { get; set; }
+    [JsonPropertyName("totalBytes")] public long totalBytes { get; set; }
 
-    [JsonPropertyName("totalChecks")]
-    public int totalChecks { get; set; }
+    [JsonPropertyName("totalChecks")] public int totalChecks { get; set; }
 
-    [JsonPropertyName("totalTransfers")]
-    public int totalTransfers { get; set; }
+    [JsonPropertyName("totalTransfers")] public int totalTransfers { get; set; }
 
-    [JsonPropertyName("transferTime")]
-    public double transferTime { get; set; }
+    [JsonPropertyName("transferTime")] public double transferTime { get; set; }
 
-    [JsonPropertyName("transfers")]
-    public int transfers { get; set; }
+    [JsonPropertyName("transfers")] public int transfers { get; set; }
 
-    [JsonPropertyName("transferring")]
-    public List<TransferringItem> transferring { get; set; }
+    [JsonPropertyName("transferring")] public List<TransferringItem> transferring { get; set; }
 
-    [JsonPropertyName("checking")]
-    public List<string> checking { get; set; }
+    [JsonPropertyName("checking")] public List<string> checking { get; set; }
 }
 
 public class TransferringItem
 {
-    [JsonPropertyName("bytes")]
-    public long bytes { get; set; }
+    [JsonPropertyName("bytes")] public long bytes { get; set; }
 
-    [JsonPropertyName("eta")]
-    public double eta { get; set; }
+    [JsonPropertyName("eta")] public double eta { get; set; }
 
-    [JsonPropertyName("name")]
-    public string name { get; set; }
+    [JsonPropertyName("name")] public string name { get; set; }
 
-    [JsonPropertyName("percentage")]
-    public double percentage { get; set; }
+    [JsonPropertyName("percentage")] public double percentage { get; set; }
 
     [JsonPropertyName("speed")]
     public double speed { get; set; }
