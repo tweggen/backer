@@ -174,7 +174,7 @@ app.MapGet("/transfers", async (
     CancellationToken cancellationToken
 ) =>
 {
-    return Results.Ok(rcloneService.GetTransferStatsAsync(cancellationToken));
+    return Results.Ok(await rcloneService.GetTransferStatsAsync(cancellationToken));
 });
 
 

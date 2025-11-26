@@ -28,7 +28,7 @@ public class JobStatsResult
     public bool fatalError { get; set; }
 
     [JsonPropertyName("lastError")]
-    public string lastError { get; set; }
+    public string? lastError { get; set; }
 
     [JsonPropertyName("renames")]
     public int renames { get; set; }
@@ -60,9 +60,9 @@ public class JobStatsResult
 
     [JsonPropertyName("transfers")] public int transfers { get; set; }
 
-    [JsonPropertyName("transferring")] public List<TransferringItem> transferring { get; set; }
+    [JsonPropertyName("transferring")] public List<TransferringItem>? transferring { get; set; }
 
-    [JsonPropertyName("checking")] public List<string> checking { get; set; }
+    [JsonPropertyName("checking")] public List<string>? checking { get; set; }
 }
 
 public class TransferringItem
