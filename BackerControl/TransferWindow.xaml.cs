@@ -32,29 +32,40 @@ public partial class TransferWindow : Window
         _timer.Start();
     }
 
-    private bool once = true;
+    private bool firstTime = true;
+    private bool always = true;
 
-    private async void Timer_Tick(object? sender, EventArgs e)
+    private async void Timer_Tick(object? sender, EventArgs ev)
     {
-        if (once)
+        if (always || firstTime)
         {
-            once = false;
+            firstTime = false;
             // Simulate reading fresh stats from your service
-            var transferStatsResult = await http.GetFromJsonAsync<TransferStatsResult>("/transfers");
             List<FileTransferStats> listStats = new();
-            foreach (var item in transferStatsResult.TransferringItems)
+            try
             {
-                FileTransferStats fts = new()
+                var transferStatsResult = await http.GetFromJsonAsync<TransferStatsResult>("/transfers");
+                foreach (var item in transferStatsResult.TransferringItems)
                 {
-                    Id = item.Name,
-                    Speed = item.Speed,
-                    Progress = item.PercentDone,
-                    State = "transferring...",
-                    Size = item.TotalSize,
-                    DestinationPath = "",
-                    SourcePath = ""
-                };
-                listStats.Add(fts);
+                    FileTransferStats fts = new()
+                    {
+                        Id = item.Name,
+                        Speed = item.Speed,
+                        Progress = item.PercentDone,
+                        State = "transferring...",
+                        Size = item.TotalSize,
+                        DestinationPath = "",
+                        SourcePath = ""
+                    };
+                    listStats.Add(fts);
+                }
+            }
+            catch (Exception e)
+            {
+                /*
+                * Unable to get stats from service. Might just be disconnected.
+                * That's ok.
+                */
             }
 
             /*

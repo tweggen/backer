@@ -69,9 +69,9 @@ public class TransferringItem
 {
     [JsonPropertyName("bytes")] public long bytes { get; set; }
 
-    [JsonPropertyName("eta")] public double eta { get; set; }
+    [JsonPropertyName("eta")] public double? eta { get; set; }
 
-    [JsonPropertyName("name")] public string name { get; set; }
+    [JsonPropertyName("name")] public string? name { get; set; }
 
     [JsonPropertyName("percentage")] public double percentage { get; set; }
 

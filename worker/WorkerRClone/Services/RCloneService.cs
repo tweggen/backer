@@ -926,8 +926,8 @@ public class RCloneService : BackgroundService
                     Speed = (float)rcloneStatus.speed,
                     AverageSpeed = (float)rcloneStatus.speedAvg,
                     BytesTransferred = rcloneStatus.bytes,
-                    ETA = rcloneStatus.eta,
-                    Name = rcloneStatus.name,
+                    ETA = (rcloneStatus.eta!=null)?rcloneStatus.eta.Value!:0,
+                    Name = (rcloneStatus.name!=null)?rcloneStatus.name:"",
                     PercentDone = (float)rcloneStatus.percentage,
                     TotalSize = rcloneStatus.size
                 };
