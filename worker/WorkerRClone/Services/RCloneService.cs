@@ -544,7 +544,7 @@ public class RCloneService : BackgroundService
         }
         catch (Exception e)
         {
-            
+            _logger.LogInformation($"RCloneService: Unable to connect to rclone service.");
         }
 
         if (!haveRClone)

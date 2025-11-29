@@ -8,25 +8,37 @@
         Title="File Transfers" Height="400" Width="600">
     <Grid>
         <!-- Bind to Transfers collection in DataContext -->
-        <ItemsControl ItemsSource="{Binding Transfers}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Margin="5">
-                        <ProgressBar Minimum="0" Maximum="100"
-                                     Value="{Binding Progress}" Height="20">
-                            <ProgressBar.ToolTip>
-                                <StackPanel>
-                                    <TextBlock Text="{Binding SourcePath}" />
-                                    <TextBlock Text="{Binding DestinationPath}" />
-                                    <TextBlock Text="{Binding Speed}" />
-                                    <TextBlock Text="{Binding Size}" />
-                                    <TextBlock Text="{Binding State}" />
-                                </StackPanel>
-                            </ProgressBar.ToolTip>
-                        </ProgressBar>
-                    </StackPanel>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Transfers}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="5">
+                            <ProgressBar Minimum="0" Maximum="100"
+                                         Value="{Binding Progress}" Height="20">
+                                <ProgressBar.ToolTip>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding SourcePath}" />
+                                        <TextBlock Text="{Binding Speed, StringFormat={}{0} b/s}" />
+                                        <TextBlock Text="{Binding Size, StringFormat={}{0} Bytes}" />
+                                        <TextBlock Text="{Binding State}" />
+                                    </StackPanel>
+                                </ProgressBar.ToolTip>
+                            </ProgressBar>
+                            <TextBlock HorizontalAlignment="Left"
+                                       VerticalAlignment="Center"
+                                       Foreground="Black"
+                                       FontWeight="Bold">
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="{}{1}% - {0}">
+                                        <Binding Path="SourcePath"/>
+                                        <Binding Path="Progress"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
     </Grid>
 </Window>

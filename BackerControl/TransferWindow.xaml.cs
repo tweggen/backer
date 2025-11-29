@@ -54,8 +54,8 @@ public partial class TransferWindow : Window
                         Progress = item.PercentDone,
                         State = "transferring...",
                         Size = item.TotalSize,
-                        DestinationPath = "",
-                        SourcePath = ""
+                        DestinationPath = item.Name,
+                        SourcePath = item.Name
                     };
                     listStats.Add(fts);
                 }
