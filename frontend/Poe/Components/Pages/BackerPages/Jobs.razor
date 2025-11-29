@@ -66,6 +66,15 @@ else
 
     private async Task _onClearJobs()
     {
+        try
+        {
+            await HannibalServiceClient.DeleteJobsAsync(CancellationToken.None);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception e)
+        {
+            
+        }
     }
 
     
