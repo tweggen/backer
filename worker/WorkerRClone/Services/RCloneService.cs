@@ -917,19 +917,22 @@ public class RCloneService : BackgroundService
 
         TransferStatsResult result = new();
         result.TransferringItems = new();
-        foreach (var rcloneStatus in rcloneStats.transferring)
+        if (rcloneStats.transferring != null)
         {
-            ItemTransferStatus stat = new()
+            foreach (var rcloneStatus in rcloneStats.transferring)
             {
-                Speed = (float) rcloneStatus.speed,
-                AverageSpeed = (float) rcloneStatus.speedAvg,
-                BytesTransferred = rcloneStatus.bytes,
-                ETA = rcloneStatus.eta,
-                Name = rcloneStatus.name,
-                PercentDone = (float) rcloneStatus.percentage,
-                TotalSize = rcloneStatus.size
-            };
-            result.TransferringItems.Add(stat);
+                ItemTransferStatus stat = new()
+                {
+                    Speed = (float)rcloneStatus.speed,
+                    AverageSpeed = (float)rcloneStatus.speedAvg,
+                    BytesTransferred = rcloneStatus.bytes,
+                    ETA = rcloneStatus.eta,
+                    Name = rcloneStatus.name,
+                    PercentDone = (float)rcloneStatus.percentage,
+                    TotalSize = rcloneStatus.size
+                };
+                result.TransferringItems.Add(stat);
+            }
         }
 
         return result;

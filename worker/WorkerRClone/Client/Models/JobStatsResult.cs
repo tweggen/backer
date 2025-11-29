@@ -22,7 +22,7 @@ public class JobStatsResult
     public int errors { get; set; }
 
     [JsonPropertyName("eta")]
-    public double eta { get; set; }
+    public double? eta { get; set; }
 
     [JsonPropertyName("fatalError")]
     public bool fatalError { get; set; }
