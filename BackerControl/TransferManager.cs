@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 namespace BackerControl;
 
@@ -13,9 +14,12 @@ public class TransferManager
     {
         var now = DateTime.UtcNow;
 
-        // 1. Update or add items
+        /*
+         * 1. Update or add items
+         */
         foreach (var stat in stats)
         {
+            Debug.WriteLine($"TransferManager: Updating transfer {stat.Id} with state {stat.State}");
             var existing = Transfers.FirstOrDefault(t => t.Id == stat.Id);
             if (existing != null)
             {
@@ -34,21 +38,40 @@ public class TransferManager
                 Transfers.Add(new FileTransferViewModel
                 {
                     Id = stat.Id,
-                    SourcePath = stat.SourcePath,
-                    DestinationPath = stat.DestinationPath,
                     Progress = stat.Progress,
                     Speed = stat.Speed,
-                    Size = stat.Size,
                     State = stat.State,
+                    Size = stat.Size,
+                    SourcePath = stat.SourcePath,
+                    DestinationPath = stat.DestinationPath,
                     LastUpdated = now
                 });
             }
         }
+        
+        /*
+         * 2. Everything that is not covered by the transfer stats is not
+         * transferring any more, set it to done.
+         * TXWTODO: It would have to be in errors otherwise.
+         */
+        for (int i = 0; i < Transfers.Count; ++i)
+        {
+            var item = Transfers[i];
+            if (now != item.LastUpdated && item.State == "transferring")
+            {
+                FileTransferViewModel newItem = new FileTransferViewModel(item);
+                newItem.Progress = 100f;
+                newItem.State = "done";
+                Transfers[i] = newItem;
+            }
+        }
 
-        // 2. Schedule removal of completed items
+        /*
+         * 3. Schedule removal of completed items
+         */
         foreach (var item in Transfers.ToList())
         {
-            if (item.State == "Completed" &&
+            if (item.State == "done" &&
                 (now - item.LastUpdated).TotalSeconds > 10)
             {
                 Transfers.Remove(item);

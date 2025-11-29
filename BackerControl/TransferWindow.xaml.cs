@@ -52,7 +52,7 @@ public partial class TransferWindow : Window
                         Id = item.Name,
                         Speed = item.Speed,
                         Progress = item.PercentDone,
-                        State = "transferring...",
+                        State = "transferring",
                         Size = item.TotalSize,
                         DestinationPath = item.Name,
                         SourcePath = item.Name
