@@ -62,7 +62,8 @@ public class RCloneService : BackgroundService
     private readonly IServiceScopeFactory _serviceScopeFactory;
 
     private const string _defaultRCloneUrl = "http://localhost:5572";
-
+    private readonly INetworkIdentifier _networkIdentifier;
+    
     private HashSet<string> _setRemotes = new();
     
     public RCloneService(
@@ -71,12 +72,14 @@ public class RCloneService : BackgroundService
         IOptionsMonitor<RCloneServiceOptions> optionsMonitor,
         Dictionary<string, HubConnection> connections,
         IServiceScopeFactory serviceScopeFactory,
-        ConfigHelper<RCloneServiceOptions> configHelper)
+        ConfigHelper<RCloneServiceOptions> configHelper,
+        INetworkIdentifier networkIdentifier)
     {
         lock (_classLock)
         {
             _ownerId = $"worker-rclone-{_nextId++}";
         }
+        
         _logger = logger;
         _logger.LogInformation($"RCloneService: Starting {_ownerId}.");
         
@@ -103,6 +106,18 @@ public class RCloneService : BackgroundService
         });
         _hannibalConnection = connections["hannibal"];
         _serviceScopeFactory = serviceScopeFactory;
+        
+        _networkIdentifier = networkIdentifier;
+        _networkIdentifier.NetworkChanged += _onNetworkChanged;
+        
+        _logger.LogInformation($"RCloneService: Network initially is {_networkIdentifier.GetCurrentNetwork()}.");
+
+    }
+
+
+    private void _onNetworkChanged(object sender, EventArgs e)
+    {
+        _logger.LogInformation($"RCloneService: Network changed to {(e as NetworkChangedEventArgs)!.NetworkName}.");
     }
     
     

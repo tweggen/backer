@@ -7,8 +7,19 @@
         mc:Ignorable="d"
         Title="File Transfers" Height="400" Width="600">
     <Grid>
-        <!-- Bind to Transfers collection in DataContext -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- heading -->
+            <RowDefinition Height="*"/>      <!-- scrollable content -->
+        </Grid.RowDefinitions>
+
+        <!-- Heading -->
+        <TextBlock Grid.Row="0"
+                   Text="Active File Transfers"
+                   FontSize="16"
+                   FontWeight="Bold"
+                   Margin="5"/>
+        
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <ItemsControl ItemsSource="{Binding Transfers}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -26,8 +37,7 @@
                             </ProgressBar>
                             <TextBlock HorizontalAlignment="Left"
                                        VerticalAlignment="Center"
-                                       Foreground="Black"
-                                       FontWeight="Bold">
+                                       Foreground="Black">
                                 <TextBlock.Text>
                                     <MultiBinding StringFormat="{}{1}% - {0}">
                                         <Binding Path="SourcePath"/>

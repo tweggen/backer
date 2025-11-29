@@ -57,7 +57,7 @@ public partial class TransferWindow : Window
                         DestinationPath = item.Name,
                         SourcePath = item.Name
                     };
-                    listStats.Add(fts);
+                    listStats.Insert(0, fts);
                 }
             }
             catch (Exception e)

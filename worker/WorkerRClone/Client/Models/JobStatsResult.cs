@@ -83,4 +83,13 @@ public class TransferringItem
 
     [JsonPropertyName("size")]
     public long size { get; set; }
+    
+    [JsonPropertyName( "srcFs" )]
+    public string? srcFs { get; set; }
+    
+    [JsonPropertyName( "dstFs" )]
+    public string? dstFs { get; set; }
+    
+    [JsonPropertyName( "group" )]
+    public string? group { get; set; }
 }

@@ -54,6 +54,8 @@ builder.Services
     ;
 
 builder.Services.AddScoped<IStaticTokenProvider, ConstantTokenProvider>();
+builder.Services.AddSingleton<INetworkIdentifier, NetworkIdentifierHostedService>();
+builder.Services.AddHostedService<NetworkIdentifierHostedService>();
 
 // Configure HTTP logging
 builder.Services.AddHttpLogging(logging =>
