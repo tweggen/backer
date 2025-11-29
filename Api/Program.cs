@@ -404,6 +404,14 @@ app.MapGet("/api/hannibal/v1/jobs", async (
 .WithOpenApi();
 
 
+app.MapDelete("/api/hannibal/v1/jobs", async (
+    IHannibalService hannibalService,
+    CancellationToken cancellationToken) =>
+{
+    await hannibalService.DeleteJobsAsync(cancellationToken);
+});
+
+
 app.MapPost("/api/hannibal/v1/acquireNextJob", async (
     IHannibalService hannibalService,
     AcquireParams acquireParams,

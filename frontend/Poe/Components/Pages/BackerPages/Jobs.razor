@@ -50,6 +50,7 @@ else
         }
         </tbody>
     </table>
+    <button @onclick="_onClearJobs" id="clearJobs">Clear</button>
 }
 
 @code {
@@ -60,6 +61,11 @@ else
     public void Dispose()
     {
         // Dispose logic if needed
+    }
+
+
+    private async Task _onClearJobs()
+    {
     }
 
     

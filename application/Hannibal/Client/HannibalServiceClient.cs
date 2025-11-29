@@ -287,6 +287,13 @@ public class HannibalServiceClient : IHannibalServiceClient
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
+
+    public async Task DeleteJobsAsync(CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.DeleteAsync("/api/hannibal/v1/jobs", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return;
+    }
     
     public Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationToken)
     {

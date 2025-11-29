@@ -57,6 +57,8 @@ public interface IHannibalService
     public Task<IEnumerable<Job>> GetJobsAsync(ResultPage resultPage, JobFilter filter, CancellationToken cancellationToken);
 
     public Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken);
+
+    public Task DeleteJobsAsync(CancellationToken cancellationToken);
     
     /**
      * Report the current state of the job.

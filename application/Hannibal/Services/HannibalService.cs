@@ -356,6 +356,21 @@ public partial class HannibalService : IHannibalService
     }
 
 
+    
+    public async Task DeleteJobsAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Delete jobs requested.");
+        await _obtainUser();
+
+        var jobsToDelete = await _context.Jobs
+            .Where(j => j.UserId == _currentUser!.Id)
+            .ToListAsync(cancellationToken);
+        _context.Jobs.RemoveRange(jobsToDelete);
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    
     private string _endpointKey(Endpoint endpoint) => $"{endpoint.StorageId}:{endpoint.Path}";
     
 
