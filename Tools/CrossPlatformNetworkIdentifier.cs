@@ -63,15 +63,16 @@ public static class CrossPlatformNetworkIdentifier
                 Console.WriteLine($"Gateway: {gw.Address}");
             }
 
+            if (!String.IsNullOrWhiteSpace(ipv6GW))
+            {
+                return _withoutLinkInfo(ipv6GW);
+            }
+
             if (!String.IsNullOrWhiteSpace(ipv4GW))
             {
                 return _withoutLinkInfo(ipv4GW);
             }
 
-            if (!String.IsNullOrWhiteSpace(ipv6GW))
-            {
-                return _withoutLinkInfo(ipv6GW);
-            }
         }
 
         return null;
