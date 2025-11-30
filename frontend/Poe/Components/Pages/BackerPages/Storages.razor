@@ -40,7 +40,7 @@ else
                     <tr>
                         <td>&nbsp;</td>
                         <td><InputText id="technology" class="form-control" @bind-Value="_editingStorage.Technology" /></td>
-                        <td><InputText id="urischeme" @bind-Value="_editingStorage.UriScheme" class="form-control"/></td>
+                        <td><InputText id="urischeme" @bind-Value="_editingStorage.UriSchema" class="form-control"/></td>
                         <td><InputText id="networks" @bind-Value="_editingStorage.Networks" class="form-control"/></td>
                         <td>
                             <button @onclick="_onEditStorageSubmit" id="submiteditstorage" class="close">✔</button>
@@ -67,46 +67,32 @@ else
     <h2>Create new storage</h2>
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="_newStorage" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
+            <EditForm method="post" Model="_newStorage" OnValidSubmit="AddStorage" FormName="create" Enhance>
                 <DataAnnotationsValidator/>
                 <ValidationSummary class="text-danger"/>
                 <div class="mb-3">
-                    <label for="name" class="form-label">Name:</label>
+                    <label for="name" class="form-label">Technology:</label>
                     <InputText id="name"
                                placeholder="Name"
                                class="form-control"
-                               @bind-Value="_newStorage.Name" />
-                    <ValidationMessage For="() => _newStorage.Name" class="text-danger"/>
+                               @bind-Value="_newStorage.Technology" />
+                    <ValidationMessage For="() => _newStorage.Technology" class="text-danger"/>
                 </div>
                 <div class="mb-3">
-                    <label for="storage" class="form-label">Storage:</label>
-                    <InputSelect id="storage"
-                                 placeholder="Storage"
-                                 class="form-control"
-                                 @bind-Value="_newEndpointStorageId" 
-                                 @bind-Value:after="handleNewStorageChanged" 
-                                 >
-                        @foreach (var storage in _listStorages)
-                        {
-                            <option value="@storage.Id">@storage.Technology</option>
-                        }
-                    </InputSelect>
-                </div>
-                <div class="mb-3">
-                    <label for="path" class="form-label">Path:</label>
+                    <label for="path" class="form-label">UriSchema:</label>
                     <InputText id="path"
                                placeholder="Path"
                                class="form-control"
-                               @bind-Value="_newStorage.Path"/>
-                    <ValidationMessage For="() => _newStorage.Path" class="text-danger"/>
+                               @bind-Value="_newStorage.UriSchema"/>
+                    <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
                 </div>
                 <div class="mb-3">
-                    <label for="comment" class="form-label">Comment:</label>
+                    <label for="comment" class="form-label">Networks:</label>
                     <InputText id="comment"
                                placeholder="Comment"
                                class="form-control"
-                               @bind-Value="_newStorage.Comment" />
-                    <ValidationMessage For="() => _newStorage.Comment" class="text-danger"/>
+                               @bind-Value="_newStorage.Networks" />
+                    <ValidationMessage For="() => _newStorage.Networks" class="text-danger"/>
                 </div>
                 <button type="submit" class="btn btn-primary">Create</button>
             </EditForm>
@@ -182,9 +168,9 @@ else
 
     private async Task AddStorage()
     {
-        // TXWTODO: Where to actually validate before submiit?
+        // TXWTODO: Where to actually validate before submit?
 
-        if (null == _newStorage.Storage || string.IsNullOrWhiteSpace(_newStorage.Name))
+        if (null == _newStorage.Technology || string.IsNullOrWhiteSpace(_newStorage.UriSchema))
         {
             return;
         }
@@ -195,6 +181,7 @@ else
         );
         await InvokeAsync(StateHasChanged);      
     }
+    
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
