@@ -13,9 +13,14 @@ PrivilegesRequired=admin
 
 [Files]
 ; Service binary (publish output from BackerAgent)
-Source: "BackerAgent\bin\Release\net9.0\win-x64\publish\BackerAgent.exe"; DestDir: "{app}\service"; Flags: ignoreversion
+Source: "BackerAgent\bin\Release\net9.0\win-x64\publish\*"; \
+    DestDir: "{app}\service"; \
+    Flags: ignoreversion
 ; Control app binary (publish output from BackerControl)
-Source: "BackerControl\bin\Release\net9.0-windows\win-x64\publish\BackerControl.exe"; DestDir: "{app}\control"; Flags: ignoreversion
+Source: "BackerControl\bin\Release\net9.0-windows\win-x64\publish\*"; \
+    DestDir: "{app}\control"; \
+    Flags: ignoreversion recursesubdirs
+
 ; Rclone tool
 Source: "contrib\rclone.exe"; DestDir: "{app}\contrib"; Flags: ignoreversion
 Source: "BackerAgent\bin\Release\net9.0\win-x64\publish\appsettings.json"; DestDir: "{app}\service"; Flags: ignoreversion

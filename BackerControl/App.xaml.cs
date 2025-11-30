@@ -1,5 +1,6 @@
 ﻿using System.Configuration;
 using System.Data;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Windows;
@@ -109,6 +110,16 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        AppDomain.CurrentDomain.UnhandledException += (s, ev) =>
+        {
+            File.WriteAllText("error.log", ev.ExceptionObject.ToString());
+        };
+        DispatcherUnhandledException += (s, ev) =>
+        {
+            File.WriteAllText("error.log", ev.Exception.ToString());
+            ev.Handled = true;
+        };
+        
         this.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         
         trayIcon = new NotifyIcon

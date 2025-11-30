@@ -9,9 +9,6 @@
         <UseWindowsForms>true</UseWindowsForms>
     </PropertyGroup>
     <ItemGroup>
-        <Reference Include="System.Windows.Forms" />
-    </ItemGroup>
-    <ItemGroup>
       <ProjectReference Include="..\worker\WorkerRClone\WorkerRClone.csproj" />
     </ItemGroup>
     
