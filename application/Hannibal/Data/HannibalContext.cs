@@ -31,109 +31,6 @@ public class HannibalContext : IdentityDbContext
 
 
     
-    private async Task _ensureTestRule()
-    {
-        /*
-         * If there is no rule, we create a rule from endpoint timomp3 in dropbox
-         * to endpoint timomp3 in onedrive that is supposed to be executed daily.
-         */
-
-        var rule = await Rules.FirstOrDefaultAsync(
-            r => r.Name == "timomp3 to onedrive");
-        if (rule == null)
-        {
-            List<Rule> listRules = new();
-            
-            List<Rule> listSyncShares = new()
-            {
-                #if false
-                new()
-                {
-                    Name = "timomp3 to onedrive",
-                    User = await Users.FirstAsync(u => u.Username=="timo"),
-                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:timomp3"),
-                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:timomp3"),
-                    Operation = Rule.RuleOperation.Copy,
-                    MaxDestinationAge = new TimeSpan(24, 0, 0),
-                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(0,0,0,2, 0, 0)
-                },
-                new()
-                {
-                    Name = "prof to onedrive",
-                    User = await Users.FirstAsync(u => u.Username=="timo"),
-                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:prof"),
-                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:prof"),
-                    Operation = Rule.RuleOperation.Copy,
-                    MaxDestinationAge = new TimeSpan(24, 0, 0),
-                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(0,0,0,2, 0, 0)
-                },
-                new()
-                {
-                    Name = "nassau to onedrive",
-                    User = await Users.FirstAsync(u => u.Username=="timo"),
-                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:nassau"),
-                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:nassau"),
-                    Operation = Rule.RuleOperation.Copy,
-                    MaxDestinationAge = new TimeSpan(24, 0, 0),
-                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(0,0,0,2, 0, 0)
-                },
-                new()
-                {
-                    Name = "books to onedrive",
-                    User = await Users.FirstAsync(u => u.Username=="timo"),
-                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:books"),
-                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:books"),
-                    Operation = Rule.RuleOperation.Copy,
-                    MaxDestinationAge = new TimeSpan(24, 0, 0),
-                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(0,0,0,2, 0, 0)
-                },
-                new()
-                {
-                    Name = "zeug to dropbox",
-                    User = await Users.FirstAsync(u => u.Username=="timo"),
-                    SourceEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:onedrive:zeug"),
-                    DestinationEndpoint = await Endpoints.FirstAsync(e => e.Name == "timo:dropbox:zeug"),
-                    Operation = Rule.RuleOperation.Copy,
-                    MaxDestinationAge = new TimeSpan(24, 0, 0),
-                    MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                    DailyTriggerTime = new(0,0,0,2, 0, 0)
-                },
-#endif
-            };
-
-            foreach (var r in listSyncShares)
-            {
-                await Rules.AddAsync(r);
-            }
-
-            
-            #if false
-            Rule ruleMirrorOnedrive = new()
-            {
-                Name = "onedrive to rodrigo",
-                Username = "timo",
-                DependsOn = new List<string>(listSyncShares.Select(r => r.Name)),
-                SourceEndpoint = "timo:onedrive:all",
-                DestinationEndpoint = "timo:rodrigo:onedrive_bak",
-                Operation = Rule.RuleOperation.Sync,
-                MaxDestinationAge = new (24,0,0),
-                MaxTimeAfterSourceModification = TimeSpan.MaxValue,
-                DailyTriggerTime = new (2,0,0)
-            };
-
-            await Rules.AddAsync(ruleMirrorOnedrive);
-            #endif
-            
-
-            await SaveChangesAsync();
-        }
-    }
-
-
     public async Task InitializeDatabaseAsync()
     {
         bool haveDatabase = false;
@@ -224,7 +121,7 @@ public class HannibalContext : IdentityDbContext
             UserId = userTimo,
             Technology = "smb",
             UriSchema = "TimosRodrigo",
-            Networks = "fe80::e72:74ff:fe07:ee9c%21",
+            Networks = "fe80::e72:74ff:fe07:ee9c",
             IsActive = true
         };
 
@@ -232,18 +129,6 @@ public class HannibalContext : IdentityDbContext
         {
             new(userTimo, timosRodrigo, "/public", "original public media") { IsActive = true },
             new (userTimo, timosOnedrive, "public", "onedrive public media") { IsActive = true }
-#if false
-            new(userTimo, timosDropbox, "timomp3", "original timomp3"),
-            new(userTimo, timosOnedrive, "timomp3", "shared timomp3"),
-            new(userTimo, timosDropbox, "zeug", "shared esat data"),
-            new(userTimo, timosOnedrive, "zeug", "original esat data"),
-            new (userTimo, timosDropbox, "prof", "original prof"),
-            new (userTimo, timosOnedrive, "prof", "shared prof"),
-            new(userTimo, timosDropbox, "nassau", "original nassau"),
-            new(userTimo, timosOnedrive, "nassau", "shared nassau"),
-            new(userTimo, timosDropbox, "books", "original books"),
-            new(userTimo, timosOnedrive, "books", "shared books")
-#endif
         };
         
         {

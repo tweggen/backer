@@ -22,6 +22,7 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
 
         if (!Directory.Exists(programDataPath))
         {
+            // TXWTODO: Check for permissions first, this might very well not accessible for the running user (if run in debug)
             Directory.CreateDirectory(programDataPath);
         }
 
