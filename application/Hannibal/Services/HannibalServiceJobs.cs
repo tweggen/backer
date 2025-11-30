@@ -107,7 +107,7 @@ public partial class HannibalService
                 continue;
             }
 
-            if (String.IsNullOrWhiteSpace(job.SourceEndpoint.Storage.Networks)
+            if (!String.IsNullOrWhiteSpace(job.SourceEndpoint.Storage.Networks)
                 && acquireParams.Networks.Trim() != job.SourceEndpoint.Storage.Networks.Trim())
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because source storage is not in network");
@@ -115,7 +115,7 @@ public partial class HannibalService
                 continue;
             }
 
-            if (String.IsNullOrWhiteSpace(job.DestinationEndpoint.Storage.Networks)
+            if (!String.IsNullOrWhiteSpace(job.DestinationEndpoint.Storage.Networks)
                 && acquireParams.Networks.Trim() != job.DestinationEndpoint.Storage.Networks.Trim())
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because destination storage is not in network");
