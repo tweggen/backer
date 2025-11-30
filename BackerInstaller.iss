@@ -42,35 +42,32 @@ procedure UpdateAppSettings;
 var
   AppSettingsFile: string;
   RclonePath: string;
+  EscapedPath: string;
   Json: TStringList;
   i: Integer;
-  Found: Boolean;
 begin
   AppSettingsFile := ExpandConstant('{app}\service\appsettings.json');
   RclonePath := ExpandConstant('{app}\contrib\rclone.exe');
+
   if FileExists(AppSettingsFile) then
   begin
     Json := TStringList.Create;
     try
       Json.LoadFromFile(AppSettingsFile);
-      Found := False;
+
+      // Escape backslashes for valid JSON
+      EscapedPath := RclonePath;
+      StringChangeEx(EscapedPath, '\', '\\', True);
+
       for i := 0 to Json.Count - 1 do
       begin
-        if Pos('"RclonePath"', Json[i]) > 0 then
+        if Pos('"RClonePath"', Json[i]) > 0 then
         begin
-          Json[i] := '  "RclonePath": "' + RclonePath + '",';
-          Found := True;
+          Json[i] := '    "RClonePath": "' + EscapedPath + '",';
           Break;
         end;
       end;
-      if not Found then
-      begin
-        // Insert before closing brace
-        if (Json.Count > 0) and (Pos('}', Json[Json.Count-1]) > 0) then
-        begin
-          Json.Insert(Json.Count-1, '  "RclonePath": "' + RclonePath + '",');
-        end;
-      end;
+
       Json.SaveToFile(AppSettingsFile);
     finally
       Json.Free;
