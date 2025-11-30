@@ -373,7 +373,8 @@ public class RCloneService : BackgroundService
                     {
                         Username = "timo.weggen@gmail.com",
                         Capabilities = String.Join(",", _setRemotes.ToList()),
-                        Owner = _ownerId
+                        Owner = _ownerId,
+                        Networks = _networkIdentifier?.GetCurrentNetwork() ?? "Unknown"
                     },
                     cancellationToken);
             }

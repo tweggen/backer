@@ -116,7 +116,7 @@ public partial class HannibalService
                 && acquireNetworks != candidate.SourceEndpoint.Storage.Networks.Trim())
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because source storage is not in network");
-                _logger.LogDebug($"{acquireNetworks} != {candidate.SourceEndpoint.Storage.Networks.Trim()}");
+                _logger.LogInformation($"{acquireNetworks} != {candidate.SourceEndpoint.Storage.Networks.Trim()}");
                 continue;
             }
 
@@ -124,7 +124,7 @@ public partial class HannibalService
                 && acquireNetworks != candidate.DestinationEndpoint.Storage.Networks.Trim())
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because destination storage is not in network");
-                _logger.LogDebug($"{acquireNetworks} != {candidate.DestinationEndpoint.Storage.Networks.Trim()}");
+                _logger.LogInformation($"{acquireNetworks} != {candidate.DestinationEndpoint.Storage.Networks.Trim()}");
                 continue;
             }
             
