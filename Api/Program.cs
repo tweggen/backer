@@ -203,6 +203,11 @@ app.UseStaticFiles();
 
 app.MapHub<HannibalHub>("/hannibal");
 
+#region Users
+/*
+ * Users
+ */
+
 app.MapPost("/api/authb/v1/token", async (
     SignInManager<IdentityUser> signInManager,
     UserManager<IdentityUser> userManager,
@@ -228,6 +233,26 @@ app.MapPost("/api/authb/v1/token", async (
     })
     .DisableAntiforgery()
     .WithName("Token")
+    .WithOpenApi();
+
+
+app.MapGet("/api/hannibal/v1/users/{id}", async (
+        IHannibalService higginsService,
+        int id,
+        CancellationToken cancellationToken) =>
+    {
+        IdentityUser? result = await higginsService.GetUserAsync(id, cancellationToken);
+        if (null != result)
+        {
+            return Results.Ok(result);
+        }
+        else
+        {
+            return Results.NotFound();
+        }
+    })
+    .RequireAuthorization()
+    .WithName("GetUser")
     .WithOpenApi();
 
 
@@ -260,6 +285,13 @@ app.MapDelete("/api/authb/v1/deleteUser", async (
     .WithName("DeleteUser")
     .WithOpenApi();
 
+#endregion
+
+
+#region Rules
+/*
+ * Rules
+ */
 
 app.MapGet("/api/hannibal/v1/rules/{ruleId}", async (
     IHannibalService hannibalService,
@@ -358,6 +390,13 @@ app.MapDelete("/api/hannibal/v1/rules/{id}", async (
     .WithName("DeleteRule")
     .WithOpenApi();
 
+#endregion
+
+
+#region Jobs
+/*
+ * Jobs
+ */
 
 app.MapGet("/api/hannibal/v1/jobs/{jobId}", async (
     IHannibalService hannibalService,
@@ -445,6 +484,13 @@ app.MapPost("/api/hannibal/v1/reportJob", async (
 .WithName("ReportJob")
 .WithOpenApi();
 
+#endregion
+
+
+#region Lifecycle
+/*
+ * Lifecycle
+ */
 
 app.MapPost("/api/hannibal/v1/shutdown", async (
     IHannibalService hannibalService, CancellationToken cancellationToken) =>
@@ -456,27 +502,14 @@ app.MapPost("/api/hannibal/v1/shutdown", async (
 .WithName("Shutdown")
 .WithOpenApi();
 
+#endregion
 
-app.MapGet("/api/hannibal/v1/users/{id}", async (
-        IHannibalService higginsService,
-        int id,
-        CancellationToken cancellationToken) =>
-    {
-        IdentityUser? result = await higginsService.GetUserAsync(id, cancellationToken);
-        if (null != result)
-        {
-            return Results.Ok(result);
-        }
-        else
-        {
-            return Results.NotFound();
-        }
-    })
-    .RequireAuthorization()
-    .WithName("GetUser")
-    .WithOpenApi();
 
-    
+#region Storages
+/*
+ * Storages
+ */
+
 app.MapGet("/api/hannibal/v1/storages", async (
         IHannibalService higginsService,
         CancellationToken cancellationToken) =>
@@ -502,6 +535,67 @@ app.MapGet("/api/hannibal/v1/storages/{id}", async (
     .WithOpenApi();
 
     
+app.MapPut("/api/hannibal/v1/storages/{id}", async (
+        IHannibalService higginsService,
+        int id,
+        Hannibal.Models.Storage storage,
+        CancellationToken cancellationToken) =>
+    {
+        try
+        {
+            var result = await higginsService.UpdateStorageAsync(id, storage, cancellationToken);
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound();
+        }
+    })
+    .RequireAuthorization()
+    .WithName("UpdateStorage")
+    .WithOpenApi();
+
+
+app.MapPost("/api/hannibal/v1/storages", async (
+        IHannibalService higginsService,
+        Hannibal.Models.Storage storage,
+        CancellationToken cancellationToken) =>
+    {
+        var result = await higginsService.CreateStorageAsync(storage, cancellationToken);
+        return Results.Ok(result);
+    })
+    .RequireAuthorization()
+    .WithName("CreateStorage")
+    .WithOpenApi();
+
+
+app.MapDelete("/api/hannibal/v1/storage/{id}", async (
+        IHannibalService higginsService,
+        int id,
+        CancellationToken cancellationToken) =>
+    {
+        try
+        {
+            await higginsService.DeleteStorageAsync(id, cancellationToken);
+            return Results.Ok();
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound();
+        }
+    })
+    .RequireAuthorization()
+    .WithName("DeleteStorage")
+    .WithOpenApi();
+
+#endregion
+
+
+#region Endpoints
+/*
+ * Endpoints
+ */
+
 app.MapGet("/api/hannibal/v1/endpoints", async (
     IHannibalService higginsService,
     CancellationToken cancellationToken) =>
@@ -580,7 +674,13 @@ app.MapDelete("/api/hannibal/v1/endpoints/{id}", async (
 .WithName("DeleteEndpoint")
 .WithOpenApi();
 
+#endregion
 
+
+#region Config
+/*
+ * Config
+ */
 
 app.MapGet("/api/hannibal/v1/dump", async (
         IHannibalService higginsService,
@@ -608,6 +708,7 @@ app.MapPost("/api/hannibal/v1/dump", async (
     .WithName("ImportConfig")
     .WithOpenApi();
 
+#endregion
 
 
 // Global error handler

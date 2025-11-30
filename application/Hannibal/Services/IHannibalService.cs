@@ -5,10 +5,21 @@ namespace Hannibal.Services;
 
 public interface IHannibalService
 {
+    #region Users
+    /*
+     * Users
+     */
+    
     public Task<IdentityUser?> GetUserAsync(
         int id,
         CancellationToken cancellationToken);
-
+    #endregion
+    
+    #region Endpoints
+    /*
+     * Endpoints
+     */
+    
     public Task<CreateEndpointResult> CreateEndpointAsync(
         Endpoint endpoint,
         CancellationToken cancellationToken);
@@ -20,21 +31,48 @@ public interface IHannibalService
     public Task<IEnumerable<Endpoint>> GetEndpointsAsync(
         CancellationToken cancellationToken);
     
-    public Task<Storage> GetStorageAsync(
+    public Task<Endpoint> UpdateEndpointAsync(
         int id,
-        CancellationToken cancellationToken);
-
-    public Task<IEnumerable<Storage>> GetStoragesAsync(
+        Endpoint endpoint,
         CancellationToken cancellationToken);
 
     public Task DeleteEndpointAsync(
         int id,
         CancellationToken cancellationToken);
 
-    public Task<Endpoint> UpdateEndpointAsync(
+    #endregion
+
+
+    #region Storages
+    /*
+     * Storages
+     */
+    
+    public Task<Storage> GetStorageAsync(
         int id,
-        Endpoint endpoint,
         CancellationToken cancellationToken);
+
+    public Task<IEnumerable<Storage>> GetStoragesAsync(
+        CancellationToken cancellationToken);
+    #endregion
+    
+    public Task<CreateStorageResult> CreateStorageAsync(
+        Storage storage,
+        CancellationToken cancellationToken);
+
+    public Task DeleteStorageAsync(
+        int id,
+        CancellationToken cancellationToken);
+
+    public Task<Storage> UpdateStorageAsync(
+        int id,
+        Storage storage,
+        CancellationToken cancellationToken);
+
+    #region Rules
+    /*
+     * Rules
+     */
 
     public Task<CreateRuleResult> CreateRuleAsync(Rule rule, CancellationToken cancellationToken);
 
@@ -52,6 +90,13 @@ public interface IHannibalService
         int id,
         CancellationToken cancellationToken);
     
+    #endregion
+    
+    #region Jobs
+    /*
+     * Jobs
+     */
+    
     public Task<Job> GetJobAsync(int jobId, CancellationToken cancellationToken);
 
     public Task<IEnumerable<Job>> GetJobsAsync(ResultPage resultPage, JobFilter filter, CancellationToken cancellationToken);
@@ -67,8 +112,23 @@ public interface IHannibalService
      * it is considered to be dead.
      */
     public Task<Result> ReportJobAsync(JobStatus jobStatus, CancellationToken cancellationToken);
+    
+    #endregion
+    
+    #region Lifecycle
+    /*
+     * Lifecycle
+     */
+    
     public Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationToken);
     
+    #endregion
+    
+    
+    #region Config
+    /*
+     * Config
+     */
     
     public Task<ConfigExport> ExportConfig(
         bool includeInactive, 
@@ -78,5 +138,5 @@ public interface IHannibalService
         string configJson,
         MergeStrategy mergeStrategy,
         CancellationToken cancellationToken);
-
+    #endregion
 }

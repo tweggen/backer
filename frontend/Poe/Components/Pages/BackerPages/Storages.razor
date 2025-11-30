@@ -1,0 +1,233 @@
+@page "/backer/storages"
+@using Hannibal.Client
+@using Microsoft.AspNetCore.Identity
+@using Poe.Services
+@inject IHannibalServiceClient HigginsServiceClient
+@inject NavigationManager Navigation
+@inject Tools.AppBasePath BasePath
+@inject AuthState AuthState
+@implements IDisposable
+@rendermode InteractiveServer
+
+
+<h3>Storages</h3>
+
+@if (_listStorages == null)
+{
+    <p><em>Loading storages...</em></p>
+}
+else if (!_listStorages.Any())
+{
+    <p>No storages found.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+        <tr>
+            <th>&nbsp;</th>
+            <th>Technology</th>
+            <th>UriScheme</th>
+            <th>Networks</th>
+            <th>&nbsp;</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var sto in _listStorages)
+        {
+            @if (_editingStorageId == sto.Id)
+            {
+                    <tr>
+                        <td>&nbsp;</td>
+                        <td><InputText id="technology" class="form-control" @bind-Value="_editingStorage.Technology" /></td>
+                        <td><InputText id="urischeme" @bind-Value="_editingStorage.UriScheme" class="form-control"/></td>
+                        <td><InputText id="networks" @bind-Value="_editingStorage.Networks" class="form-control"/></td>
+                        <td>
+                            <button @onclick="_onEditStorageSubmit" id="submiteditstorage" class="close">✔</button>
+                            <button @onclick="_onEditStorageCancel" class="close" aria-label="delete">❌️</button>
+                        </td>
+                    </tr>
+                
+            } else
+            {
+                <tr>
+                    <td><button id="starteditstorage" @onclick="() => _onEdit(sto)" aria-label="edit">✏</button></td>
+                    <td>@sto.Technology</td>
+                    <td>@sto.UriSchema</td>
+                    <td>@sto.Networks</td>
+                    <td>
+                        <button @onclick="() => _onDelete(sto)" class="close" aria-label="delete">🗑️</button>
+                    </td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+
+    <h2>Create new storage</h2>
+    <div class="row">
+        <div class="col-md-4">
+            <EditForm method="post" Model="_newStorage" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
+                <DataAnnotationsValidator/>
+                <ValidationSummary class="text-danger"/>
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name:</label>
+                    <InputText id="name"
+                               placeholder="Name"
+                               class="form-control"
+                               @bind-Value="_newStorage.Name" />
+                    <ValidationMessage For="() => _newStorage.Name" class="text-danger"/>
+                </div>
+                <div class="mb-3">
+                    <label for="storage" class="form-label">Storage:</label>
+                    <InputSelect id="storage"
+                                 placeholder="Storage"
+                                 class="form-control"
+                                 @bind-Value="_newEndpointStorageId" 
+                                 @bind-Value:after="handleNewStorageChanged" 
+                                 >
+                        @foreach (var storage in _listStorages)
+                        {
+                            <option value="@storage.Id">@storage.Technology</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="mb-3">
+                    <label for="path" class="form-label">Path:</label>
+                    <InputText id="path"
+                               placeholder="Path"
+                               class="form-control"
+                               @bind-Value="_newStorage.Path"/>
+                    <ValidationMessage For="() => _newStorage.Path" class="text-danger"/>
+                </div>
+                <div class="mb-3">
+                    <label for="comment" class="form-label">Comment:</label>
+                    <InputText id="comment"
+                               placeholder="Comment"
+                               class="form-control"
+                               @bind-Value="_newStorage.Comment" />
+                    <ValidationMessage For="() => _newStorage.Comment" class="text-danger"/>
+                </div>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+
+@code {
+    private List<Hannibal.Models.Storage>? _listStorages = null;
+    private IdentityUser? _user = null;
+
+    private int _editingStorageId { get; set; } = -1;
+
+    [SupplyParameterFromForm] private Hannibal.Models.Storage? _editingStorage { get; set; } = new() { Id = -1 };
+
+    [SupplyParameterFromForm] private Hannibal.Models.Storage? _newStorage { get; set; } = null;
+
+
+    public void Dispose()
+    {
+        // Dispose logic if needed
+    }
+
+    
+    private async Task _onEdit(Hannibal.Models.Storage? sto)
+    {
+        if (sto != null)
+        {
+            _editingStorageId = sto.Id;
+            _editingStorage = sto;
+        }
+        else
+        {
+            _editingStorageId = -1;
+            _editingStorage = new() { Id = -1 };
+        }
+        
+        await InvokeAsync(StateHasChanged);      
+    }
+
+
+    private async Task _onDelete(Hannibal.Models.Storage sto)
+    {
+        await HigginsServiceClient.DeleteEndpointAsync(sto.Id, CancellationToken.None);
+        _listStorages = new List<Hannibal.Models.Storage>(
+            await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
+        );
+        await InvokeAsync(StateHasChanged);      
+    }
+    
+    
+    private async Task _onEditStorageCancel()
+    {
+        _editingStorageId = -1;
+        _editingStorage = new() { Id = -1};
+        await InvokeAsync(StateHasChanged);      
+    }
+
+
+    private async Task _onEditStorageSubmit()
+    {
+        if (_editingStorage != null)
+        {
+            await HigginsServiceClient.UpdateStorageAsync(_editingStorage.Id, _editingStorage, CancellationToken.None);
+        }
+
+        _editingStorageId = -1;
+        _editingStorage = new() { Id = -1 };
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+    private async Task AddStorage()
+    {
+        // TXWTODO: Where to actually validate before submiit?
+
+        if (null == _newStorage.Storage || string.IsNullOrWhiteSpace(_newStorage.Name))
+        {
+            return;
+        }
+        
+        await HigginsServiceClient.CreateStorageAsync(_newStorage, CancellationToken.None);
+        _listStorages = new List<Hannibal.Models.Storage>(
+            await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
+        );
+        await InvokeAsync(StateHasChanged);      
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (AuthState.ReadResetRedirectToLogin())
+        {
+            await InvokeAsync(() =>
+            {
+                Task.Delay(200);
+                Navigation.NavigateTo("/login");
+            });
+        }
+    }
+    
+    
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+            if (null == _user)
+            {
+                Navigation.NavigateTo($"{BasePath.Value}/login");
+            }
+
+            _newStorage = new() { UserId = _user.Id, IsActive = true };
+
+            _listStorages = new List<Hannibal.Models.Storage>(
+                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
+            );
+        }
+        catch (Exception e)
+        {
+            // TXWTODO: Catch 401 ?            
+        }
+    }
+}
