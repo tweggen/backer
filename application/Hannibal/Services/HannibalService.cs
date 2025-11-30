@@ -432,7 +432,22 @@ public partial class HannibalService : IHannibalService
                 continue;
             }
 
+            if (String.IsNullOrWhiteSpace(job.SourceEndpoint.Storage.Networks)
+                && acquireParams.Networks.Trim() != job.SourceEndpoint.Storage.Networks.Trim())
+            {
+                _logger.LogInformation($"Skipping job {candidate.Id} because source storage is not in network");
+                _logger.LogDebug($"{acquireParams.Networks.Trim()} != {job.SourceEndpoint.Storage.Networks.Trim()}");
+                continue;
+            }
 
+            if (String.IsNullOrWhiteSpace(job.DestinationEndpoint.Storage.Networks)
+                && acquireParams.Networks.Trim() != job.DestinationEndpoint.Storage.Networks.Trim())
+            {
+                _logger.LogInformation($"Skipping job {candidate.Id} because destination storage is not in network");
+                _logger.LogDebug($"{acquireParams.Networks.Trim()} != {job.DestinationEndpoint.Storage.Networks.Trim()}");
+                continue;
+            }
+            
             if (!_mayUseSourceEndpoint(candidate.SourceEndpoint, mapStates))
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because source endpoint {candidate.SourceEndpoint.Name} is already in use.");
@@ -467,7 +482,7 @@ public partial class HannibalService : IHannibalService
 
     /**
      * Look, how many jobs of one particular user access the given andpoint
-     * either reading or writing.
+     * either reading or writing from a given network.
      *
      * This is assuming any given user would not have an excessive number of jobs running.
      */
@@ -500,7 +515,8 @@ public partial class HannibalService : IHannibalService
                 {
                     if (sourceState == EndpointState.AccessState.Writing)
                     {
-                        _logger.LogWarning($"Warning: Endpoint {jobSourceEndpointKey} is in use for both reading and writing.");
+                        _logger.LogWarning(
+                            $"Warning: Endpoint {jobSourceEndpointKey} is in use for both reading and writing.");
                     }
                     else
                     {
@@ -514,6 +530,7 @@ public partial class HannibalService : IHannibalService
                 {
                     mapStates.Add(jobSourceEndpointKey, EndpointState.AccessState.Reading);
                 }
+            
 
                 string jobDestinationEndpointKey = _endpointKey(job.DestinationEndpoint);
                 if (mapStates.TryGetValue(jobDestinationEndpointKey, out var destState))
