@@ -93,6 +93,11 @@ public partial class HannibalService
 
         Job? job = null;
         var mapStates = await _gatherEndpointAccess(_currentUser.Id);
+        string acquireNetworks = "";
+        if (acquireParams.Networks != null)
+        {
+            acquireNetworks = acquireParams.Networks.Trim();
+        }
         foreach (var candidate in listPossibleJobs)
         {
             if (!setRemotes.Contains(candidate.SourceEndpoint.Storage.UriSchema))
@@ -106,20 +111,20 @@ public partial class HannibalService
                 _logger.LogInformation($"Skipping job {candidate.Id} because destination endpoint {candidate.DestinationEndpoint.Name} is not in set of remotes.");
                 continue;
             }
-
+            
             if (!String.IsNullOrWhiteSpace(candidate.SourceEndpoint.Storage.Networks)
-                && acquireParams.Networks.Trim() != candidate.SourceEndpoint.Storage.Networks.Trim())
+                && acquireNetworks != candidate.SourceEndpoint.Storage.Networks.Trim())
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because source storage is not in network");
-                _logger.LogDebug($"{acquireParams.Networks.Trim()} != {candidate.SourceEndpoint.Storage.Networks.Trim()}");
+                _logger.LogDebug($"{acquireNetworks} != {candidate.SourceEndpoint.Storage.Networks.Trim()}");
                 continue;
             }
 
             if (!String.IsNullOrWhiteSpace(candidate.DestinationEndpoint.Storage.Networks)
-                && acquireParams.Networks.Trim() != candidate.DestinationEndpoint.Storage.Networks.Trim())
+                && acquireNetworks != candidate.DestinationEndpoint.Storage.Networks.Trim())
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because destination storage is not in network");
-                _logger.LogDebug($"{acquireParams.Networks.Trim()} != {candidate.DestinationEndpoint.Storage.Networks.Trim()}");
+                _logger.LogDebug($"{acquireNetworks} != {candidate.DestinationEndpoint.Storage.Networks.Trim()}");
                 continue;
             }
             
