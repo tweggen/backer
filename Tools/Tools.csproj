@@ -28,6 +28,7 @@
       <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.5" />
       <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" />
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
+      <PackageReference Include="System.Management" Version="10.0.0" />
     </ItemGroup>
 
     <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">

@@ -207,6 +207,7 @@ public class HannibalContext : IdentityDbContext
             //Credentials = timosDropboxCredentials,
             Technology = "dropbox",
             UriSchema = "TimosDropbox",
+            Networks = "",
             IsActive = true
         };
         Storage timosOnedrive = new()
@@ -215,6 +216,7 @@ public class HannibalContext : IdentityDbContext
             //Credentials = timosOnedriveCredentials,
             Technology = "onedrive",
             UriSchema = "TimosOnedrive",
+            Networks = "",
             IsActive = true
         };
         Storage timosRodrigo = new()
@@ -222,6 +224,7 @@ public class HannibalContext : IdentityDbContext
             UserId = userTimo,
             Technology = "smb",
             UriSchema = "TimosRodrigo",
+            Networks = "fe80::e72:74ff:fe07:ee9c%21",
             IsActive = true
         };
 

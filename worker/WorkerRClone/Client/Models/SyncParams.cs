@@ -7,4 +7,6 @@ public class SyncParams
     public string dstFs { get; set; }
     
     public Config _config { get; set; } = new();
+
+    public Filter _filter { get; set; } = new();
 }

@@ -10,6 +10,7 @@ public class Storage
     public string UserId { get; set; }
     public string Technology { get; set; }
     public string UriSchema { get; set; }
+    public string Networks { get; set; }
     
     /*
      * A storage can be located in a particular network.

@@ -1,14 +1,43 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Management;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Tools;
 public static class CrossPlatformNetworkIdentifier
 {
+    private static void GetPortableNetwork()
+    {
+        foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (ni.OperationalStatus != OperationalStatus.Up) continue;
+
+            var ipProps = ni.GetIPProperties();
+            foreach (var addr in ipProps.UnicastAddresses)
+            {
+                if (addr.Address.AddressFamily == AddressFamily.InterNetwork) // IPv4
+                {
+                    Console.WriteLine($"Interface: {ni.Description}");
+                    Console.WriteLine($"IP Address: {addr.Address}");
+                    Console.WriteLine($"Subnet Mask: {addr.IPv4Mask}");
+                }
+            }
+
+            foreach (var gw in ipProps.GatewayAddresses)
+            {
+                Console.WriteLine($"Gateway: {gw.Address}");
+            }
+        }
+    }
+    
     public static string GetCurrentNetwork()
     {
+        GetPortableNetwork();
+        
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return GetWindowsNetwork();
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -21,15 +50,50 @@ public static class CrossPlatformNetworkIdentifier
         return "Unknown";
     }
 
+    
+    public static string? GetWifiSsid()
+    {
+        try
+        {
+            var searcher = new ManagementObjectSearcher("root\\WMI",
+                "SELECT * FROM MSNdis_80211_ServiceSetIdentifier");
+            foreach (ManagementObject obj in searcher.Get())
+            {
+                var ssidBytes = (byte[])obj["Ndis80211SsId"];
+                return Encoding.ASCII.GetString(ssidBytes);
+            }
+        }
+        catch (Exception e)
+        {
+            
+        }
+        return null;
+    }
+    
+    
     private static string GetWindowsNetwork()
     {
+        #if false
+        // Try SSID first
+        var ssid = GetWifiSsid();
+        if (!string.IsNullOrEmpty(ssid))
+            return $"Wi-Fi SSID: {ssid}";
+
+        // Fallback: network profile name
+        var manager = new NetworkListManager() as INetworkListManager;
+        foreach (INetwork network in manager!.GetNetworks(NLM_ENUM_NETWORK.NLM_ENUM_NETWORK_CONNECTED))
+        {
+            return $"Profile: {network.GetName()}";
+        }
+
+        // Fallback: adapter description
+    #endif
         var active = NetworkInterface.GetAllNetworkInterfaces()
             .FirstOrDefault(ni => ni.OperationalStatus == OperationalStatus.Up);
-        return active?.Name ?? "No active interface";
-
-        // For Wi-Fi SSID: WMI query via System.Management if needed
+        return active?.Description ?? "Unknown network";
     }
-
+    
+    
     private static string GetLinuxNetwork()
     {
         return RunCommand("nmcli -t -f active,ssid dev wifi")

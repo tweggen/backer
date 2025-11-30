@@ -9,4 +9,6 @@ public class CopyParams
     public bool createEmptySrcDirs { get; set; }
 
     public Config _config { get; set; } = new();
+
+    public Filter _filter { get; set; } = new();
 }

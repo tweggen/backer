@@ -198,7 +198,10 @@ public class RCloneClient
             dstFs = uriDest,
             _config = new Config()
             {
-                Exclude = new() { "_backer" } 
+            },
+            _filter = new Filter()
+            {
+                ExcludeRule = new () { "_backer", "desktop.ini", "Desktop.ini", ".DS_Store" }
             }
         };
         
@@ -234,8 +237,11 @@ public class RCloneClient
             createEmptySrcDirs = true,
             _config = new Config()
             {
-                Exclude = new() { "_backer" },
                 CheckSum = true
+            },
+            _filter = new Filter()
+            {
+                ExcludeRule = new () { "_backer", "desktop.ini", "Desktop.ini", ".DS_Store" }
             }
         };
         

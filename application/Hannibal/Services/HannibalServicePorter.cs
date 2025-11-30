@@ -50,6 +50,7 @@ public class StorageExport
     public string UserId { get; set; }
     public string Technology { get; set; }
     public string UriSchema { get; set; }
+    public string Networks { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public bool IsActive { get; set; }
@@ -99,6 +100,7 @@ public partial class HannibalService
                     Id = s.Id,
                     Technology = s.Technology,
                     UriSchema = s.UriSchema,
+                    Networks = s.Networks,
                     UserId = s.UserId,
                     CreatedAt = s.CreatedAt,
                     UpdatedAt = s.UpdatedAt,
@@ -236,6 +238,7 @@ public partial class HannibalService
                         
                     case MergeStrategy.UpdateExisting:
                         existing.UriSchema = storageExport.UriSchema;
+                        existing.Networks = storageExport.Networks;
                         existing.Technology = storageExport.Technology;
                         existing.UpdatedAt = DateTime.UtcNow;
                         existing.IsActive = storageExport.IsActive;
@@ -251,6 +254,7 @@ public partial class HannibalService
                         {
                             Technology = storageExport.Technology,
                             UriSchema = storageExport.UriSchema,
+                            Networks = storageExport.Networks,
                             CreatedAt = DateTime.UtcNow,
                             IsActive = storageExport.IsActive
                         };
@@ -267,6 +271,7 @@ public partial class HannibalService
                     UserId = userId,
                     Technology = storageExport.Technology,
                     UriSchema = storageExport.UriSchema,
+                    Networks = storageExport.Networks,
                     CreatedAt = DateTime.UtcNow,
                     IsActive = storageExport.IsActive
                 };

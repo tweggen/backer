@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Tools;
@@ -638,6 +639,7 @@ using (var scope = app.Services.CreateScope())
 {
     {
         var hannibalContext = scope.ServiceProvider.GetRequiredService<HannibalContext>();
+        hannibalContext.Database.Migrate();
         await hannibalContext.InitializeDatabaseAsync();
     }
 }
