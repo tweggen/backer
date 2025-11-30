@@ -32,6 +32,13 @@ Name: "{group}\Uninstall Backer"; Filename: "{uninstallexe}"
 [Run]
 Filename: "sc.exe"; Parameters: "create BackerAgent binPath= ""{app}\service\BackerAgent.exe"" start= auto"; StatusMsg: "Registering Windows Service..."
 Filename: "sc.exe"; Parameters: "start BackerAgent"; StatusMsg: "Starting Windows Service..."
+Filename: "{app}\control\BackerControl.exe"; Description: "Launch Backer Control"; Flags: nowait postinstall skipifsilent
+
+[Registry]
+Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
+    ValueType: string; ValueName: "BackerControl"; \
+    ValueData: """{app}\control\BackerControl.exe"""; Flags: uninsdeletevalue
+
 
 [UninstallRun]
 Filename: "sc.exe"; Parameters: "stop BackerAgent"; StatusMsg: "Stopping Windows Service..."; RunOnceId: "StopService"
