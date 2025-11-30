@@ -10,7 +10,20 @@ using System.Text;
 namespace Tools;
 public static class CrossPlatformNetworkIdentifier
 {
-    private static void GetPortableNetwork()
+    private static string? _withoutLinkInfo(string s)
+    {
+        var idx = s.IndexOf('%');
+        if (idx >= 0)
+        {
+            return s.Substring(0, idx);
+        }
+        else
+        {
+            return s;
+        }
+    }
+    
+    private static string? GetPortableNetwork()
     {
         foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
         {
@@ -27,17 +40,52 @@ public static class CrossPlatformNetworkIdentifier
                 }
             }
 
+            string? ipv4GW = null, ipv6GW = null;
             foreach (var gw in ipProps.GatewayAddresses)
             {
+                if (gw.Address.IsIPv6LinkLocal)
+                {
+                    ipv6GW = gw.Address.ToString();
+                }
+
+                switch (gw.Address.AddressFamily)
+                {
+                    case AddressFamily.InterNetwork:
+                        ipv4GW = gw.Address.ToString();
+                        break;
+                    case AddressFamily.InterNetworkV6:
+                        ipv6GW = gw.Address.ToString();
+                        break;
+                    default:
+                        break;
+                }
+                
                 Console.WriteLine($"Gateway: {gw.Address}");
             }
+
+            if (!String.IsNullOrWhiteSpace(ipv4GW))
+            {
+                return _withoutLinkInfo(ipv4GW);
+            }
+
+            if (!String.IsNullOrWhiteSpace(ipv6GW))
+            {
+                return _withoutLinkInfo(ipv6GW);
+            }
         }
+
+        return null;
     }
     
     public static string GetCurrentNetwork()
     {
-        GetPortableNetwork();
+        string? gw = GetPortableNetwork();
+        if (gw != null)
+        {
+            return gw;
+        }
         
+        #if false
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return GetWindowsNetwork();
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -46,7 +94,8 @@ public static class CrossPlatformNetworkIdentifier
             return GetMacNetwork();
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Create("ANDROID")))
             return GetAndroidNetwork();
-
+        #endif 
+        
         return "Unknown";
     }
 
