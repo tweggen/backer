@@ -12,6 +12,13 @@
       <ProjectReference Include="..\worker\WorkerRClone\WorkerRClone.csproj" />
     </ItemGroup>
 
+    <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+        <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.0" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+        <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="9.0.0" />
+    </ItemGroup>
+    
     <ItemGroup>
       <Content Update="appsettings.json">
         <ExcludeFromSingleFile>true</ExcludeFromSingleFile>

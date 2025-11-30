@@ -1,4 +1,7 @@
-﻿using Hannibal;
+﻿using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Hosting;
+using System.Runtime.InteropServices;
+using Hannibal;
 using Hannibal.Client;
 using BackerAgent;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,6 +17,15 @@ using WorkerRClone.Models;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Detect platform at runtime
+if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+{
+    builder.Host.UseWindowsService(options =>
+    {
+        options.ServiceName = "BackerAgent";
+    });
+}
 
 // Add basic services
 builder.Services.AddEndpointsApiExplorer();
@@ -109,9 +121,16 @@ builder.Services.AddSingleton(provider =>
     };
 });
 
-
 builder.WebHost.ConfigureKestrel(options =>
 {
+    if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+    {
+        // On Linux, you don't need special hosting code.
+        // The app will be wrapped by systemd as a daemon.
+        // But you can add logging tweaks if desired:
+        options.UseSystemd();
+    }
+    
     options.ListenAnyIP(5931); // Default port override
 });
 
