@@ -107,19 +107,19 @@ public partial class HannibalService
                 continue;
             }
 
-            if (!String.IsNullOrWhiteSpace(job.SourceEndpoint.Storage.Networks)
-                && acquireParams.Networks.Trim() != job.SourceEndpoint.Storage.Networks.Trim())
+            if (!String.IsNullOrWhiteSpace(candidate.SourceEndpoint.Storage.Networks)
+                && acquireParams.Networks.Trim() != candidate.SourceEndpoint.Storage.Networks.Trim())
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because source storage is not in network");
-                _logger.LogDebug($"{acquireParams.Networks.Trim()} != {job.SourceEndpoint.Storage.Networks.Trim()}");
+                _logger.LogDebug($"{acquireParams.Networks.Trim()} != {candidate.SourceEndpoint.Storage.Networks.Trim()}");
                 continue;
             }
 
-            if (!String.IsNullOrWhiteSpace(job.DestinationEndpoint.Storage.Networks)
-                && acquireParams.Networks.Trim() != job.DestinationEndpoint.Storage.Networks.Trim())
+            if (!String.IsNullOrWhiteSpace(candidate.DestinationEndpoint.Storage.Networks)
+                && acquireParams.Networks.Trim() != candidate.DestinationEndpoint.Storage.Networks.Trim())
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because destination storage is not in network");
-                _logger.LogDebug($"{acquireParams.Networks.Trim()} != {job.DestinationEndpoint.Storage.Networks.Trim()}");
+                _logger.LogDebug($"{acquireParams.Networks.Trim()} != {candidate.DestinationEndpoint.Storage.Networks.Trim()}");
                 continue;
             }
             
