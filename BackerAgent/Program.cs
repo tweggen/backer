@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using Tools;
 using WorkerRClone.Configuration;
 using WorkerRClone.Models;
@@ -25,7 +26,16 @@ if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     {
         options.ServiceName = "BackerAgent";
     });
+    builder.Logging.AddEventLog(settings =>
+    {
+        settings.SourceName = "BackerService";
+    });
 }
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.File("C:\\ProgramData\\Backer\\service.log")
+    .CreateLogger();
+builder.Host.UseSerilog();
 
 // Add basic services
 builder.Services.AddEndpointsApiExplorer();
