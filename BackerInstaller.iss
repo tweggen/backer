@@ -62,7 +62,7 @@ var
   Json: TStringList;
   i: Integer;
 begin
-  AppSettingsFile := ExpandConstant('{commonappdata}\service\appsettings.json');
+  AppSettingsFile := ExpandConstant('{commonappdata}\Backer\appsettings.json');
   RclonePath := ExpandConstant('{app}\contrib\rclone.exe');
 
   if FileExists(AppSettingsFile) then

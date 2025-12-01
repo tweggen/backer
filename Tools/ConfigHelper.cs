@@ -12,7 +12,7 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
     private readonly string _configFilePath;
     public IConfigurationRoot Configuration { get; }
 
-    public ConfigHelper(string appName = "RCloneService")
+    public ConfigHelper(string appName = "Backer")
     {
         var programDataPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
