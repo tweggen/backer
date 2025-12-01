@@ -27,7 +27,6 @@ Source: "BackerControl\bin\Release\net9.0-windows\win-x64\publish\*"; \
 
 ; Rclone tool
 Source: "contrib\rclone.exe"; DestDir: "{app}\contrib"; Flags: ignoreversion
-Source: "BackerAgent\bin\Release\net9.0\win-x64\publish\appsettings.json"; DestDir: "{app}\service"; Flags: ignoreversion
 
 [Dirs]
 Name: "{app}\service"
@@ -39,8 +38,6 @@ Name: "{group}\Backer Control"; Filename: "{app}\control\BackerControl.exe"
 Name: "{group}\Uninstall Backer"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "sc.exe"; Parameters: "create BackerAgent binPath= ""{app}\service\BackerAgent.exe"" start= auto"; StatusMsg: "Registering Windows Service..."
-Filename: "sc.exe"; Parameters: "start BackerAgent"; StatusMsg: "Starting Windows Service..."
 Filename: "{app}\control\BackerControl.exe"; Description: "Launch Backer Control"; Flags: nowait postinstall skipifsilent
 
 [Registry]
@@ -92,7 +89,15 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
+var 
+  ResultCode: Integer;
 begin
-  if CurStep = ssInstall then
+  if CurStep = ssPostInstall then
+  begin
     UpdateAppSettings;
+    Exec(ExpandConstant('sc.exe'),
+           'create BackerAgent binPath= "' + ExpandConstant('{app}\service\BackerAgent.exe') + '" start= auto',
+           '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec(ExpandConstant('sc.exe'), 'start BackerAgent', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;    
 end;

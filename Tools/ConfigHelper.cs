@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 
 namespace Tools;
@@ -12,11 +13,19 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
     private readonly string _configFilePath;
     public IConfigurationRoot Configuration { get; }
 
-    public ConfigHelper(string appName = "Backer")
+    private ILogger<ConfigHelper<TOptions>> _logger;
+    
+    public ConfigHelper(
+        ILogger<ConfigHelper<TOptions>> logger,
+        string appName = "Backer")
     {
+        _logger = logger;
+        
         var programDataPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             appName);
+
+        _logger.LogInformation($"Using programDataPath {programDataPath},");
 
         _configFilePath = Path.Combine(programDataPath, "config.json");
 
@@ -25,7 +34,7 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
             // TXWTODO: Check for permissions first, this might very well not accessible for the running user (if run in debug)
             Directory.CreateDirectory(programDataPath);
         }
-
+        
         
         var builder = new ConfigurationBuilder()
             .SetBasePath(programDataPath)

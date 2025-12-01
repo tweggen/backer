@@ -87,12 +87,25 @@ builder.Services.AddHttpLogging(logging =>
     logging.ResponseHeaders.Add("Content-Type");
 });
 
+#if false
 var helper = new ConfigHelper<RCloneServiceOptions>();
 
 builder.Configuration
     .AddConfiguration(helper.Configuration);
 
 builder.Services.AddSingleton(helper);
+
+#else
+builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<ConfigHelper<RCloneServiceOptions>>>();
+    var helper = new ConfigHelper<RCloneServiceOptions>(logger);
+
+    builder.Configuration.AddConfiguration(helper.Configuration);
+
+    return helper;
+});
+#endif
 
 builder.Services.Configure<RCloneServiceOptions>(
     builder.Configuration.GetSection("RCloneService"));
