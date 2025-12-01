@@ -470,6 +470,8 @@ public class RCloneService : BackgroundService
         {
             throw new InvalidOperationException("RCloneService: No options available.");
         }
+        
+        _logger.LogInformation($"Trying to start rclone from {_options.RClonePath}...");
         var startInfo = new ProcessStartInfo()
         {
             FileName =  _decodePath(_options.RClonePath),

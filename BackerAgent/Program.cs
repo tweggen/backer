@@ -87,15 +87,14 @@ builder.Services.AddHttpLogging(logging =>
     logging.ResponseHeaders.Add("Content-Type");
 });
 
-builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(sp =>
-{
-    var helper = new ConfigHelper<RCloneServiceOptions>();
+var helper = new ConfigHelper<RCloneServiceOptions>();
 
-    // Merge its configuration into the global pipeline
-    builder.Configuration.AddConfiguration(helper.Configuration);
+builder.Configuration
+    //.SetBasePath(AppContext.BaseDirectory)
+    //.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+    .AddConfiguration(helper.Configuration);
 
-    return helper;
-});
+builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(helper);
 
 builder.Services.Configure<RCloneServiceOptions>(
     builder.Configuration.GetSection("RCloneService"));
