@@ -92,7 +92,7 @@ var helper = new ConfigHelper<RCloneServiceOptions>();
 builder.Configuration
     .AddConfiguration(helper.Configuration);
 
-builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(helper);
+builder.Services.AddSingleton(helper);
 
 builder.Services.Configure<RCloneServiceOptions>(
     builder.Configuration.GetSection("RCloneService"));

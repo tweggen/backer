@@ -22,6 +22,18 @@ public class RCloneServiceOptions
     public bool Autostart { get; set; }
 
 
+    public override string ToString()
+    {
+        return $"{{\n"
+               + $"\"BackerUsername\": \"{BackerUsername}\",\n"
+               + $"\"BackerPassword\": \"xxx\",\n"
+               + $"\"RClonePath\": \"{RClonePath}\"\n"
+               + $"\"RCloneOptions\": \"{RCloneOptions}\"\n"
+               + $"\"UrlSignalR\": \"{UrlSignalR}\"\n"
+               + $"}}"
+            ;
+    }
+
     public RCloneServiceOptions(RCloneServiceOptions o)
     {
         BackerUsername = o.BackerUsername;
