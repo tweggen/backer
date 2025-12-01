@@ -51,17 +51,14 @@ Filename: "sc.exe"; Parameters: "stop BackerAgent"; StatusMsg: "Stopping Windows
 Filename: "sc.exe"; Parameters: "delete BackerAgent"; StatusMsg: "Removing Windows Service..."; RunOnceId: "DeleteService"
 
 [Code]
-procedure UpdateAppSettings;
-var
+procedure UpdateAppSettings(
   AppSettingsFile: string;
-  RclonePath: string;
+  RclonePath: string);
+var
   EscapedPath: string;
   Json: TStringList;
   i: Integer;
 begin
-  AppSettingsFile := ExpandConstant('{commonappdata}\Backer\appsettings.json');
-  RclonePath := ExpandConstant('{app}\contrib\rclone.exe');
-
   if FileExists(AppSettingsFile) then
   begin
     Json := TStringList.Create;
@@ -94,7 +91,13 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    UpdateAppSettings;
+    UpdateAppSettings(
+      ExpandConstant('{commonappdata}\Backer\appsettings.json'),
+      ExpandConstant('{app}\contrib\rclone.exe'));
+    UpdateAppSettings(
+      ExpandConstant('{app}\service\appsettings.json'),
+      ExpandConstant('{app}\contrib\rclone.exe'));
+
     Exec(ExpandConstant('sc.exe'),
            'create BackerAgent binPath= "' + ExpandConstant('{app}\service\BackerAgent.exe') + '" start= auto',
            '', SW_HIDE, ewWaitUntilTerminated, ResultCode);

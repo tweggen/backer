@@ -87,12 +87,13 @@ public class RCloneService : BackgroundService
         _options = optionsMonitor.CurrentValue;
         optionsMonitor.OnChange(async updated =>
         {
-            _logger.LogInformation("RCloneService: Options changed.");
+            _logger.LogInformation($"RCloneService: Options changed to {_options}.");
 
             if (_serviceState == RCloneServiceState.ServiceState.Starting
                 || _serviceState == RCloneServiceState.ServiceState.WaitConfig
                 || _serviceState == RCloneServiceState.ServiceState.WaitStart)
             {
+                _logger.LogInformation("Using options.");
                 _options = updated;
                 _areOptionsValid = true;
                 
