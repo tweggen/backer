@@ -26,8 +26,10 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
             Directory.CreateDirectory(programDataPath);
         }
 
+        
         var builder = new ConfigurationBuilder()
             .SetBasePath(programDataPath)
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
             .AddJsonFile("config.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables()
             .AddCommandLine(Environment.GetCommandLineArgs());

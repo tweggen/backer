@@ -16,6 +16,10 @@ PrivilegesRequired=admin
 Source: "BackerAgent\bin\Release\net9.0\win-x64\publish\*"; \
     DestDir: "{app}\service"; \
     Flags: ignoreversion
+; Deploy a default appsettings.json into ProgramData\Backer
+Source: "BackerAgent\bin\Release\net9.0\win-x64\publish\appsettings.json"; \
+    DestDir: "{commonappdata}\Backer"; \
+    Flags: ignoreversion
 ; Control app binary (publish output from BackerControl)
 Source: "BackerControl\bin\Release\net9.0-windows\win-x64\publish\*"; \
     DestDir: "{app}\control"; \
@@ -58,7 +62,7 @@ var
   Json: TStringList;
   i: Integer;
 begin
-  AppSettingsFile := ExpandConstant('{app}\service\appsettings.json');
+  AppSettingsFile := ExpandConstant('{commonappdata}\service\appsettings.json');
   RclonePath := ExpandConstant('{app}\contrib\rclone.exe');
 
   if FileExists(AppSettingsFile) then

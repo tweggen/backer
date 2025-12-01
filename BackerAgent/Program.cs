@@ -90,8 +90,6 @@ builder.Services.AddHttpLogging(logging =>
 var helper = new ConfigHelper<RCloneServiceOptions>();
 
 builder.Configuration
-    //.SetBasePath(AppContext.BaseDirectory)
-    //.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
     .AddConfiguration(helper.Configuration);
 
 builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(helper);
