@@ -50,7 +50,7 @@ public class HannibalContext : IdentityDbContext
             Thread.Sleep(5000);
         }
 
-        if (!await Rules.AnyAsync())
+        if (!!await Rules.AnyAsync())
         {
             await _createDevContent();
         }

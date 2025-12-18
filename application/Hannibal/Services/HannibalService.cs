@@ -52,7 +52,7 @@ public partial class HannibalService : IHannibalService
     public async Task<IdentityUser?> GetUserAsync(int id, CancellationToken cancellationToken)
     {
         var userClaims = _httpContextAccessor.HttpContext?.User;
-        if (null != userClaims)
+         if (null != userClaims)
         {
             _currentUser = await _userManager.GetUserAsync(userClaims);
         }

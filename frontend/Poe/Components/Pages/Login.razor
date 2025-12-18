@@ -43,7 +43,7 @@ Or <a href="@($"{BasePath.Value}/signup")">register</a> if you don't have an acc
         };
         
         var result = await IdentityApiService.LoginUserAsync(loginRequest, CancellationToken.None);
-        // Stubbed auth logic — replace with real validation
+        
         if (result.Result is Ok<AccessTokenResponse> okResult)
         {
             var claims = new List<Claim>
