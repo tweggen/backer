@@ -269,7 +269,7 @@ else
     {
         try
         {
-            _user = await HigginsServiceClient.GetUserAsync(1, CancellationToken.None);
+            _user = await HigginsServiceClient.GetUserAsync(-1, CancellationToken.None);
             if (null == _user)
             {
                 Navigation.NavigateTo($"{BasePath.Value}/login");

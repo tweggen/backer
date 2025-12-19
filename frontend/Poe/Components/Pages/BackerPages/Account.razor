@@ -69,7 +69,7 @@
     {
         try
         {
-            _user = await HannibalServiceClient.GetUserAsync(1, CancellationToken.None);
+            _user = await HannibalServiceClient.GetUserAsync(-1, CancellationToken.None);
             if (null == _user)
             {
                 AuthState.TriggerRedirectToLogin();

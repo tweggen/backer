@@ -772,7 +772,7 @@ public class RCloneService : BackgroundService
         try {
             using var scope = _serviceScopeFactory.CreateScope();
             var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
-            var user = await hannibalService.GetUserAsync(0, CancellationToken.None);
+            var user = await hannibalService.GetUserAsync(-1, CancellationToken.None);
             
             /*
              * OK, no exception, online connection works. So progress.

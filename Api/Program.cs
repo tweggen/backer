@@ -241,6 +241,10 @@ app.MapGet("/api/hannibal/v1/users/{id}", async (
         int id,
         CancellationToken cancellationToken) =>
     {
+        if (-1 != id)
+        {
+            return Results.Unauthorized();
+        }
         IdentityUser? result = await higginsService.GetUserAsync(id, cancellationToken);
         if (null != result)
         {

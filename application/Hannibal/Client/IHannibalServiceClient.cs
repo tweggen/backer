@@ -9,6 +9,12 @@ public interface IHannibalServiceClient
     public IHannibalServiceClient SetAuthCookie(string authCookie);
 
     #region User
+    /**
+     * Return information about the given user.
+     * @param id
+     *     The id of the user to query. -1 means current user.
+     *     Note that for standard users values other than -1 are not supported.
+     */
     public Task<IdentityUser?> GetUserAsync(int id, CancellationToken cancellationToken);
     #endregion
     

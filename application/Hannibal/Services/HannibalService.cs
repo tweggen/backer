@@ -51,8 +51,12 @@ public partial class HannibalService : IHannibalService
 
     public async Task<IdentityUser?> GetUserAsync(int id, CancellationToken cancellationToken)
     {
+        if (-1 != id)
+        {
+            throw new UnauthorizedAccessException("Access to different users notz permitted.");
+        }
         var userClaims = _httpContextAccessor.HttpContext?.User;
-         if (null != userClaims)
+        if (null != userClaims)
         {
             _currentUser = await _userManager.GetUserAsync(userClaims);
         }
