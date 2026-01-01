@@ -52,6 +52,10 @@ else
                     <td>@sto.UriSchema</td>
                     <td>@sto.Networks</td>
                     <td>
+                        @if (String.IsNullOrWhiteSpace(sto.RefreshToken))
+                        {
+                            <button @onclick="() => _onOAuth(sto)">Authenticate...</button>
+                        }
                         <button @onclick="() => _onDelete(sto)" class="close" aria-label="delete">🗑️</button>
                     </td>
                 </tr>
@@ -83,6 +87,14 @@ else
                     <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
                 </div>
                 <div class="mb-3">
+                    <label for="comment" class="form-label">Account Mail:</label>
+                    <InputText id="useremail"
+                               placeholder="Account eMail"
+                               class="form-control"
+                               @bind-Value="_newStorage.OAuth2Email" />
+                    <ValidationMessage For="() => _newStorage.OAuth2Email" class="text-danger"/>
+                </div>
+                <div class="mb-3">
                     <label for="comment" class="form-label">Networks:</label>
                     <InputText id="comment"
                                placeholder="Comment"
@@ -111,6 +123,12 @@ else
     public void Dispose()
     {
         // Dispose logic if needed
+    }
+
+
+    private async Task _onOAuth(Hannibal.Models.Storage? sto)
+    {
+        // TXWTOOD: Trigger authentication flow.
     }
 
     
@@ -166,7 +184,9 @@ else
     {
         // TXWTODO: Where to actually validate before submit?
 
-        if (null == _newStorage.Technology || string.IsNullOrWhiteSpace(_newStorage.UriSchema))
+        if (null == _newStorage.Technology 
+            || string.IsNullOrWhiteSpace(_newStorage.UriSchema)
+            || string.IsNullOrWhiteSpace(_newStorage.OAuth2Email))
         {
             return;
         }

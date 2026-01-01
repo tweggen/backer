@@ -11,6 +11,10 @@ public class Storage
     public string Technology { get; set; }
     public string UriSchema { get; set; }
     public string Networks { get; set; }
+
+    public string OAuth2Email { get; set; }
+    public string AccessToken { get; set; }
+    public string RefreshToken { get; set; }
     
     /*
      * A storage can be located in a particular network.
