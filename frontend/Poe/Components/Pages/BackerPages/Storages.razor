@@ -66,9 +66,10 @@ else
     <h2>Create new storage</h2>
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="_newStorage" 
+            <EditForm method="post"  
                       OnValidSubmit="_addStorage"
-                      FormName="create" Enhance>
+                      FormName="create" Enhance
+                      EditContext="_editContext">
                 <DataAnnotationsValidator/>
                 <CustomValidator @ref="_customValidator"/>
                 <ValidationSummary class="text-danger"/>
@@ -83,8 +84,10 @@ else
                             <option value="@tech">@tech</option>
                         }
                     </InputSelect>
+                    
                     <ValidationMessage For="() => _newStorage.Technology" class="text-danger"/>
                 </div>
+                <p>Selected: @_newStorage.Technology</p>
                 <div class="mb-3">
                     <label for="path" class="form-label">UriSchema:</label>
                     <InputText id="path"
@@ -204,24 +207,24 @@ else
 
             if (null == _newStorage.Technology)
             {
-                _customValidator.AddError("technology", "Please select a technology");
+                _customValidator.AddError(nameof(_newStorage.Technology), "Please select a technology");
             }
 
             if (string.IsNullOrWhiteSpace(_newStorage.UriSchema))
             {
-                _customValidator.AddError("path", "Please add a uri schema");
+                _customValidator.AddError(nameof(_newStorage.UriSchema), "Please add a uri schema");
             }
 
             if (string.IsNullOrWhiteSpace(_newStorage.OAuth2Email))
             {
-                _customValidator.AddError("useremail", "Please specify a login email for the service.");
+                _customValidator.AddError(nameof(_newStorage.OAuth2Email), "Please specify a login email for the service.");
             }
 
             if (_listStorages != null)
             {
                 if (_listStorages.Any(s => s.Technology == _newStorage.Technology.Trim() && s.OAuth2Email == _newStorage.OAuth2Email.Trim()))
                 {
-                    _customValidator.AddError("technology", "Already have a storage with this login and technology");
+                    _customValidator.AddError(nameof(_newStorage.Technology), "Already have a storage with this login and technology");
                 }
             }
         } catch (Exception e)
@@ -268,7 +271,12 @@ else
                 await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
             );
 
-            _newStorage = new() { UserId = _user.Id, IsActive = true };
+            _newStorage = new()
+            {
+                UserId = _user.Id, 
+                IsActive = true,
+                Technology = Hannibal.Models.Technologies.GetTechnologies().FirstOrDefault()
+            };
 
             _editContext = new EditContext(_newStorage);
 
@@ -281,5 +289,4 @@ else
         }
     }
 
-}
 }
