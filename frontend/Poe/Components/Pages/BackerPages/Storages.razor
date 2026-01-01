@@ -274,8 +274,13 @@ else
             _newStorage = new()
             {
                 UserId = _user.Id, 
+                Technology = Hannibal.Models.Technologies.GetTechnologies().FirstOrDefault(),
+                UriSchema = "",
+                Networks = "",
+                OAuth2Email = "",
+                AccessToken = "",
+                RefreshToken = "",
                 IsActive = true,
-                Technology = Hannibal.Models.Technologies.GetTechnologies().FirstOrDefault()
             };
 
             _editContext = new EditContext(_newStorage);
