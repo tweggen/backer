@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Hannibal.Migrations
 {
     [DbContext(typeof(HannibalContext))]
-    [Migration("20260101054953_AddOAuth2ToStorages")]
-    partial class AddOAuth2ToStorages
+    [Migration("20260101121727_AddedOAuth2Email")]
+    partial class AddedOAuth2Email
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

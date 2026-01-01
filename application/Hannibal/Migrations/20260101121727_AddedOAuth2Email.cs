@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Hannibal.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class AddedOAuth2Email : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -61,6 +61,9 @@ namespace Hannibal.Migrations
                     Technology = table.Column<string>(type: "text", nullable: false),
                     UriSchema = table.Column<string>(type: "text", nullable: false),
                     Networks = table.Column<string>(type: "text", nullable: false),
+                    OAuth2Email = table.Column<string>(type: "text", nullable: false),
+                    AccessToken = table.Column<string>(type: "text", nullable: false),
+                    RefreshToken = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false)

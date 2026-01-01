@@ -9,7 +9,6 @@
 @implements IDisposable
 @rendermode InteractiveServer
 
-
 <h3>Storages</h3>
 
 @if (_listStorages == null)
@@ -67,15 +66,23 @@ else
     <h2>Create new storage</h2>
     <div class="row">
         <div class="col-md-4">
-            <EditForm method="post" Model="_newStorage" OnValidSubmit="AddStorage" FormName="create" Enhance>
+            <EditForm method="post" Model="_newStorage" 
+                      OnValidSubmit="_addStorage"
+                      FormName="create" Enhance>
                 <DataAnnotationsValidator/>
+                <CustomValidator @ref="_customValidator"/>
                 <ValidationSummary class="text-danger"/>
                 <div class="mb-3">
                     <label for="name" class="form-label">Technology:</label>
-                    <InputText id="name"
-                               placeholder="Name"
-                               class="form-control"
-                               @bind-Value="_newStorage.Technology" />
+                    <InputSelect id="technology"
+                                 placeholder="Technology"
+                                 class="form-control"
+                                 @bind-Value="_newStorage.Technology">
+                        @foreach (var tech in Hannibal.Models.Technologies.GetTechnologies())
+                        {
+                            <option value="@tech">@tech</option>
+                        }
+                    </InputSelect>
                     <ValidationMessage For="() => _newStorage.Technology" class="text-danger"/>
                 </div>
                 <div class="mb-3">
@@ -87,7 +94,7 @@ else
                     <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
                 </div>
                 <div class="mb-3">
-                    <label for="comment" class="form-label">Account Mail:</label>
+                    <label for="useremail" class="form-label">Account Mail:</label>
                     <InputText id="useremail"
                                placeholder="Account eMail"
                                class="form-control"
@@ -110,6 +117,10 @@ else
 
 
 @code {
+    
+    private CustomValidator _customValidator;
+    private EditContext _editContext;
+
     private List<Hannibal.Models.Storage>? _listStorages = null;
     private IdentityUser? _user = null;
 
@@ -180,17 +191,48 @@ else
     }
 
 
-    private async Task AddStorage()
+    private void _onValidateNewStorage(object sender, ValidationRequestedEventArgs ve)
     {
-        // TXWTODO: Where to actually validate before submit?
-
-        if (null == _newStorage.Technology 
-            || string.IsNullOrWhiteSpace(_newStorage.UriSchema)
-            || string.IsNullOrWhiteSpace(_newStorage.OAuth2Email))
+        try
         {
-            return;
+            _customValidator.Clear();
+
+            if (null == _newStorage)
+            {
+                return;
+            }
+
+            if (null == _newStorage.Technology)
+            {
+                _customValidator.AddError("technology", "Please select a technology");
+            }
+
+            if (string.IsNullOrWhiteSpace(_newStorage.UriSchema))
+            {
+                _customValidator.AddError("path", "Please add a uri schema");
+            }
+
+            if (string.IsNullOrWhiteSpace(_newStorage.OAuth2Email))
+            {
+                _customValidator.AddError("useremail", "Please specify a login email for the service.");
+            }
+
+            if (_listStorages != null)
+            {
+                if (_listStorages.Any(s => s.Technology == _newStorage.Technology.Trim() && s.OAuth2Email == _newStorage.OAuth2Email.Trim()))
+                {
+                    _customValidator.AddError("technology", "Already have a storage with this login and technology");
+                }
+            }
+        } catch (Exception e)
+        {
+            Console.WriteLine(e.ToString());
         }
-        
+    }
+
+
+    private async Task _addStorage()
+    {
         await HigginsServiceClient.CreateStorageAsync(_newStorage, CancellationToken.None);
         _listStorages = new List<Hannibal.Models.Storage>(
             await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
@@ -210,8 +252,8 @@ else
             });
         }
     }
-    
-    
+
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -222,15 +264,22 @@ else
                 Navigation.NavigateTo($"{BasePath.Value}/login");
             }
 
-            _newStorage = new() { UserId = _user.Id, IsActive = true };
-
             _listStorages = new List<Hannibal.Models.Storage>(
                 await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
             );
+
+            _newStorage = new() { UserId = _user.Id, IsActive = true };
+
+            _editContext = new EditContext(_newStorage);
+
+            // Attach custom validation to the EditContext pipeline
+            _editContext.OnValidationRequested += _onValidateNewStorage;
         }
         catch (Exception e)
         {
             // TXWTODO: Catch 401 ?            
         }
     }
+
+}
 }
