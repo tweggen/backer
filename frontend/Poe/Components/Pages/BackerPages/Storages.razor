@@ -1,5 +1,6 @@
 @page "/backer/storages"
 @using Hannibal.Client
+@using Hannibal.Models
 @using Microsoft.AspNetCore.Identity
 @using Poe.Services
 @inject IHannibalServiceClient HigginsServiceClient
@@ -165,7 +166,7 @@ else
 
     private async Task _onDelete(Hannibal.Models.Storage sto)
     {
-        await HigginsServiceClient.DeleteEndpointAsync(sto.Id, CancellationToken.None);
+        await HigginsServiceClient.DeleteStorageAsync(sto.Id, CancellationToken.None);
         _listStorages = new List<Hannibal.Models.Storage>(
             await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
         );
@@ -240,6 +241,7 @@ else
         _listStorages = new List<Hannibal.Models.Storage>(
             await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
         );
+        _newStorage = Storage.Default();
         await InvokeAsync(StateHasChanged);      
     }
     
@@ -271,17 +273,7 @@ else
                 await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
             );
 
-            _newStorage = new()
-            {
-                UserId = _user.Id, 
-                Technology = Hannibal.Models.Technologies.GetTechnologies().FirstOrDefault(),
-                UriSchema = "",
-                Networks = "",
-                OAuth2Email = "",
-                AccessToken = "",
-                RefreshToken = "",
-                IsActive = true,
-            };
+            _newStorage = Storage.Default();
 
             _editContext = new EditContext(_newStorage);
 

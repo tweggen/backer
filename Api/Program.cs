@@ -573,7 +573,7 @@ app.MapPost("/api/hannibal/v1/storages", async (
     .WithOpenApi();
 
 
-app.MapDelete("/api/hannibal/v1/storage/{id}", async (
+app.MapDelete("/api/hannibal/v1/storages/{id}", async (
         IHannibalService higginsService,
         int id,
         CancellationToken cancellationToken) =>

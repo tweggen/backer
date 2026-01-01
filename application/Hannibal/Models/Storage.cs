@@ -40,5 +40,21 @@ public class Storage
     }
     
     public bool IsActive { get; set; }
+
+
+    static public Storage Default()
+    {
+        return new Storage()
+        {
+            UserId = "",
+            Technology = Hannibal.Models.Technologies.GetTechnologies().FirstOrDefault(),
+            UriSchema = "",
+            Networks = "",
+            OAuth2Email = "",
+            AccessToken = "",
+            RefreshToken = "",
+            IsActive = true,
+        };
+    }
     
 }
