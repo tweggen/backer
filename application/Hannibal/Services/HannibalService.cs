@@ -21,6 +21,7 @@ public partial class HannibalService : IHannibalService
     private readonly HannibalContext _context;
     private readonly ILogger<HannibalService> _logger;
     private readonly HannibalServiceOptions _options;
+    private readonly OAuthOptions _oauthOptions;
     private readonly IHubContext<HannibalHub> _hannibalHub;
     private readonly IHttpContextAccessor _httpContextAccessor;
     
@@ -34,6 +35,7 @@ public partial class HannibalService : IHannibalService
         HannibalContext context,
         ILogger<HannibalService> logger,
         IOptions<HannibalServiceOptions> options,
+        IOptions<OAuthOptions> oauthOptions,
         IHubContext<HannibalHub> hannibalHub,
         UserManager<IdentityUser> userManager,
         IHttpContextAccessor httpContextAccessor,
@@ -42,6 +44,7 @@ public partial class HannibalService : IHannibalService
         _context = context;
         _logger = logger;
         _options = options.Value;
+        _oauthOptions = oauthOptions.Value;
         _hannibalHub = hannibalHub;
         _userManager = userManager;
         _httpContextAccessor = httpContextAccessor;
@@ -66,6 +69,32 @@ public partial class HannibalService : IHannibalService
         }
 
         return _currentUser;
+    }
+
+
+    public async Task<TriggerOAuth2Result> TriggerOAuth2Async(
+        OAuth2Params authParams, CancellationToken cancellationToken)
+    {
+        if (!_oauthOptions.Providers.TryGetValue(authParams.Provider, out var provider))
+        {
+            throw new KeyNotFoundException("provider not found");
+        }
+
+        var oauth2Client = new OAuth2.Client.Impl.WindowsLiveClient(
+            new OAuth2.Infrastructure.RequestFactory(),
+            new OAuth2.Configuration.ClientConfiguration
+            {
+                ClientId = provider.ClientId.Trim(),
+                ClientSecret = provider.ClientSecret.Trim(),
+                RedirectUri = "https://api.essentialvault.de/api/hannibal/v1/oauth2/microsoft",
+                Scope = "profile email"
+            });
+        return new()
+        {
+            RedirectUrl = await oauth2Client.GetLoginLinkUriAsync(
+                "SomeStateValueYouWantToUse", 
+                cancellationToken)
+        };
     }
 
 

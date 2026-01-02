@@ -13,6 +13,11 @@ public interface IHannibalService
     public Task<IdentityUser?> GetUserAsync(
         int id,
         CancellationToken cancellationToken);
+
+    public Task<TriggerOAuth2Result> TriggerOAuth2Async(
+        OAuth2Params authParams,
+        CancellationToken cancellationToken);
+    
     #endregion
     
     #region Endpoints

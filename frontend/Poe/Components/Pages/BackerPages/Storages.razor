@@ -143,7 +143,29 @@ else
 
     private async Task _onOAuth(Hannibal.Models.Storage? sto)
     {
-        // TXWTOOD: Trigger authentication flow.
+        if (null == sto)
+        {
+            // TXWTODO: Ignore call or display error.
+            return;
+        }
+        try
+        {
+            TriggerOAuth2Result result = await HigginsServiceClient.TriggerOAuth2Async(
+                new OAuth2Params()
+                {
+                    UserLogin = sto.OAuth2Email,
+                    Provider = sto.Technology
+                },
+                CancellationToken.None);
+            Navigation.NavigateTo(result.RedirectUrl, forceLoad: true);
+        }
+        catch (Exception e)
+        {
+            /*
+             * Wasn't able to fulfile request.
+             */
+            // TXWTODO: Display error.
+        }
     }
 
     

@@ -20,6 +20,9 @@ public static class DependencyInjection
             .GetSection("HannibalService")
             .Get<HannibalServiceOptions>();
         
+        services.Configure<OAuthOptions>( 
+            configuration.GetSection("OAuth2"));
+        
         services.Configure<HannibalServiceOptions>(
             configuration.GetSection("HannibalService"));
 

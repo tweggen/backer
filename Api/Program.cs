@@ -22,6 +22,7 @@ using Tools;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration.AddUserSecrets<Program>();
 
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
@@ -289,6 +290,34 @@ app.MapDelete("/api/authb/v1/deleteUser", async (
     .WithName("DeleteUser")
     .WithOpenApi();
 
+
+app.MapPost("/api/hanniobal/v1/users/triggerOAuth2", async (
+    IHannibalService hannibalService,
+    OAuth2Params oauth2Params,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var result = await hannibalService.TriggerOAuth2Async(oauth2Params, cancellationToken);
+        return Results.Ok(result);
+    }
+    catch (Exception e)
+    {
+        return Results.NotFound();
+    }
+})
+    .RequireAuthorization()
+    .WithName("TriggerOAuth2")
+    .WithOpenApi();
+
+
+app.MapGet("/api/hannibal/v1/oauth2/microsoft", async (
+        IHannibalService higginsService,
+        CancellationToken cancellationToken) =>
+    {
+        return Results.Ok();
+    })
+    .WithName("MicrosoftOAuthCallback");
 #endregion
 
 

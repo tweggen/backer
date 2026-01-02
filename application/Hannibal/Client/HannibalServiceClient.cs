@@ -95,6 +95,19 @@ public partial class HannibalServiceClient : IHannibalServiceClient
             return null;
         }
     }
+
+
+    public async Task<TriggerOAuth2Result> TriggerOAuth2Async(
+        OAuth2Params oAuth2Params,
+        CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.PostAsJsonAsync($"/api/hanniobal/v1/users/triggerOAuth2",
+            oAuth2Params, cancellationToken);
+        // TXWTODO: response most likely will be a redirect that should be forwarded to the client.
+        response.EnsureSuccessStatusCode();
+ 
+        return new();
+    }
     
     
     public Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationToken)

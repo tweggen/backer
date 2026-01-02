@@ -16,6 +16,11 @@ public interface IHannibalServiceClient
      *     Note that for standard users values other than -1 are not supported.
      */
     public Task<IdentityUser?> GetUserAsync(int id, CancellationToken cancellationToken);
+
+    public Task<TriggerOAuth2Result> TriggerOAuth2Async(
+        OAuth2Params oAuth2Params,
+        CancellationToken cancellationToken);
+
     #endregion
     
     #region Endpoints
