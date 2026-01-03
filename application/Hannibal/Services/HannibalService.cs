@@ -146,7 +146,12 @@ public partial class HannibalService : IHannibalService
             {
                 var userInfo = await oauth2Client.GetUserInfoAsync(
                     new NameValueCollection() { { "code", code } });
-                return new ProcessOAuth2Result();
+                return new ProcessOAuth2Result()
+                {
+                    AccessToken = oauth2Client.AccessToken,
+                    RefreshToken = oauth2Client.RefreshToken,
+                    ExpiresAt = oauth2Client.ExpiresAt
+                };
             }
             catch(Exception ex)
             {
