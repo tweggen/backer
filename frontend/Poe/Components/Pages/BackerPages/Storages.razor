@@ -24,6 +24,7 @@ else
             <th>&nbsp;</th>
             <th>Technology</th>
             <th>UriScheme</th>
+            <th>Account</th>
             <th>Networks</th>
             <th>&nbsp;</th>
         </tr>
@@ -37,6 +38,7 @@ else
                         <td>&nbsp;</td>
                         <td><InputText id="technology" class="form-control" @bind-Value="_editingStorage.Technology" /></td>
                         <td><InputText id="urischeme" @bind-Value="_editingStorage.UriSchema" class="form-control"/></td>
+                        <td><InputText id="useremail" @bind-Value="_editingStorage.OAuth2Email" class="form-control"/></td>
                         <td><InputText id="networks" @bind-Value="_editingStorage.Networks" class="form-control"/></td>
                         <td>
                             <button @onclick="_onEditStorageSubmit" id="submiteditstorage" class="close">✔</button>
@@ -50,11 +52,16 @@ else
                     <td><button id="starteditstorage" @onclick="() => _onEdit(sto)" aria-label="edit">✏</button></td>
                     <td>@sto.Technology</td>
                     <td>@sto.UriSchema</td>
+                    <td>@sto.OAuth2Email</td>
                     <td>@sto.Networks</td>
                     <td>
                         @if (String.IsNullOrWhiteSpace(sto.RefreshToken))
                         {
                             <button @onclick="() => _onOAuth(sto)">Authenticate...</button>
+                        }
+                        else
+                        {
+                            <button @onclick="() => _onOAuth(sto)">Re-Authenticate...</button>
                         }
                         <button @onclick="() => _onDelete(sto)" class="close" aria-label="delete">🗑️</button>
                     </td>

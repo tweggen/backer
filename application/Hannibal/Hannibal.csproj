@@ -19,11 +19,11 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="9.0.5" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-    <PackageReference Include="OAuth2" Version="0.10.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.4" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\OAuth2\OAuth2\OAuth2.csproj" />
     <ProjectReference Include="..\..\Tools\Tools.csproj" />
   </ItemGroup>
 

@@ -1,5 +1,7 @@
 using Hannibal.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Endpoint = Hannibal.Models.Endpoint;
 
 namespace Hannibal.Services;
 
@@ -14,11 +16,21 @@ public interface IHannibalService
         int id,
         CancellationToken cancellationToken);
 
+    #endregion
+    
+    
+    #region OAuth2
+    
     public Task<TriggerOAuth2Result> TriggerOAuth2Async(
         OAuth2Params authParams,
         CancellationToken cancellationToken);
+
+    public Task<ProcessOAuth2Result> ProcessOAuth2ResultAsync(
+        HttpRequest httpRequest,
+        CancellationToken cancellationToken);
     
     #endregion
+    
     
     #region Endpoints
     /*

@@ -1,6 +1,8 @@
 ﻿using Hannibal.Models;
 using Hannibal.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Endpoint = Hannibal.Models.Endpoint;
 
 namespace Hannibal.Client;
 
@@ -17,6 +19,11 @@ public interface IHannibalServiceClient
      */
     public Task<IdentityUser?> GetUserAsync(int id, CancellationToken cancellationToken);
 
+    #endregion
+    
+    
+    #region OAuth2
+    
     public Task<TriggerOAuth2Result> TriggerOAuth2Async(
         OAuth2Params oAuth2Params,
         CancellationToken cancellationToken);

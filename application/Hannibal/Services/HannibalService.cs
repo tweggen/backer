@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using Hannibal.Configuration;
@@ -72,30 +73,93 @@ public partial class HannibalService : IHannibalService
     }
 
 
-    public async Task<TriggerOAuth2Result> TriggerOAuth2Async(
-        OAuth2Params authParams, CancellationToken cancellationToken)
+    private OAuth2.Client.Impl.MicrosoftGraphClient _createMicrosoftOAuthClient()
     {
-        if (!_oauthOptions.Providers.TryGetValue(authParams.Provider, out var provider))
+        if (!_oauthOptions.Providers.TryGetValue("onedrive", out var provider))
         {
-            throw new KeyNotFoundException("provider not found");
+            throw new KeyNotFoundException("provider onedrive not found");
         }
 
-        var oauth2Client = new OAuth2.Client.Impl.WindowsLiveClient(
+        var oauth2Client = new OAuth2.Client.Impl.MicrosoftGraphClient(
             new OAuth2.Infrastructure.RequestFactory(),
             new OAuth2.Configuration.ClientConfiguration
             {
                 ClientId = provider.ClientId.Trim(),
                 ClientSecret = provider.ClientSecret.Trim(),
-                RedirectUri = "https://api.essentialvault.de/api/hannibal/v1/oauth2/microsoft",
-                Scope = "profile email"
+                RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/microsoft",
+                Scope = "User.Read"
             });
-        return new()
-        {
-            RedirectUrl = await oauth2Client.GetLoginLinkUriAsync(
-                "SomeStateValueYouWantToUse", 
-                cancellationToken)
-        };
+        return oauth2Client;
     }
+    
+
+    public async Task<TriggerOAuth2Result> TriggerOAuth2Async(
+        OAuth2Params authParams, CancellationToken cancellationToken)
+    {
+        if (!_oauthOptions.Providers.TryGetValue(authParams.Provider, out var provider))
+        {
+            throw new KeyNotFoundException($"provider {authParams.Provider} not found");
+        }
+
+        switch (authParams.Provider)
+        {
+            case "onedrive":
+            {
+                var oauth2Client = _createMicrosoftOAuthClient();
+                return new()
+                {
+                    RedirectUrl = await oauth2Client.GetLoginLinkUriAsync(
+                        "SomeStateValueYouWantToUse",
+                        cancellationToken)
+                };
+            }
+            default:
+                throw new KeyNotFoundException("provider not found.");
+        }
+    }
+
+
+    public async Task<ProcessOAuth2Result> ProcessOAuth2ResultAsync(
+        HttpRequest httpRequest,
+        CancellationToken cancellationToken)
+    {
+        var oauth2Client = _createMicrosoftOAuthClient();
+        if (httpRequest.Query.ContainsKey("error"))
+        {
+            string? errorString = httpRequest.Query["error"];
+            /*
+             * This was not successful. Display the error.
+             */
+            return new ProcessOAuth2Result()
+            {
+                Error = httpRequest.Query["error"],
+                ErrorDescription = httpRequest.Query["error_description"]
+            };
+        }
+        else
+        {
+            /*
+             * This was successful. Read the user info and the tokens.
+             */
+            var code = httpRequest.Query["code"];
+            try
+            {
+                var userInfo = await oauth2Client.GetUserInfoAsync(
+                    new NameValueCollection() { { "code", code } });
+                return new ProcessOAuth2Result();
+            }
+            catch(Exception ex)
+            {
+                return new ProcessOAuth2Result()
+                {
+                    Error = "Unable to read user info",
+                    ErrorDescription = $"Exception: {ex}"
+                };
+            }
+                
+        }
+    }
+
 
 
     private async Task _obtainUser()

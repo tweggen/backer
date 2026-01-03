@@ -311,15 +311,26 @@ app.MapPost("/api/hanniobal/v1/users/triggerOAuth2", async (
     .WithOpenApi();
 
 
+#region OAuth2
 app.MapGet("/api/hannibal/v1/oauth2/microsoft", async (
+        HttpRequest request,
         IHannibalService higginsService,
         CancellationToken cancellationToken) =>
     {
+        try
+        {
+            var result = await higginsService.ProcessOAuth2ResultAsync(request, cancellationToken);
+        }
+        catch (Exception e)
+        {
+            
+        }
         return Results.Ok();
     })
     .WithName("MicrosoftOAuthCallback");
 #endregion
 
+#endregion
 
 #region Rules
 /*

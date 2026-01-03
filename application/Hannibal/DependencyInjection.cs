@@ -16,16 +16,20 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var hannibalOptions = configuration
-            .GetSection("HannibalService")
-            .Get<HannibalServiceOptions>();
-        
         services.Configure<OAuthOptions>( 
             configuration.GetSection("OAuth2"));
         
         services.Configure<HannibalServiceOptions>(
             configuration.GetSection("HannibalService"));
 
+        var hannibalOptions = configuration
+            .GetSection("HannibalService")
+            .Get<HannibalServiceOptions>();
+        
+        var oauth2Options = configuration
+            .GetSection("OAuth2")
+            .Get<OAuthOptions>();
+        
         try
         {
             var connectionString = Environment.GetEnvironmentVariable("HANNIBAL_DB_CONNECTION");
