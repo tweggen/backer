@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\OAuth2\OAuth2\OAuth2.csproj" />
     <ProjectReference Include="..\..\Tools\Tools.csproj" />
   </ItemGroup>
 
