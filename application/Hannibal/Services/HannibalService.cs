@@ -109,7 +109,7 @@ public partial class HannibalService : IHannibalService
                 return new()
                 {
                     RedirectUrl = await oauth2Client.GetLoginLinkUriAsync(
-                        "SomeStateValueYouWantToUse",
+                        /* state */ authParams.AfterAuthUri,
                         cancellationToken)
                 };
             }
@@ -146,19 +146,24 @@ public partial class HannibalService : IHannibalService
             {
                 var userInfo = await oauth2Client.GetUserInfoAsync(
                     new NameValueCollection() { { "code", code } });
+                string afterAuthUri = oauth2Client.State;
                 return new ProcessOAuth2Result()
                 {
                     AccessToken = oauth2Client.AccessToken,
                     RefreshToken = oauth2Client.RefreshToken,
-                    ExpiresAt = oauth2Client.ExpiresAt
+                    ExpiresAt = oauth2Client.ExpiresAt,
+                    AfterAuthUri = afterAuthUri
                 };
+                // TXWTODO: This still needs to put the access token for user into db
             }
             catch(Exception ex)
             {
+                string afterAuthUri = oauth2Client.State;
                 return new ProcessOAuth2Result()
                 {
                     Error = "Unable to read user info",
-                    ErrorDescription = $"Exception: {ex}"
+                    ErrorDescription = $"Exception: {ex}",
+                    AfterAuthUri = afterAuthUri
                 };
             }
                 

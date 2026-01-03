@@ -8,4 +8,6 @@ public class ProcessOAuth2Result
     public string? AccessToken { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime ExpiresAt { get; set; }
+
+    public string AfterAuthUri { get; set; }
 }

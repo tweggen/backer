@@ -320,9 +320,11 @@ app.MapGet("/api/hannibal/v1/oauth2/microsoft", async (
         try
         {
             var result = await higginsService.ProcessOAuth2ResultAsync(request, cancellationToken);
+            
             /*
              * After return, we need to have a redirect to the original url.
              */
+            return Results.Redirect(result.AfterAuthUri, permanent: false);
         }
         catch (Exception e)
         {

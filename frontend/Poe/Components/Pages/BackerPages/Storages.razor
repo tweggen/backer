@@ -161,7 +161,8 @@ else
                 new OAuth2Params()
                 {
                     UserLogin = sto.OAuth2Email,
-                    Provider = sto.Technology
+                    Provider = sto.Technology,
+                    AfterAuthUri = Navigation.Uri
                 },
                 CancellationToken.None);
             Navigation.NavigateTo(result.RedirectUrl, forceLoad: true);
