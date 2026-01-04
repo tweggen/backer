@@ -334,6 +334,30 @@ app.MapGet("/api/hannibal/v1/oauth2/microsoft", async (
         return Results.Ok();
     })
     .WithName("MicrosoftOAuthCallback");
+
+    app.MapGet("/api/hannibal/v1/oauth2/dropbox", async (
+            HttpRequest request,
+            IHannibalService higginsService,
+            CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var result = await higginsService.ProcessOAuth2ResultAsync(
+                    request, "dropbox", cancellationToken);
+                
+                /*
+                 * After return, we need to have a redirect to the original url.
+                 */
+                return Results.Redirect(result.AfterAuthUri, permanent: false);
+            }
+            catch (Exception e)
+            {
+                
+            }
+            return Results.Ok();
+        })
+        .WithName("DropboxOAuthCallback");
+
 #endregion
 
 #endregion

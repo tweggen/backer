@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OAuth2.Client;
 using Endpoint = Hannibal.Models.Endpoint;
 
 namespace Hannibal.Services;
@@ -97,6 +98,45 @@ public partial class HannibalService : IHannibalService
     }
     
 
+    private OAuth2.Client.Impl.DropboxClient _createDropboxOAuthClient()
+    {
+        if (!_oauthOptions.Providers.TryGetValue("dropbox", out var provider))
+        {
+            throw new KeyNotFoundException("provider dropbox not found");
+        }
+
+        var oauth2Client = new OAuth2.Client.Impl.DropboxClient(
+            new OAuth2.Infrastructure.RequestFactory(),
+            new OAuth2.Configuration.ClientConfiguration
+            {
+                ClientId = provider.ClientId.Trim(),
+                ClientSecret = provider.ClientSecret.Trim(),
+                RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/dropbox",
+                Scope = "account_info.read files.metadata.write files.metadata.read files.content.write files.content.read"
+            });
+        return oauth2Client;
+    }
+
+
+    private OAuth2Client _createOAuth2Client(string provider)
+    {
+        OAuth2Client oauth2Client;
+        switch (provider)
+        {
+            case "onedrive":
+                oauth2Client = _createMicrosoftOAuthClient();
+                break;
+            case "dropbox":
+                oauth2Client = _createDropboxOAuthClient();
+                break;
+            default:
+                throw new KeyNotFoundException("provider not found.");
+        }
+
+        return oauth2Client;
+    }
+    
+
     public async Task<TriggerOAuth2Result> TriggerOAuth2Async(
         OAuth2Params authParams, CancellationToken cancellationToken)
     {
@@ -113,22 +153,16 @@ public partial class HannibalService : IHannibalService
             returnUrl: authParams.AfterAuthUri, 
             cancellationToken );
 
-        switch (authParams.Provider)
+        OAuth2.Client.OAuth2Client? oauth2Client = _createOAuth2Client(authParams.Provider);
+        
+        return new()
         {
-            case "onedrive":
-            {
-                var oauth2Client = _createMicrosoftOAuthClient();
-                return new()
-                {
-                    RedirectUrl = await oauth2Client.GetLoginLinkUriAsync(
-                        stateId.ToString(),
-                        cancellationToken)
-                };
-            }
-            default:
-                throw new KeyNotFoundException("provider not found.");
-        }
+            RedirectUrl = await oauth2Client.GetLoginLinkUriAsync(
+                stateId.ToString(),
+                cancellationToken)
+        };
     }
+
 
 
     public async Task<ProcessOAuth2Result> ProcessOAuth2ResultAsync(
@@ -136,7 +170,8 @@ public partial class HannibalService : IHannibalService
         string callbackProvider,
         CancellationToken cancellationToken)
     {
-        var oauth2Client = _createMicrosoftOAuthClient();
+        OAuth2.Client.OAuth2Client? oauth2Client = _createOAuth2Client(callbackProvider);
+
         if (httpRequest.Query.ContainsKey("error"))
         {
             string? errorString = httpRequest.Query["error"];
