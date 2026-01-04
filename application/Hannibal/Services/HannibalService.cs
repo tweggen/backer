@@ -206,16 +206,10 @@ public partial class HannibalService : IHannibalService
                 if (null == accessToken) accessToken = "";
                 var refreshToken = oauth2Client.RefreshToken;
                 if (null == refreshToken) refreshToken = "";
-                
-                _context.Attach(sto); 
-
                 sto.AccessToken = accessToken;
                 sto.RefreshToken = refreshToken;
-
-                _context.Entry(sto).Property(x => x.AccessToken).IsModified = true; 
-                _context.Entry(sto).Property(x => x.RefreshToken).IsModified = true;
                 
-                await _context.SaveChangesAsync(cancellationToken);
+                await UpdateStorageAsync(sto.Id, sto, cancellationToken);
 
                 return new ProcessOAuth2Result()
                 {

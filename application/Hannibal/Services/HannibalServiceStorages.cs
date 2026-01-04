@@ -67,19 +67,27 @@ public partial class HannibalService
         {
             throw new KeyNotFoundException($"No storage found for id {id}");
         }
-
+        
         // Verify the new user exists if it's being changed
         if (updatedStorage.UserId != storage.UserId)
         {
             throw new InvalidDataException($"Unable to change user id");
         }
 
-        // Update other properties
         storage.Technology = updatedStorage.Technology;
         storage.UriSchema = updatedStorage.UriSchema;
         storage.Networks = updatedStorage.Networks;
+        storage.OAuth2Email = updatedStorage.OAuth2Email;
+        storage.AccessToken = updatedStorage.AccessToken;
+        storage.RefreshToken = updatedStorage.RefreshToken;
 
         await _context.SaveChangesAsync(cancellationToken);
+        
+        /*
+         * At this point we must inform the local instancecs that the storage
+         * config has changed.
+         */
+        
         return storage;
     }
 

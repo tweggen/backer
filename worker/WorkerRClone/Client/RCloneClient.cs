@@ -8,6 +8,7 @@ namespace WorkerRClone.Client;
 public class RCloneClient
 {
     private HttpClient _httpClient;
+    private string _storagesConfigString = "";
 
     public RCloneClient(HttpClient httpClient)
     {
@@ -15,6 +16,16 @@ public class RCloneClient
     }
 
 
+    /**
+     * Set the string defining the storages for the job to execute.
+     * Caution, the list of storages is global and shall not be modified.
+     */
+    public void SetStoragesConfigString(string configString)
+    {
+        _storagesConfigString = configString;
+    }
+    
+        
     public async Task Quit(CancellationToken cancellationToken, int exitCode = 0)
     {
         JobQuitParams jobQuitParamsParams = new()
@@ -109,6 +120,38 @@ public class RCloneClient
             return JsonSerializer.Deserialize<JobStatsResult>(
                 responseString, 
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+        }
+    }
+
+
+    /**
+     * Send a configuration of remote to the rclone server.
+     */
+    public async Task<CreateConfigResult> CreateConfigAsync(
+        string remoteType,
+        string remoteName,
+        SortedDictionary<string, string> remoteParameters,
+        RemoteOptions remoteOptions,
+        CancellationToken cancellationToken)
+    {
+        JobCreateConfigParams jobCreateConfigParams = new()
+        {
+            Name = remoteName,
+            Parameters = remoteParameters,
+            Type = remoteType,
+            Opt = remoteOptions
+        };
+
+        JsonContent content = JsonContent.Create(jobCreateConfigParams, typeof(JobCreateConfigParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/config/create", content, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new CreateConfigResult();
         }
         else
         {
@@ -261,3 +304,4 @@ public class RCloneClient
     }
 
 }
+

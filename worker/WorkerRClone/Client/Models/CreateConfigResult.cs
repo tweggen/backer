@@ -1,0 +1,6 @@
+namespace WorkerRClone.Client.Models;
+
+public class CreateConfigResult
+{
+    
+}

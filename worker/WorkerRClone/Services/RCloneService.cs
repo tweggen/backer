@@ -65,6 +65,10 @@ public class RCloneService : BackgroundService
     private readonly INetworkIdentifier _networkIdentifier;
     
     private HashSet<string> _setRemotes = new();
+
+    private RCloneStorages? _rCloneStorages = null;
+
+    private List<Storage>? _storages = null;
     
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -286,20 +290,36 @@ public class RCloneService : BackgroundService
             }
         }
     }
+
+
+    private async Task _configureRCloneStorage(RCloneClient rcloneClient,
+        Storage storage, CancellationToken cancellationToken)
+    {
+        _logger.LogDebug($"RCloneService: _configureRCloneStorage called for storage {storage.UriSchema}.");
+        var parameters = _rCloneStorages.GetRCloneStorageConfig(storage.Technology);
+        await rcloneClient.CreateConfigAsync(storage.Technology, storage.UriSchema,
+            parameters, new RemoteOptions(), cancellationToken);
+    }
     
-    
+
     private async Task<AsyncResult> _startJob(Job job, CancellationToken cancellationToken)
     {
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
+        
         try
         {
             _logger.LogInformation($"Starting job {job.Id}");
+
+            // TXWTODO: Compare the configuration to the storages listed before.
             
             /*
              * Resolve the endpoints.
              */
             var sourceEndpoint = job.SourceEndpoint;
             var destinationEndpoint = job.DestinationEndpoint;
+
+            await _configureRCloneStorage(rcloneClient, sourceEndpoint.Storage, cancellationToken);
+            await _configureRCloneStorage(rcloneClient, destinationEndpoint.Storage, cancellationToken);
 
             string sourceUri = $"{sourceEndpoint.Storage.UriSchema}:/{sourceEndpoint.Path}";
             string destinationUri = $"{destinationEndpoint.Storage.UriSchema}:/{destinationEndpoint.Path}";
@@ -467,6 +487,15 @@ public class RCloneService : BackgroundService
         _logger.LogInformation("rclone terminates.");
     }
 
+
+    private async Task _fetchStorageOptions(CancellationToken cancellationToken)
+    {
+        /*
+         * Update storage options. Not supported during runtime, we do it for each job
+         * anyway.
+         */
+    }
+    
 
     private async Task _startRCloneProcess(CancellationToken cancellationToken)
     {
@@ -688,6 +717,14 @@ public class RCloneService : BackgroundService
                     await _triggerFetchJob(CancellationToken.None);
                 }
             });
+            
+            _hannibalConnection.On("NewStorageOptionsAvailable", async () =>
+            {
+                if (_serviceState == RCloneServiceState.ServiceState.Running)
+                {
+                    await _fetchStorageOptions(CancellationToken.None);
+                }
+            });
         }
     }
 
@@ -763,7 +800,7 @@ public class RCloneService : BackgroundService
         }
     }
     
-
+    
     private async Task _toCheckOnline()
     {
         _serviceState = RCloneServiceState.ServiceState.CheckOnline;
@@ -773,6 +810,14 @@ public class RCloneService : BackgroundService
             using var scope = _serviceScopeFactory.CreateScope();
             var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
             var user = await hannibalService.GetUserAsync(-1, CancellationToken.None);
+
+            /*
+             * Read the current storage configuration to have up to date access tokens etc. .
+             * TXWTODO: If auth doesn't work, ask server or ui to redirect client on storage
+             * authentication.
+             */
+            _storages = new List<Storage>(await hannibalService.GetStoragesAsync(CancellationToken.None));
+            _rCloneStorages = RCloneStorages.CreateFromStorages(_storages);
             
             /*
              * OK, no exception, online connection works. So progress.
@@ -959,8 +1004,18 @@ public class RCloneService : BackgroundService
 
         return result;
     }
-    
 
+
+    public async Task<SetStorageOptionsResult> SetStorageOptions(StorageOptions storageOptions, CancellationToken cancellationToken)
+    {
+        if (null == storageOptions)
+        {
+            throw new ArgumentNullException(nameof(storageOptions));
+        }
+
+        return new();
+    }
+    
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation($"StartAsync: Starting RCloneService with options {_options}");

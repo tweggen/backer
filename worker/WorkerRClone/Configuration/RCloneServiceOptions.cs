@@ -1,3 +1,5 @@
+using Hannibal.Models;
+
 namespace WorkerRClone.Configuration;
 
 

@@ -246,6 +246,20 @@ app.MapPut("/config", async (
 });
 
 
+app.MapPut("/storages", async (
+    HttpContext ctx,
+    RCloneService rcloneService,
+    [FromBody] StorageOptions storageOptions,
+    ConfigHelper<RCloneServiceOptions> configHelper,
+    CancellationToken cancellationToken
+) =>
+{
+    await rcloneService.SetStorageOptions(storageOptions, cancellationToken);
+    
+    return Results.Ok();
+});
+
+
 app.MapGet("/status", async (
     HttpContext ctx,
     RCloneService rcloneService,
