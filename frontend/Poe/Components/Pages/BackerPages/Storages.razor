@@ -55,7 +55,7 @@ else
                     <td>@sto.OAuth2Email</td>
                     <td>@sto.Networks</td>
                     <td>
-                        @if (String.IsNullOrWhiteSpace(sto.RefreshToken))
+                        @if (String.IsNullOrWhiteSpace(sto.AccessToken))
                         {
                             <button @onclick="() => _onOAuth(sto)">Authenticate...</button>
                         }

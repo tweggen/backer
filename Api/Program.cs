@@ -319,7 +319,8 @@ app.MapGet("/api/hannibal/v1/oauth2/microsoft", async (
     {
         try
         {
-            var result = await higginsService.ProcessOAuth2ResultAsync(request, cancellationToken);
+            var result = await higginsService.ProcessOAuth2ResultAsync(
+                request, "onedrive", cancellationToken);
             
             /*
              * After return, we need to have a redirect to the original url.

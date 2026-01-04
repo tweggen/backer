@@ -67,6 +67,7 @@ public static class DependencyInjection
             // Configure identity options here
         });
         
+        services.AddScoped<IOAuthStateService, OAuthStateService>();
         services.AddScoped<IHannibalService, HannibalService>();
         
         return services;

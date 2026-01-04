@@ -27,7 +27,7 @@ public class HannibalContext : IdentityDbContext
     public DbSet<RuleState> RuleStates { get; set; }
     public DbSet<Storage> Storages { get; set; }
     public DbSet<Endpoint> Endpoints { get; set; }
-
+    public DbSet<OAuthState> OAuthStates { get; set; }
 
 
     
@@ -66,7 +66,15 @@ public class HannibalContext : IdentityDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        // modelBuilder.ApplyConfiguration<HannibalJobConfiguration>(new HannibalJobConfiguration());
+        modelBuilder.Entity<OAuthState>(entity =>
+        {
+            entity.ToTable("oauth_state");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.UserId).IsRequired();
+            entity.Property(x => x.Provider).IsRequired();
+            entity.Property(x => x.ReturnUrl).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+        });
     }
     
     
