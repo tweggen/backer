@@ -32,9 +32,27 @@ if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     });
 }
 
+string appName = "Backer";
+var env = builder.Environment;
+bool isInteractiveDev = LogPathHelper.IsInteractiveDev(env);
+string logDir = LogPathHelper.GetLogDir(appName, isInteractiveDev);
+
+// Create directory (and fallback when appropriate)
+logDir = LogPathHelper.EnsureDirectory(logDir, appName, isService: !isInteractiveDev);
+
+// Build final file path (use rolling file)
+string logPath = Path.Combine(logDir, "service-.log");
+
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.File("C:\\ProgramData\\Backer\\service.log")
+    .MinimumLevel.Information()
+    .WriteTo.File(
+        path: logPath,
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        shared: true) // useful when multiple processes/threads may write
+    .WriteTo.Console() // great for dev & container logs
     .CreateLogger();
+
 builder.Host.UseSerilog();
 
 // Add basic services
