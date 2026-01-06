@@ -45,6 +45,14 @@ public class AutoAuthHandler : DelegatingHandler
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             var newToken = await _obtainTokenAsync(_serviceProvider, cancellationToken); // Get token with credentials
+            if (string.IsNullOrWhiteSpace(newToken))
+            {
+                /*
+                 * If we could not login and acquire a token, we unfortunately need to pass through the auth problem.
+                 */
+                return new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized) { RequestMessage = request };
+                 
+            }
             _staticTokenProvider.SetToken(newToken);
             
             System.Console.WriteLine($"Set new jwt token: {newToken}");

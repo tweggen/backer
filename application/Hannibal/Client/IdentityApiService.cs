@@ -188,10 +188,23 @@ public class IdentityApiService : IIdentityApiService
         }
         else
         {
-            // Try to parse error details
-            var problemDetails =
-                await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken)
-                ?? new ProblemDetails { Title = "Token Login failed", Status = (int)response.StatusCode };
+            ProblemDetails? problemDetails = null;
+            try
+            {
+                /*
+                 * Try to parse error details
+                 */
+                problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken);
+                    
+            }
+            catch (Exception e)
+            {
+            }
+
+            if (null == problemDetails)
+            {
+                problemDetails = new ProblemDetails { Title = "Token Login failed", Status = (int)response.StatusCode };
+            }
 
             return TypedResults.Problem(problemDetails);
         }

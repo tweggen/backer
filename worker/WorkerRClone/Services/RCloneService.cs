@@ -811,6 +811,15 @@ public class RCloneService : BackgroundService
             var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
             var user = await hannibalService.GetUserAsync(-1, CancellationToken.None);
 
+            if (null == user)
+            {
+                /*
+                 * This means we cannot authenticate using username and password.
+                 * So go back to _toWaitConfig()
+                 */
+                _toWaitConfig();
+            }
+
             /*
              * Read the current storage configuration to have up to date access tokens etc. .
              * TXWTODO: If auth doesn't work, ask server or ui to redirect client on storage
