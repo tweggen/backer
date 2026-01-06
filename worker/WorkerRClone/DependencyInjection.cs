@@ -1,8 +1,7 @@
-using Hannibal.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using WorkerRClone.Configuration;
+using WorkerRClone.Services;
 
 namespace WorkerRClone;
 
@@ -17,7 +16,6 @@ public static class DependencyInjection
 
 
         services.AddHostedService<RCloneService>();  
-        // services.AddHostedService<IBackgroundWorker, RCloneService>();
         
         return services;
     }

@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using System.Threading.Channels;
 using Hannibal.Client;
 using Hannibal.Models;
-using Hannibal.Services;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,11 +17,11 @@ using WorkerRClone.Configuration;
 using WorkerRClone.Models;
 using Result = WorkerRClone.Models.Result;
 
-namespace WorkerRClone;
+namespace WorkerRClone.Services;
 
 public class RCloneService : BackgroundService
 {
-    private Models.RCloneServiceState.ServiceState _serviceState = RCloneServiceState.ServiceState.Starting;
+    private RCloneServiceState _state = new();
 
     enum PendingRequest
     {
@@ -93,9 +92,9 @@ public class RCloneService : BackgroundService
         {
             _logger.LogInformation($"RCloneService: Options changed to {_options}.");
 
-            if (_serviceState == RCloneServiceState.ServiceState.Starting
-                || _serviceState == RCloneServiceState.ServiceState.WaitConfig
-                || _serviceState == RCloneServiceState.ServiceState.WaitStart)
+            if (_state.State == RCloneServiceState.ServiceState.Starting
+                || _state.State == RCloneServiceState.ServiceState.WaitConfig
+                || _state.State == RCloneServiceState.ServiceState.WaitStart)
             {
                 _logger.LogInformation("Using options.");
                 _options = updated;
@@ -109,7 +108,7 @@ public class RCloneService : BackgroundService
             }
             else
             {
-                _logger.LogError($"RCloneService: Options changed while not in WaitConfig state (but {_serviceState}. This is not supported. Ignoring.");
+                _logger.LogError($"RCloneService: Options changed while not in WaitConfig state (but {_state.State}. This is not supported. Ignoring.");
             }
         });
         _hannibalConnection = connections["hannibal"];
@@ -143,7 +142,7 @@ public class RCloneService : BackgroundService
         bool wasStart = false;
         while (!cancellationToken.IsCancellationRequested)
         {
-            switch (_serviceState)
+            switch (_state.State)
             {
                 case RCloneServiceState.ServiceState.Starting:
                 case RCloneServiceState.ServiceState.CheckOnline:
@@ -361,9 +360,9 @@ public class RCloneService : BackgroundService
     private async Task _triggerFetchJob(CancellationToken cancellationToken)
     {
         _logger.LogDebug("RCloneService: _triggerFetchJob called.");
-        if (_serviceState != RCloneServiceState.ServiceState.Running)
+        if (_state.State != RCloneServiceState.ServiceState.Running)
         {
-            _logger.LogDebug($"RCloneService: Spurious call of _triggerFetchJob in state {_serviceState}, ignoring.");
+            _logger.LogDebug($"RCloneService: Spurious call of _triggerFetchJob in state {_state.State}, ignoring.");
             return;
         }
         
@@ -614,7 +613,7 @@ public class RCloneService : BackgroundService
      */
     private async Task _toWaitStop()
     {
-        _serviceState = RCloneServiceState.ServiceState.WaitStop;
+        _state.SetState(RCloneServiceState.ServiceState.WaitStop);
         _logger.LogInformation("RCloneService: Waiting for stop request.");
         
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
@@ -639,9 +638,10 @@ public class RCloneService : BackgroundService
     }
 
 
-    private void _toWaitConfig()
+    private void _toWaitConfig(string reason)
     {
-        _serviceState = RCloneServiceState.ServiceState.WaitConfig;
+        _state.SetState(RCloneServiceState.ServiceState.WaitConfig, reason);
+        
         _logger.LogInformation("RCloneService: Waiting for configuration.");
         
         /*
@@ -652,7 +652,7 @@ public class RCloneService : BackgroundService
 
     private async Task _toStartRClone()
     {
-        _serviceState = RCloneServiceState.ServiceState.StartRCloneProcess;
+        _state.SetState(RCloneServiceState.ServiceState.StartRCloneProcess);
         _logger.LogInformation("RCloneService: Starting rclone process.");
         try
         {
@@ -675,7 +675,7 @@ public class RCloneService : BackgroundService
             {
                 _areOptionsValid = false;
                 _logger.LogError("RCloneService: rclone process did not start.");
-                _toWaitConfig();
+                _toWaitConfig("rclone process did not start.");
                 return;
             }   
         
@@ -686,7 +686,7 @@ public class RCloneService : BackgroundService
         {
             _areOptionsValid = false;
             _logger.LogError($"Exception while starting rclone: {e}");
-            _toWaitConfig();
+            _toWaitConfig("Error starting rclone.");
             return;
         }
     }
@@ -694,7 +694,7 @@ public class RCloneService : BackgroundService
 
     private async Task _toRunning()
     {
-        _serviceState = RCloneServiceState.ServiceState.Running;
+        _state.SetState(RCloneServiceState.ServiceState.Running);
         _logger.LogInformation("RCloneService: Running.");
 
         /*
@@ -712,7 +712,7 @@ public class RCloneService : BackgroundService
         {
             _hannibalConnection.On("NewJobAvailable", async () =>
             {
-                if (_serviceState == RCloneServiceState.ServiceState.Running)
+                if (_state.State == RCloneServiceState.ServiceState.Running)
                 {
                     await _triggerFetchJob(CancellationToken.None);
                 }
@@ -720,7 +720,7 @@ public class RCloneService : BackgroundService
             
             _hannibalConnection.On("NewStorageOptionsAvailable", async () =>
             {
-                if (_serviceState == RCloneServiceState.ServiceState.Running)
+                if (_state.State == RCloneServiceState.ServiceState.Running)
                 {
                     await _fetchStorageOptions(CancellationToken.None);
                 }
@@ -735,7 +735,7 @@ public class RCloneService : BackgroundService
      */
     private async Task _toWaitStart()
     {
-        _serviceState = RCloneServiceState.ServiceState.WaitStart;
+        _state.SetState(RCloneServiceState.ServiceState.WaitStart);
         _logger.LogInformation("RCloneService: ToWaitStart");
         
         /*
@@ -743,7 +743,7 @@ public class RCloneService : BackgroundService
          */
         if (_options == null)
         {
-            _toWaitConfig();
+            _toWaitConfig("No options available.");
         }
         
         /*
@@ -787,7 +787,7 @@ public class RCloneService : BackgroundService
     
     private async Task _toCheckRCloneProcess()
     {
-        _serviceState = RCloneServiceState.ServiceState.CheckRCloneProcess;
+        _state.SetState(RCloneServiceState.ServiceState.CheckRCloneProcess);
         _logger.LogInformation("RCloneService: Checking rclone process.");
         bool haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);
         if (!haveRCloneProcess)
@@ -803,7 +803,7 @@ public class RCloneService : BackgroundService
     
     private async Task _toCheckOnline()
     {
-        _serviceState = RCloneServiceState.ServiceState.CheckOnline;
+        _state.SetState(RCloneServiceState.ServiceState.CheckOnline);
         _logger.LogInformation("RCloneService: Checking online.");
         
         try {
@@ -817,7 +817,7 @@ public class RCloneService : BackgroundService
                  * This means we cannot authenticate using username and password.
                  * So go back to _toWaitConfig()
                  */
-                _toWaitConfig();
+                _toWaitConfig("No or invalid user login information.");
             }
 
             /*
@@ -837,7 +837,7 @@ public class RCloneService : BackgroundService
             _logger.LogError($"Exception while checking online: {e}");
 
             _areOptionsValid = false;
-            _toWaitConfig();
+            _toWaitConfig("Error checking online connection.");
         }
 
     }
@@ -850,7 +850,7 @@ public class RCloneService : BackgroundService
         {
             _logger.LogWarning("RCloneService: No configuration at all.");
         
-            _toWaitConfig();
+            _toWaitConfig("No configuration available.");
             return;
         }
 
@@ -858,7 +858,7 @@ public class RCloneService : BackgroundService
         {
             _logger.LogWarning("RCloneService: Invalidated configuration found.");
         
-            _toWaitConfig();
+            _toWaitConfig("Invalid configuration.");
             return;
         }
         
@@ -870,7 +870,7 @@ public class RCloneService : BackgroundService
         {
             _logger.LogWarning("RCloneService: Configuration incomplete.");
         
-            _toWaitConfig();
+            _toWaitConfig("Incomplete configuration.");
             return;
         }
         
@@ -887,7 +887,7 @@ public class RCloneService : BackgroundService
      */
     public async Task StartJobsAsync(CancellationToken cancellationToken)
     {
-        switch (_serviceState)
+        switch (_state.State)
         {
             case RCloneServiceState.ServiceState.Starting:
             case RCloneServiceState.ServiceState.WaitConfig:
@@ -938,7 +938,7 @@ public class RCloneService : BackgroundService
     {
         _wasUserStop = true;
         
-        switch (_serviceState)
+        switch (_state.State)
         {
             case RCloneServiceState.ServiceState.Starting:
             case RCloneServiceState.ServiceState.WaitConfig:
@@ -1041,7 +1041,7 @@ public class RCloneService : BackgroundService
          * Initially, we wait for the configuration
          * to arrive.
          */
-        _serviceState = RCloneServiceState.ServiceState.WaitConfig;
+        _state.SetState(RCloneServiceState.ServiceState.WaitConfig);
         await _checkConfig();
     }
 
@@ -1074,10 +1074,6 @@ public class RCloneService : BackgroundService
 
     public RCloneServiceState GetState()
     {
-        return new RCloneServiceState()
-        {
-            State = _serviceState,
-            StateString = _serviceState.ToString()
-        };
+        return new RCloneServiceState(_state);
     }
 }

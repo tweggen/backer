@@ -14,8 +14,7 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using Tools;
 using WorkerRClone.Configuration;
-using WorkerRClone.Models;
-
+using WorkerRClone.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -266,7 +265,7 @@ app.MapPut("/config", async (
 
 app.MapPut("/storages", async (
     HttpContext ctx,
-    RCloneService rcloneService,
+    WorkerRClone.Services.RCloneService rcloneService,
     [FromBody] StorageOptions storageOptions,
     ConfigHelper<RCloneServiceOptions> configHelper,
     CancellationToken cancellationToken
@@ -280,7 +279,7 @@ app.MapPut("/storages", async (
 
 app.MapGet("/status", async (
     HttpContext ctx,
-    RCloneService rcloneService,
+    WorkerRClone.Services.RCloneService rcloneService,
     CancellationToken cancellationToken
 ) =>
 {

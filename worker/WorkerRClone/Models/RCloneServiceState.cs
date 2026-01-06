@@ -63,6 +63,30 @@ public class RCloneServiceState
         Exiting
     }
 
-    public RCloneServiceState.ServiceState State { get; set; } = ServiceState.Starting;
+    
+    public RCloneServiceState.ServiceState State { get; private set; }
     public string StateString { get; set; } = "";
+    public string Details { get; set; } = "";
+
+    
+    public void SetState(ServiceState newState, string details = "")
+    {
+        State = newState;
+        StateString = State.ToString();
+        Details = details;
+    }
+
+    
+    public RCloneServiceState(RCloneServiceState o)
+    {
+        State = o.State;
+        StateString = o.StateString;
+        Details = o.Details;
+    }
+
+    
+    public RCloneServiceState()
+    {
+        State = ServiceState.Starting;
+    }
 }
