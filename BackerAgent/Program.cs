@@ -33,11 +33,13 @@ if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 
 string appName = "Backer";
 var env = builder.Environment;
-bool isInteractiveDev = LogPathHelper.IsInteractiveDev(env);
-string logDir = LogPathHelper.GetLogDir(appName, isInteractiveDev);
+Tools.EnvironmentDetector.IsDevelopment = builder.Environment?.IsDevelopment() ?? false;
+
+bool isInteractiveDev = EnvironmentDetector.IsInteractiveDev();
+string logDir = EnvironmentDetector.GetLogDir(appName);
 
 // Create directory (and fallback when appropriate)
-logDir = LogPathHelper.EnsureDirectory(logDir, appName, isService: !isInteractiveDev);
+logDir = EnvironmentDetector.EnsureDirectory(logDir, appName);
 
 // Build final file path (use rolling file)
 string logPath = Path.Combine(logDir, "service-.log");

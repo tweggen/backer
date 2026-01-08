@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 
@@ -20,25 +21,24 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
         string appName = "Backer")
     {
         _logger = logger;
+
+        var configDirectory = EnvironmentDetector.GetConfigDir(appName);
+        EnvironmentDetector.EnsureDirectory(configDirectory, appName);
+        _logger.LogInformation($"Using configDirectory {configDirectory},");
+
+        _configFilePath = Path.Combine(configDirectory, "config.json");
         
-        var programDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            appName);
-
-        _logger.LogInformation($"Using programDataPath {programDataPath},");
-
-        _configFilePath = Path.Combine(programDataPath, "config.json");
-
-        if (!Directory.Exists(programDataPath))
-        {
-            // TXWTODO: Check for permissions first, this might very well not accessible for the running user (if run in debug)
-            Directory.CreateDirectory(programDataPath);
-        }
+        var envName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+                      ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") 
+                      ?? "Production"; 
         
+        var machine = Environment.MachineName;
         
         var builder = new ConfigurationBuilder()
-            .SetBasePath(programDataPath)
+            .SetBasePath(configDirectory)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+            .AddJsonFile($"appsettings.{envName}.json", optional: true, reloadOnChange: true) 
+            .AddJsonFile($"appsettings.{envName}.{machine}.json", optional: true, reloadOnChange: true)            
             .AddJsonFile("config.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables()
             .AddCommandLine(Environment.GetCommandLineArgs());
