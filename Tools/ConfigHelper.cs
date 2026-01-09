@@ -18,12 +18,22 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
     
     public ConfigHelper(
         ILogger<ConfigHelper<TOptions>> logger,
+        Func<IConfigurationBuilder, IConfigurationBuilder> conf,  
         string appName = "Backer")
     {
         _logger = logger;
 
-        var configDirectory = EnvironmentDetector.GetConfigDir(appName);
-        EnvironmentDetector.EnsureDirectory(configDirectory, appName);
+        string configDirectory;
+        if (EnvironmentDetector.IsInteractiveDev())
+        {
+            configDirectory = Directory.GetCurrentDirectory();
+        }
+        else
+        {
+            configDirectory = EnvironmentDetector.GetConfigDir(appName);
+            EnvironmentDetector.EnsureDirectory(configDirectory, appName);
+        }
+
         _logger.LogInformation($"Using configDirectory {configDirectory},");
 
         _configFilePath = Path.Combine(configDirectory, "config.json");
@@ -33,17 +43,22 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
                       ?? "Production"; 
         
         var machine = Environment.MachineName;
+
+        _logger.LogInformation($"envName = {envName}, machine = {machine}");
         
         var builder = new ConfigurationBuilder()
             .SetBasePath(configDirectory)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
             .AddJsonFile($"appsettings.{envName}.json", optional: true, reloadOnChange: true) 
             .AddJsonFile($"appsettings.{envName}.{machine}.json", optional: true, reloadOnChange: true)            
-            .AddJsonFile("config.json", optional: true, reloadOnChange: true)
+            .AddJsonFile("config.json", optional: true, reloadOnChange: true);
+        builder = conf(builder);
+        builder = builder
             .AddEnvironmentVariables()
             .AddCommandLine(Environment.GetCommandLineArgs());
 
         Configuration = builder.Build();
+        _logger.LogInformation(Configuration.GetDebugView());
     }
 
     /// <summary>

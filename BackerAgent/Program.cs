@@ -118,7 +118,8 @@ builder.Services.AddSingleton(helper);
 builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<ConfigHelper<RCloneServiceOptions>>>();
-    var helper = new ConfigHelper<RCloneServiceOptions>(logger);
+    var helper = new ConfigHelper<RCloneServiceOptions>(logger, 
+        b => b.AddUserSecrets<Program>(optional: true));
 
     builder.Configuration.AddConfiguration(helper.Configuration);
 
