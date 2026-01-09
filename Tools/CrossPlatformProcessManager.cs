@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
+
 public static class CrossPlatformProcessManager
 {
     private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
@@ -10,24 +11,16 @@ public static class CrossPlatformProcessManager
 
     public static Process StartManagedProcess(ProcessStartInfo startInfo)
     {
-        if (IsUnix)
-        {
-            // Launch in new process group using bash + setsid
-            startInfo.FileName = "/bin/bash";
-            startInfo.Arguments = $"-c \"setsid {startInfo.FileName} {startInfo.Arguments}\"";
-            startInfo.UseShellExecute = false;
-        }
-
         var process = Process.Start(startInfo);
         if (process == null) throw new InvalidOperationException("Failed to start process");
 
-        #if WINDOWS
+        //#if WINDOWS
         if (IsWindows)
         {
             JobManager.AddProcess(process);
         }
-        #endif
-        #if LINUX || OSX
+        //#endif
+        //#if LINUX || OSX
         if (IsUnix)
         {
             AppDomain.CurrentDomain.ProcessExit += (s, e) =>
@@ -40,7 +33,7 @@ public static class CrossPlatformProcessManager
                 catch { /* best effort */ }
             };
         }
-        #endif
+        //#endif
 
         return process;
     }
