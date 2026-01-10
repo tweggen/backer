@@ -13,6 +13,8 @@ public class Storage
     public string Networks { get; set; }
 
     public string OAuth2Email { get; set; }
+    
+    public string ClientId { get; set; }
     public string AccessToken { get; set; }
     public string RefreshToken { get; set; }
     public DateTime ExpiresAt { get; set; }
@@ -52,8 +54,10 @@ public class Storage
             UriSchema = "",
             Networks = "",
             OAuth2Email = "",
+            ClientId = "",
             AccessToken = "",
             RefreshToken = "",
+            ExpiresAt = DateTime.UtcNow,
             IsActive = true,
         };
     }

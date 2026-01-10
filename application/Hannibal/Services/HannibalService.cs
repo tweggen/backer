@@ -241,14 +241,18 @@ public partial class HannibalService : IHannibalService
                 if (null == accessToken) accessToken = "";
                 var refreshToken = oauth2Client.RefreshToken;
                 if (null == refreshToken) refreshToken = "";
+                var clientId = oauth2Client.Configuration.ClientId;
+                if (null == clientId) clientId = "";
                 sto.AccessToken = accessToken;
                 sto.RefreshToken = refreshToken;
+                sto.ClientId = clientId;
                 sto.ExpiresAt = oauth2Client.ExpiresAt.ToUniversalTime();
                 
                 await UpdateStorageAsync(sto.Id, sto, cancellationToken);
 
                 return new ProcessOAuth2Result()
                 {
+                    ClientId = sto.ClientId,
                     AccessToken = sto.AccessToken,
                     RefreshToken = sto.RefreshToken,
                     ExpiresAt = sto.ExpiresAt,

@@ -78,6 +78,7 @@ public partial class HannibalService
         storage.UriSchema = updatedStorage.UriSchema;
         storage.Networks = updatedStorage.Networks;
         storage.OAuth2Email = updatedStorage.OAuth2Email;
+        storage.ClientId = updatedStorage.ClientId;
         storage.AccessToken = updatedStorage.AccessToken;
         storage.RefreshToken = updatedStorage.RefreshToken;
         storage.ExpiresAt = updatedStorage.ExpiresAt;
