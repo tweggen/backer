@@ -14,6 +14,21 @@ public class JobCreateConfigParams
     [JsonPropertyName("type")]
     public string Type { get; set; } = "";
     
-    [JsonPropertyName("opt")]
-    public RemoteOptions Opt { get; set; } = new();
+    [JsonPropertyName("obscure")]
+    public bool Obscure { get; set; } = false;
+    [JsonPropertyName("noObscure")]
+    public bool NoObscure { get; set; } = true;
+    [JsonPropertyName("noOutput")]
+    public bool NoOutput { get; set; } = false;
+    [JsonPropertyName("nonInteractive")]
+    public bool NonInteractive { get; set; } = true; 
+    [JsonPropertyName("continue")]
+    public bool DoContinue { get; set; } = true;
+    [JsonPropertyName("all")] 
+    public bool All { get; set; } = false;
+    [JsonPropertyName("state")]
+    public bool State { get; set; } = false;
+    [JsonPropertyName("result")]
+    public bool Result { get; set; } = false;
+
 }

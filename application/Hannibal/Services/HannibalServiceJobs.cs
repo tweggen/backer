@@ -67,6 +67,7 @@ public partial class HannibalService
         // var user = await _context.Users.FirstAsync(u => u.Username == acquireParams.Username, cancellationToken); 
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
+        #if false
         /*
          * convert the capabilities into a set of remotes.
          */
@@ -83,6 +84,7 @@ public partial class HannibalService
                 _logger.LogError($"Invalid capability {capa}, ifnoring: {e}");
             }
         }
+        #endif
         
         var listPossibleJobs = await _context.Jobs
             .Where(j => j.State == Job.JobState.Ready && j.Owner == "")
@@ -100,6 +102,7 @@ public partial class HannibalService
         }
         foreach (var candidate in listPossibleJobs)
         {
+            #if false
             if (!setRemotes.Contains(candidate.SourceEndpoint.Storage.UriSchema))
             {
                 _logger.LogInformation($"Skipping job {candidate.Id} because source endpoint {candidate.SourceEndpoint.Name} is not in set of remotes.");
@@ -111,6 +114,7 @@ public partial class HannibalService
                 _logger.LogInformation($"Skipping job {candidate.Id} because destination endpoint {candidate.DestinationEndpoint.Name} is not in set of remotes.");
                 continue;
             }
+            #endif
             
             if (!String.IsNullOrWhiteSpace(candidate.SourceEndpoint.Storage.Networks)
                 && acquireNetworks != candidate.SourceEndpoint.Storage.Networks.Trim())
@@ -140,7 +144,7 @@ public partial class HannibalService
                 continue;
             }
             
-            job = candidate;
+            job = candidate; // TXWTODO: Why not just break here?
         }
         
         if (job != null)

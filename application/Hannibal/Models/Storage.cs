@@ -15,6 +15,7 @@ public class Storage
     public string OAuth2Email { get; set; }
     public string AccessToken { get; set; }
     public string RefreshToken { get; set; }
+    public DateTime ExpiresAt { get; set; }
     
     /*
      * A storage can be located in a particular network.

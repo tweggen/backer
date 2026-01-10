@@ -243,6 +243,7 @@ public partial class HannibalService : IHannibalService
                 if (null == refreshToken) refreshToken = "";
                 sto.AccessToken = accessToken;
                 sto.RefreshToken = refreshToken;
+                sto.ExpiresAt = oauth2Client.ExpiresAt;
                 
                 await UpdateStorageAsync(sto.Id, sto, cancellationToken);
 

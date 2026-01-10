@@ -143,7 +143,10 @@ public class RCloneClient
             Name = remoteName,
             Parameters = remoteParameters,
             Type = remoteType,
-            Opt = remoteOptions
+            
+            /*
+             * Leave default options as they are.
+             */
         };
 
         JsonContent content = JsonContent.Create(jobCreateConfigParams, typeof(JobCreateConfigParams), new MediaTypeHeaderValue("application/json"));
