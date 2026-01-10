@@ -53,6 +53,7 @@ public class RCloneStorages
         return new()
         {
             { "type", "dropbox" },
+            { "client_id", storage.ClientId },
             { "token", _getRCloneToken(storage) }
         };
     }
@@ -63,6 +64,7 @@ public class RCloneStorages
         return new()
         {
             { "type", "onedrive" },
+            { "client_id", storage.ClientId },
             { "token", _getRCloneToken(storage) }
         };
     }
