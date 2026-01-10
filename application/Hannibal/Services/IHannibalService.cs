@@ -27,7 +27,10 @@ public interface IHannibalService
 
     public Task<ProcessOAuth2Result> ProcessOAuth2ResultAsync(
         HttpRequest httpRequest,
-        string provider,
+        string? code,
+        string? state,
+        string? error,
+        string? errorDescription,
         CancellationToken cancellationToken);
     
     #endregion

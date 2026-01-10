@@ -34,12 +34,13 @@ public class RCloneStorages
         return _mapRCloneConfigs[technology];
     }
 
-
+    
     static string _getRCloneToken(Storage storage)
     {
         var tokenObject = new
         {
-            access_token = storage.AccessToken, 
+            access_token = storage.AccessToken,
+            refresh_token = storage.RefreshToken,
             token_type = "bearer", 
             expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
         }; 
@@ -50,11 +51,20 @@ public class RCloneStorages
 
     static public SortedDictionary<string, string> _createDropboxFromStorage(Storage storage)
     {
+        var tokenObject = new
+        {
+            access_token = storage.AccessToken,
+            refresh_token = storage.RefreshToken,
+            token_type = "bearer", 
+            expiry = "0001-01-01T00:00:00Z"
+        }; 
+        string tokenJson = JsonSerializer.Serialize(tokenObject);
+
         return new()
         {
             { "type", "dropbox" },
             { "client_id", storage.ClientId },
-            { "token", _getRCloneToken(storage) }
+            { "token", tokenJson }
         };
     }
 

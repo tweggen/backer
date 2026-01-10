@@ -90,9 +90,10 @@ public partial class HannibalService : IHannibalService
             new OAuth2.Configuration.ClientConfiguration
             {
                 ClientId = provider.ClientId.Trim(),
-                ClientSecret = provider.ClientSecret.Trim(),
-                RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/microsoft",
-                Scope = "User.Read"
+                // ClientSecret = provider.ClientSecret.Trim(),
+                // RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/microsoft",
+                RedirectUri = "http://localhost:53682/",
+                Scope = "offline_access Files.ReadWrite User.Read"
             });
         return oauth2Client;
     }
@@ -110,8 +111,9 @@ public partial class HannibalService : IHannibalService
             new OAuth2.Configuration.ClientConfiguration
             {
                 ClientId = provider.ClientId.Trim(),
-                ClientSecret = provider.ClientSecret.Trim(),
-                RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/dropbox",
+                // ClientSecret = provider.ClientSecret.Trim(),
+                // RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/dropbox",
+                RedirectUri = "http://localhost:53682/",
                 Scope = "files.metadata.write files.content.write files.content.read sharing.write account_info.read"
                 // Scope = "account_info.read files.metadata.write files.metadata.read files.content.write files.content.read"
             });
@@ -168,12 +170,14 @@ public partial class HannibalService : IHannibalService
 
     public async Task<ProcessOAuth2Result> ProcessOAuth2ResultAsync(
         HttpRequest httpRequest,
-        string callbackProvider,
+        string? code,
+        string? state,
+        string? error,
+        string? errorDescription,
         CancellationToken cancellationToken)
     {
-        OAuth2.Client.OAuth2Client? oauth2Client = _createOAuth2Client(callbackProvider);
 
-        if (httpRequest.Query.ContainsKey("error"))
+        if (error != null)
         {
             string? errorString = httpRequest.Query["error"];
             /*
@@ -190,9 +194,6 @@ public partial class HannibalService : IHannibalService
             /*
              * This was successful. Read the user info and the tokens.
              */
-            var code = httpRequest.Query["code"];
-            var state = httpRequest.Query["state"];
-
             if (string.IsNullOrWhiteSpace(code))
             {
                 throw new UnauthorizedAccessException("No temporary code returned.");
@@ -202,6 +203,20 @@ public partial class HannibalService : IHannibalService
                 throw new UnauthorizedAccessException("No state returned.");
             }
             OAuthState? stateEntry = null;
+            stateEntry = await _oauthStateService.ValidateAsync(
+                new Guid(state), null, cancellationToken);
+            if (null == stateEntry)
+            {
+                throw new UnauthorizedAccessException("State not found");
+            }
+
+            if (null == stateEntry.Provider)
+            {
+                throw new UnauthorizedAccessException("Provider not found");
+            }
+            var callbackProvider = stateEntry.Provider;
+            
+            var oauth2Client = _createOAuth2Client(stateEntry.Provider);
             try
             {
                 var userInfo = await oauth2Client.GetUserInfoAsync(
@@ -212,14 +227,6 @@ public partial class HannibalService : IHannibalService
                     });
 
                 var stateId = new Guid(oauth2Client.State); 
-                stateEntry = await _oauthStateService.ValidateAsync(
-                    new Guid(oauth2Client.State), 
-                    callbackProvider, cancellationToken);
-
-                if (stateEntry == null)
-                {
-                    throw new UnauthorizedAccessException("State not found");
-                }
                 
                 if (!string.IsNullOrWhiteSpace(userInfo.Email) && userInfo.Email != stateEntry.UserId)
                 {

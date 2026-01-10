@@ -5,6 +5,7 @@ using Hannibal.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Tools;
 using Endpoint = Hannibal.Models.Endpoint;
@@ -121,7 +122,42 @@ public partial class HannibalServiceClient : IHannibalServiceClient
         }
     }
     
-    
+
+    public async Task<ProcessOAuth2Result> ProcessOAuth2ResultAsync(
+        HttpRequest httpRequest,
+        string? code,
+        string? state,
+        string? error,
+        string? errorDescription,
+        CancellationToken cancellationToken)
+    {
+        var queryParams = new Dictionary<string, string?>
+        {
+            ["code"] = code, ["state"] = state, 
+            ["error"] = error, ["error_description"] = errorDescription 
+        };
+        
+        var url = QueryHelpers.AddQueryString("/api/hannibal/v1/users/processOAuth2Result", queryParams);
+        
+        var response = await _httpClient.GetAsync(url, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (String.IsNullOrWhiteSpace(content))
+            {
+                return null;
+            }
+
+            return JsonSerializer.Deserialize<ProcessOAuth2Result>(
+                content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        }
+        else
+        {
+            return null;
+        }
+    }
+
+
     public Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();

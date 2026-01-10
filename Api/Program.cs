@@ -291,6 +291,7 @@ app.MapDelete("/api/authb/v1/deleteUser", async (
     .WithOpenApi();
 
 
+#region OAuth2
 app.MapPost("/api/hannibal/v1/users/triggerOAuth2", async (
     IHannibalService hannibalService,
     OAuth2Params oauth2Params,
@@ -306,57 +307,36 @@ app.MapPost("/api/hannibal/v1/users/triggerOAuth2", async (
         return Results.NotFound();
     }
 })
-    .RequireAuthorization()
-    .WithName("TriggerOAuth2")
-    .WithOpenApi();
+.RequireAuthorization()
+.WithName("TriggerOAuth2")
+.WithOpenApi();
 
 
-#region OAuth2
-app.MapGet("/api/hannibal/v1/oauth2/microsoft", async (
+app.MapGet("/api/hannibal/v1/users/processOAuth2Result", async (
         HttpRequest request,
         IHannibalService higginsService,
+        [FromQuery] string? code,
+        [FromQuery] string? state,
+        [FromQuery] string? error,
+        [FromQuery] string? error_description,
         CancellationToken cancellationToken) =>
+{
+    try
     {
-        try
-        {
-            var result = await higginsService.ProcessOAuth2ResultAsync(
-                request, "onedrive", cancellationToken);
-            
-            /*
-             * After return, we need to have a redirect to the original url.
-             */
-            return Results.Redirect(result.AfterAuthUri, permanent: false);
-        }
-        catch (Exception e)
-        {
-            
-        }
-        return Results.Ok();
-    })
-    .WithName("MicrosoftOAuthCallback");
-
-    app.MapGet("/api/hannibal/v1/oauth2/dropbox", async (
-            HttpRequest request,
-            IHannibalService higginsService,
-            CancellationToken cancellationToken) =>
-        {
-            try
-            {
-                var result = await higginsService.ProcessOAuth2ResultAsync(
-                    request, "dropbox", cancellationToken);
-                
-                /*
-                 * After return, we need to have a redirect to the original url.
-                 */
-                return Results.Redirect(result.AfterAuthUri, permanent: false);
-            }
-            catch (Exception e)
-            {
-                
-            }
-            return Results.Ok();
-        })
-        .WithName("DropboxOAuthCallback");
+        var result = await higginsService.ProcessOAuth2ResultAsync(
+            request, code, state, error, error_description, cancellationToken);
+        
+        /*
+         * After return, we need to have a redirect to the original url.
+         */
+        return Results.Ok(result);
+    }
+    catch (Exception e)
+    {
+        return Results.InternalServerError();
+    }
+})
+.WithName("DropboxOAuthCallback");
 
 #endregion
 

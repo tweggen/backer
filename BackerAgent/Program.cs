@@ -171,7 +171,16 @@ builder.WebHost.ConfigureKestrel(options =>
         options.UseSystemd();
     }
     
-    options.ListenAnyIP(5931); // Default port override
+    /*
+     * Default port listener.
+     * Hard coded also in client.
+     */
+    options.ListenAnyIP(5931);
+    
+    /*
+     * OAuth2 rclone redirect
+     */
+    options.ListenAnyIP(53682);
 });
 
 // Build the application
@@ -319,6 +328,71 @@ app.MapGet("/status", async (
         await Task.WhenAll(connections.Values.Select(conn => conn.StopAsync()).ToArray());
     });
 }
+
+
+/*
+ * For oauth2 path for rclone
+ */
+app.MapGet("/", async (
+    HttpRequest httpRequest,
+    IHannibalServiceClient hannibalServiceClient,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        if (httpRequest.Query.ContainsKey("error"))
+        {
+            /*
+             * This is an error response.
+             */
+            string? errorString = httpRequest.Query["error"];
+            string? errorDescriptionString = httpRequest.Query["error_description"];
+            
+            var result = await hannibalServiceClient.ProcessOAuth2ResultAsync(httpRequest, 
+                null, null,
+                errorString, errorDescriptionString,
+                cancellationToken);
+
+            return Results.Redirect(result.AfterAuthUri, permanent: false);
+        }
+        else
+        {
+            /*
+             * This was successful. Forward this to the server.
+             */
+            var code = httpRequest.Query["code"];
+            var state = httpRequest.Query["state"];
+
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                throw new UnauthorizedAccessException("No temporary code returned.");
+            }
+
+            if (string.IsNullOrWhiteSpace(state))
+            {
+                throw new UnauthorizedAccessException("No state returned.");
+            }
+
+            var result = await hannibalServiceClient.ProcessOAuth2ResultAsync(
+                httpRequest, code, state, null, null, cancellationToken);
+
+            /*
+             * After return, we need to have a redirect to the original url.
+             */
+            return Results.Redirect(result.AfterAuthUri, permanent: false);
+        }
+    }
+    catch (Exception e)
+    {
+            
+    }
+    return Results.Ok();
+})
+.WithName("DropboxOAuthCallback")
+.RequireHost("*:53682");
+;
+
+
 
 
 // Configure middleware pipeline

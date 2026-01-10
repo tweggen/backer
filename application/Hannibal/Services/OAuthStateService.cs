@@ -29,7 +29,7 @@ public class OAuthStateService : IOAuthStateService
         return state.Id;
     }
 
-    public async Task<OAuthState?> ValidateAsync(Guid stateId, string provider, CancellationToken ct)
+    public async Task<OAuthState?> ValidateAsync(Guid stateId, string? provider, CancellationToken ct)
     {
         var state = await _db.OAuthStates
             .FirstOrDefaultAsync(x => x.Id == stateId, ct);
@@ -37,7 +37,7 @@ public class OAuthStateService : IOAuthStateService
         if (state == null)
             return null;
 
-        if (state.Provider != provider)
+        if (provider != null && state.Provider != provider)
             return null;
 
         if (state.Used)

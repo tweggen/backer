@@ -28,6 +28,13 @@ public interface IHannibalServiceClient
         OAuth2Params oAuth2Params,
         CancellationToken cancellationToken);
 
+    public Task<ProcessOAuth2Result> ProcessOAuth2ResultAsync(
+        HttpRequest httpRequest,
+        string? code,
+        string? state,
+        string? error,
+        string? errorDescription,
+        CancellationToken cancellationToken);
     #endregion
     
     #region Endpoints
