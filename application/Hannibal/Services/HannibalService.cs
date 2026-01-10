@@ -243,15 +243,15 @@ public partial class HannibalService : IHannibalService
                 if (null == refreshToken) refreshToken = "";
                 sto.AccessToken = accessToken;
                 sto.RefreshToken = refreshToken;
-                sto.ExpiresAt = oauth2Client.ExpiresAt;
+                sto.ExpiresAt = oauth2Client.ExpiresAt.ToUniversalTime();
                 
                 await UpdateStorageAsync(sto.Id, sto, cancellationToken);
 
                 return new ProcessOAuth2Result()
                 {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken,
-                    ExpiresAt = oauth2Client.ExpiresAt,
+                    AccessToken = sto.AccessToken,
+                    RefreshToken = sto.RefreshToken,
+                    ExpiresAt = sto.ExpiresAt,
                     AfterAuthUri = stateEntry.ReturnUrl
                 };
                 // TXWTODO: This still needs to put the access token for user into db

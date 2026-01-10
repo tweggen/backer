@@ -80,6 +80,7 @@ public partial class HannibalService
         storage.OAuth2Email = updatedStorage.OAuth2Email;
         storage.AccessToken = updatedStorage.AccessToken;
         storage.RefreshToken = updatedStorage.RefreshToken;
+        storage.ExpiresAt = updatedStorage.ExpiresAt;
 
         await _context.SaveChangesAsync(cancellationToken);
         

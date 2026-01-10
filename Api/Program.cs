@@ -291,7 +291,7 @@ app.MapDelete("/api/authb/v1/deleteUser", async (
     .WithOpenApi();
 
 
-app.MapPost("/api/hanniobal/v1/users/triggerOAuth2", async (
+app.MapPost("/api/hannibal/v1/users/triggerOAuth2", async (
     IHannibalService hannibalService,
     OAuth2Params oauth2Params,
     CancellationToken cancellationToken) =>

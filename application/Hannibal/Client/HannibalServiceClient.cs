@@ -101,7 +101,7 @@ public partial class HannibalServiceClient : IHannibalServiceClient
         OAuth2Params oAuth2Params,
         CancellationToken cancellationToken)
     {
-        var response = await _httpClient.PostAsJsonAsync($"/api/hanniobal/v1/users/triggerOAuth2",
+        var response = await _httpClient.PostAsJsonAsync($"/api/hannibal/v1/users/triggerOAuth2",
             oAuth2Params, cancellationToken);
 
         if (response.IsSuccessStatusCode)

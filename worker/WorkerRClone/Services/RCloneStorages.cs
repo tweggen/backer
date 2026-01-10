@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Hannibal.Models;
 
 namespace WorkerRClone;
@@ -34,12 +35,25 @@ public class RCloneStorages
     }
 
 
+    static string _getRCloneToken(Storage storage)
+    {
+        var tokenObject = new
+        {
+            access_token = storage.AccessToken, 
+            token_type = "bearer", 
+            expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
+        }; 
+        string tokenJson = JsonSerializer.Serialize(tokenObject);
+        return tokenJson;
+    }
+    
+
     static public SortedDictionary<string, string> _createDropboxFromStorage(Storage storage)
     {
         return new()
         {
             { "type", "dropbox" },
-            { "token", storage.AccessToken }
+            { "token", _getRCloneToken(storage) }
         };
     }
 
@@ -49,7 +63,7 @@ public class RCloneStorages
         return new()
         {
             { "type", "onedrive" },
-            { "token", storage.AccessToken }
+            { "token", _getRCloneToken(storage) }
         };
     }
 
