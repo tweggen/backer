@@ -114,8 +114,9 @@ public partial class HannibalService : IHannibalService
                 // ClientSecret = provider.ClientSecret.Trim(),
                 // RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/dropbox",
                 RedirectUri = "http://localhost:53682/",
-                Scope = "files.metadata.write files.content.write files.content.read sharing.write account_info.read"
+                Scope = "files.metadata.write files.content.write files.content.read sharing.write account_info.read",
                 // Scope = "account_info.read files.metadata.write files.metadata.read files.content.write files.content.read"
+                IsOfflineToken = true
             });
         return oauth2Client;
     }
