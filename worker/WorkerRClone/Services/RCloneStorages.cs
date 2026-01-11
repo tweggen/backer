@@ -64,6 +64,7 @@ public class RCloneStorages
         {
             { "type", "dropbox" },
             { "client_id", storage.ClientId },
+            { "client_secret", storage.ClientSecret },
             { "token", tokenJson }
         };
     }
@@ -75,6 +76,7 @@ public class RCloneStorages
         {
             { "type", "onedrive" },
             { "client_id", storage.ClientId },
+            { "client_secret", storage.ClientSecret },
             { "token", _getRCloneToken(storage) }
         };
     }
