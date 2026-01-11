@@ -111,7 +111,7 @@ public partial class HannibalService : IHannibalService
             new OAuth2.Configuration.ClientConfiguration
             {
                 ClientId = provider.ClientId.Trim(),
-                // ClientSecret = provider.ClientSecret.Trim(),
+                ClientSecret = provider.ClientSecret.Trim(),
                 // RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/dropbox",
                 RedirectUri = "http://localhost:53682/",
                 Scope = "files.metadata.write files.content.write files.content.read sharing.write account_info.read",
