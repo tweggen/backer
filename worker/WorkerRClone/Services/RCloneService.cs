@@ -63,12 +63,6 @@ public class RCloneService : BackgroundService
     private const string _defaultRCloneUrl = "http://localhost:5572";
     private readonly INetworkIdentifier _networkIdentifier;
     
-    private HashSet<string> _setRemotes = new();
-
-    private RCloneStorages? _rCloneStorages = null;
-
-    private List<Storage>? _storages = null;
-
     private RCloneConfigManager? _configManager = null;
 
     private string _rcloneConfigFile()
@@ -300,34 +294,6 @@ public class RCloneService : BackgroundService
     }
 
     
-    public async Task SetupDropboxConfigAsync(
-        RCloneClient rcloneClient,
-        string remoteName,
-        Storage storage,
-        RemoteOptions options,
-        CancellationToken cancellationToken)
-    {
-        // Build the key/value map for Dropbox
-        var parameters = RCloneStorages.CreateFromStorage(storage);
-
-        // 1. Set all Dropbox-specific parameters
-        foreach (var kv in parameters)
-        {
-            await rcloneClient.ConfigSetAsync(remoteName, kv.Key, kv.Value, cancellationToken);
-        }
-
-        // 2. Apply RemoteOptions flags (same as config/create)
-        await rcloneClient.ConfigSetAsync(remoteName, "obscure", options.Obscure.ToString().ToLower(), cancellationToken);
-        await rcloneClient.ConfigSetAsync(remoteName, "noObscure", options.NoObscure.ToString().ToLower(), cancellationToken);
-        await rcloneClient.ConfigSetAsync(remoteName, "noOutput", options.NoOutput.ToString().ToLower(), cancellationToken);
-        await rcloneClient.ConfigSetAsync(remoteName, "nonInteractive", options.NonInteractive.ToString().ToLower(), cancellationToken);
-        await rcloneClient.ConfigSetAsync(remoteName, "continue", options.DoContinue.ToString().ToLower(), cancellationToken);
-        await rcloneClient.ConfigSetAsync(remoteName, "all", options.All.ToString().ToLower(), cancellationToken);
-        await rcloneClient.ConfigSetAsync(remoteName, "state", options.State.ToString().ToLower(), cancellationToken);
-        await rcloneClient.ConfigSetAsync(remoteName, "result", options.Result.ToString().ToLower(), cancellationToken);
-    }
-
-
     private async Task _configureRCloneStorage(RCloneClient rcloneClient,
         Storage storage, CancellationToken cancellationToken)
     {
@@ -345,7 +311,7 @@ public class RCloneService : BackgroundService
             return;
         }
         
-        var parameters = RCloneStorages.CreateFromStorage(storage);
+        var parameters = await RCloneStorages.CreateFromStorage(storage);
 
         _configManager.AddOrUpdateRemote(storage.UriSchema, parameters);
         _configManager.SaveToFile(_rcloneConfigFile());
@@ -449,7 +415,7 @@ public class RCloneService : BackgroundService
                     new()
                     {
                         Username = "timo.weggen@gmail.com",
-                        Capabilities = String.Join(",", _setRemotes.ToList()),
+                        Capabilities = "use_me",
                         Owner = _ownerId,
                         Networks = _networkIdentifier?.GetCurrentNetwork() ?? "Unknown"
                     },
@@ -636,17 +602,6 @@ public class RCloneService : BackgroundService
             var listRemotesResult = await rcloneClient.ListRemotesAsync(CancellationToken.None);
             _logger.LogInformation($"RCloneService: found working rclone instance with remotes: {listRemotesResult}");
             haveRClone = true;
-            foreach (var remote in listRemotesResult.remotes)
-            {
-                try
-                {
-                    _setRemotes.Add(remote);
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError($"RCloneService: Error adding remote, ignoring. {remote}: {e}");
-                }
-            }
         }
         catch (Exception e)
         {
@@ -876,14 +831,6 @@ public class RCloneService : BackgroundService
                 _toWaitConfig("No or invalid user login information.");
             }
 
-            /*
-             * Read the current storage configuration to have up to date access tokens etc. .
-             * TXWTODO: If auth doesn't work, ask server or ui to redirect client on storage
-             * authentication.
-             */
-            _storages = new List<Storage>(await hannibalService.GetStoragesAsync(CancellationToken.None));
-            _rCloneStorages = RCloneStorages.CreateFromStorages(_storages);
-            
             /*
              * OK, no exception, online connection works. So progress.
              */

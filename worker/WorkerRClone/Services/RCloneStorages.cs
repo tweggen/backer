@@ -3,38 +3,8 @@ using Hannibal.Models;
 
 namespace WorkerRClone;
 
-public class RCloneStorages
+public static class RCloneStorages
 {
-    private SortedDictionary<string, SortedDictionary<string, string>> _mapRCloneConfigs = new();
-
-    private string _strRCloneStorageConfig = "";
-
-
-    public void AddConfig(string technology, SortedDictionary<string, string> config)
-    {
-        if (!_mapRCloneConfigs.ContainsKey(technology))
-        {
-            _mapRCloneConfigs.Add(technology, config);
-        }
-        else
-        {
-            // ignore silently.
-        }
-    }
-    
-    
-    public bool HasStorage(string name)
-    {
-        return false;
-    }
-
-
-    public SortedDictionary<string, string> GetRCloneStorageConfig(string technology)
-    {
-        return _mapRCloneConfigs[technology];
-    }
-
-    
     static string _getRCloneToken(Storage storage)
     {
         var tokenObject = new
@@ -49,7 +19,7 @@ public class RCloneStorages
     }
     
 
-    static public SortedDictionary<string, string> _createDropboxFromStorage(Storage storage)
+    static public async Task<SortedDictionary<string, string>> _createDropboxFromStorage(Storage storage)
     {
         var tokenObject = new
         {
@@ -70,7 +40,7 @@ public class RCloneStorages
     }
 
 
-    static public SortedDictionary<string, string> _createOnedriveFromStorage(Storage storage)
+    static public async Task<SortedDictionary<string, string>> _createOnedriveFromStorage(Storage storage)
     {
         return new()
         {
@@ -82,15 +52,15 @@ public class RCloneStorages
     }
 
 
-    static public SortedDictionary<string, string> CreateFromStorage(Storage storage)
+    static public async Task<SortedDictionary<string, string>> CreateFromStorage(Storage storage)
     {
         switch (storage.Technology)
         {
             case "dropbox":
-                return _createDropboxFromStorage(storage);
+                return await _createDropboxFromStorage(storage);
             
             case "onedrive":
-                return _createOnedriveFromStorage(storage);
+                return await _createOnedriveFromStorage(storage);
             
             default:
                 /*
@@ -99,28 +69,5 @@ public class RCloneStorages
                 return new();
                 break;
         }
-    }
-    
-    
-    static public RCloneStorages CreateFromStorages(IEnumerable<Storage> storages)
-    {
-         var rcs = new RCloneStorages();
-         
-         foreach (var sto in storages)
-         {
-             try
-             {
-                 var config = CreateFromStorage(sto);
-                 rcs.AddConfig(sto.Technology, config);
-             }
-             catch (Exception e)
-             {
-                 /*
-                  * Unable to add config for one storage.
-                  */
-             }
-         }
-
-         return rcs;
     }
 }
