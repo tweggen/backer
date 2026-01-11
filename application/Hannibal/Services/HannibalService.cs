@@ -246,15 +246,14 @@ public partial class HannibalService : IHannibalService
                         s.Technology == stateEntry.Provider && s.OAuth2Email == stateEntry.UserId,
                     cancellationToken);
 
-                var accessToken = oauth2Client.AccessToken;
-                if (null == accessToken) accessToken = "";
-                var refreshToken = oauth2Client.RefreshToken;
-                if (null == refreshToken) refreshToken = "";
-                var clientId = oauth2Client.Configuration.ClientId;
-                if (null == clientId) clientId = "";
+                var accessToken = oauth2Client.AccessToken ?? "";
+                var refreshToken = oauth2Client.RefreshToken ?? "";
+                var clientId = oauth2Client.Configuration.ClientId ?? "";
+                var clientSecret = oauth2Client.Configuration.ClientSecret ?? "";
                 sto.AccessToken = accessToken;
                 sto.RefreshToken = refreshToken;
                 sto.ClientId = clientId;
+                sto.ClientSecret = clientSecret;
                 sto.ExpiresAt = oauth2Client.ExpiresAt.ToUniversalTime();
                 
                 await UpdateStorageAsync(sto.Id, sto, cancellationToken);

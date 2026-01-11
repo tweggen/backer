@@ -295,7 +295,7 @@ public class RCloneService : BackgroundService
         Storage storage, CancellationToken cancellationToken)
     {
         _logger.LogDebug($"RCloneService: _configureRCloneStorage called for storage {storage.UriSchema}.");
-        var parameters = _rCloneStorages.GetRCloneStorageConfig(storage.Technology);
+        var parameters = RCloneStorages.CreateFromStorage(storage);
         await rcloneClient.CreateConfigAsync(storage.Technology, storage.UriSchema,
             parameters, new RemoteOptions(), cancellationToken);
     }

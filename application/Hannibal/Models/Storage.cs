@@ -56,6 +56,7 @@ public class Storage
             Networks = "",
             OAuth2Email = "",
             ClientId = "",
+            ClientSecret = "",
             AccessToken = "",
             RefreshToken = "",
             ExpiresAt = DateTime.UtcNow,

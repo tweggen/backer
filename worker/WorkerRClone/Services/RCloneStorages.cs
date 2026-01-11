@@ -56,7 +56,7 @@ public class RCloneStorages
             access_token = storage.AccessToken,
             refresh_token = storage.RefreshToken,
             token_type = "bearer", 
-            expiry = "0001-01-01T00:00:00Z"
+            expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
         }; 
         string tokenJson = JsonSerializer.Serialize(tokenObject);
 

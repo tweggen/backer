@@ -149,8 +149,10 @@ public class RCloneClient
              */
         };
 
-        JsonContent content = JsonContent.Create(jobCreateConfigParams, typeof(JobCreateConfigParams), new MediaTypeHeaderValue("application/json"));
-        var response = await _httpClient.PostAsync("/config/create", content, cancellationToken);
+        JsonContent content = JsonContent.Create(jobCreateConfigParams, 
+            typeof(JobCreateConfigParams), new MediaTypeHeaderValue("application/json"));
+        var response = await _httpClient.PostAsync("/config/create", 
+            content, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             string responseString = await response.Content.ReadAsStringAsync(cancellationToken);
