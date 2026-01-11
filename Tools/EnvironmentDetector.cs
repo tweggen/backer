@@ -88,7 +88,7 @@ public static class EnvironmentDetector
         }
     }
 
-    private static bool DirectoryExistsOrCreatable(string path)
+    public static bool DirectoryExistsOrCreatable(string path)
     {
         try
         {

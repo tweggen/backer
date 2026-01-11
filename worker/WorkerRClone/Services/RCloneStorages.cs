@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text.Json;
 using Hannibal.Models;
 
@@ -40,16 +41,42 @@ public static class RCloneStorages
     }
 
 
-    static public async Task<SortedDictionary<string, string>> _createOnedriveFromStorage(Storage storage)
+    private static async Task<(string DriveId, string DriveType)> _getOneDriveInfoAsync(
+        string accessToken,
+        CancellationToken cancellationToken)
     {
-        // TXWTODO: Get drive ID here.
-        #error Get ids of drive here
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await client.GetAsync(
+            "https://graph.microsoft.com/v1.0/me/drive",
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        using var doc = JsonDocument.Parse(json);
+        string driveId = doc.RootElement.GetProperty("id").GetString()!;
+        string driveType = doc.RootElement.GetProperty("driveType").GetString()!;
+
+        return (driveId, driveType);
+    }
+
+    
+    static public async Task<SortedDictionary<string, string>> _createOnedriveFromStorage(
+        Storage storage, CancellationToken cancellationToken = default)
+    {
+        var accessToken  = _getRCloneToken(storage);
+        var (driveId, driveType) = await _getOneDriveInfoAsync(accessToken, cancellationToken);
         return new()
         {
             { "type", "onedrive" },
             { "client_id", storage.ClientId },
             { "client_secret", storage.ClientSecret },
-            { "token", _getRCloneToken(storage) }
+            { "drive_id", driveId }, { "drive_type", driveType },
+            { "token", accessToken }
         };
     }
 

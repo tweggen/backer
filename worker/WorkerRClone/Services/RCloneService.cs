@@ -72,6 +72,14 @@ public class RCloneService : BackgroundService
             "backer-rclone.conf");
     }
     
+    
+    private string _rcloneConfigDir()
+    {
+        return Path.Combine(
+            Tools.EnvironmentDetector.GetConfigDir("Backer"));
+    }
+    
+
     public RCloneService(
         ILogger<RCloneService> logger,
         ProcessManager processManager,
@@ -1068,6 +1076,7 @@ public class RCloneService : BackgroundService
         await base.StartAsync(cancellationToken);
 
         _configManager = new();
+        EnvironmentDetector.DirectoryExistsOrCreatable(_rcloneConfigDir());
         _configManager.LoadFromFile(_rcloneConfigFile());
         _configManager.SaveToFile(_rcloneConfigFile());
         
