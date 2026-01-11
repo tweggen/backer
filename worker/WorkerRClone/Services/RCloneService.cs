@@ -68,6 +68,15 @@ public class RCloneService : BackgroundService
     private RCloneStorages? _rCloneStorages = null;
 
     private List<Storage>? _storages = null;
+
+    private RCloneConfigManager? _configManager = null;
+
+    private string _rcloneConfigFile()
+    {
+        return Path.Combine(
+            Tools.EnvironmentDetector.GetConfigDir("Backer"),
+            "backer-rclone.conf");
+    }
     
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -290,14 +299,59 @@ public class RCloneService : BackgroundService
         }
     }
 
+    
+    public async Task SetupDropboxConfigAsync(
+        RCloneClient rcloneClient,
+        string remoteName,
+        Storage storage,
+        RemoteOptions options,
+        CancellationToken cancellationToken)
+    {
+        // Build the key/value map for Dropbox
+        var parameters = RCloneStorages.CreateFromStorage(storage);
+
+        // 1. Set all Dropbox-specific parameters
+        foreach (var kv in parameters)
+        {
+            await rcloneClient.ConfigSetAsync(remoteName, kv.Key, kv.Value, cancellationToken);
+        }
+
+        // 2. Apply RemoteOptions flags (same as config/create)
+        await rcloneClient.ConfigSetAsync(remoteName, "obscure", options.Obscure.ToString().ToLower(), cancellationToken);
+        await rcloneClient.ConfigSetAsync(remoteName, "noObscure", options.NoObscure.ToString().ToLower(), cancellationToken);
+        await rcloneClient.ConfigSetAsync(remoteName, "noOutput", options.NoOutput.ToString().ToLower(), cancellationToken);
+        await rcloneClient.ConfigSetAsync(remoteName, "nonInteractive", options.NonInteractive.ToString().ToLower(), cancellationToken);
+        await rcloneClient.ConfigSetAsync(remoteName, "continue", options.DoContinue.ToString().ToLower(), cancellationToken);
+        await rcloneClient.ConfigSetAsync(remoteName, "all", options.All.ToString().ToLower(), cancellationToken);
+        await rcloneClient.ConfigSetAsync(remoteName, "state", options.State.ToString().ToLower(), cancellationToken);
+        await rcloneClient.ConfigSetAsync(remoteName, "result", options.Result.ToString().ToLower(), cancellationToken);
+    }
+
 
     private async Task _configureRCloneStorage(RCloneClient rcloneClient,
         Storage storage, CancellationToken cancellationToken)
     {
         _logger.LogDebug($"RCloneService: _configureRCloneStorage called for storage {storage.UriSchema}.");
+
+        if (!_isStarted)
+        {
+            _logger.LogWarning($"Asked to configure parameter although service is not started yet.");
+            return;
+        }
+
+        if (null == _configManager)
+        {
+            _logger.LogWarning($"Called although config manager does not exuist.");
+            return;
+        }
+        
         var parameters = RCloneStorages.CreateFromStorage(storage);
-        await rcloneClient.CreateConfigAsync(storage.Technology, storage.UriSchema,
-            parameters, new RemoteOptions(), cancellationToken);
+
+        _configManager.AddOrUpdateRemote(storage.UriSchema, parameters);
+        _configManager.SaveToFile(_rcloneConfigFile());
+        
+        // TXWTODO: Restart rsync.
+            
     }
     
 
@@ -502,12 +556,14 @@ public class RCloneService : BackgroundService
         {
             throw new InvalidOperationException("RCloneService: No options available.");
         }
+
+        var options = $" --config=\"{_rcloneConfigFile()}\" " + _options.RCloneOptions;
         
         _logger.LogInformation($"Trying to start rclone from {_options.RClonePath}...");
         var startInfo = new ProcessStartInfo()
         {
             FileName =  _decodePath(_options.RClonePath),
-            Arguments = _options.RCloneOptions,
+            Arguments = options,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -1025,27 +1081,7 @@ public class RCloneService : BackgroundService
         return new();
     }
     
-    public override async Task StartAsync(CancellationToken cancellationToken)
-    {
-        _logger.LogInformation($"StartAsync: Starting RCloneService with options {_options}");
-
-        if (_isStarted)
-        {
-            throw new InvalidOperationException("Already started.");
-        }
-        _isStarted = true;
-
-        await base.StartAsync(cancellationToken);
-
-        /*
-         * Initially, we wait for the configuration
-         * to arrive.
-         */
-        _state.SetState(RCloneServiceState.ServiceState.WaitConfig);
-        await _checkConfig();
-    }
-
-
+    
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("StopAsync called");
@@ -1069,6 +1105,31 @@ public class RCloneService : BackgroundService
         {
             await base.StopAsync(cancellationToken);
         }
+    }
+
+
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        _logger.LogInformation($"StartAsync: Starting RCloneService with options {_options}");
+
+        if (_isStarted)
+        {
+            throw new InvalidOperationException("Already started.");
+        }
+        _isStarted = true;
+
+        await base.StartAsync(cancellationToken);
+
+        _configManager = new();
+        _configManager.LoadFromFile(_rcloneConfigFile());
+        _configManager.SaveToFile(_rcloneConfigFile());
+        
+        /*
+         * Initially, we wait for the configuration
+         * to arrive.
+         */
+        _state.SetState(RCloneServiceState.ServiceState.WaitConfig);
+        await _checkConfig();
     }
 
 

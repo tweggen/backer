@@ -165,6 +165,35 @@ public class RCloneClient
     }
     
 
+    public async Task<bool> ConfigSetAsync(
+        string remoteName,
+        string key,
+        string value,
+        CancellationToken cancellationToken)
+    {
+        JobConfigSetParams jobConfigSetParams = new()
+        {
+            Name = remoteName,
+            Key = key,
+            Value = value
+        };
+
+        JsonContent content = JsonContent.Create(
+            jobConfigSetParams,
+            typeof(JobConfigSetParams),
+            new MediaTypeHeaderValue("application/json"));
+
+        var response = await _httpClient.PostAsync("/config/set", content, cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return true;
+        }
+
+        throw new Exception(await response.Content.ReadAsStringAsync(cancellationToken));
+    }
+
+    
     public async Task<ListRemotesResult> ListRemotesAsync(CancellationToken cancellationToken)
     {
         ListRemotesParams listRemotesParams = new();
