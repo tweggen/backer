@@ -78,7 +78,8 @@ public partial class HannibalService : IHannibalService
     }
 
 
-    private OAuth2.Client.Impl.MicrosoftGraphClient _createMicrosoftOAuthClient()
+    private OAuth2.Client.Impl.MicrosoftGraphClient _createMicrosoftOAuthClient(
+        Guid stateId)
     {
         if (!_oauthOptions.Providers.TryGetValue("onedrive", out var provider))
         {
@@ -86,6 +87,7 @@ public partial class HannibalService : IHannibalService
         }
 
         var oauth2Client = new OAuth2.Client.Impl.MicrosoftGraphClient(
+            stateId,
             new OAuth2.Infrastructure.RequestFactory(),
             new OAuth2.Configuration.ClientConfiguration
             {
@@ -99,7 +101,8 @@ public partial class HannibalService : IHannibalService
     }
     
 
-    private OAuth2.Client.Impl.DropboxClient _createDropboxOAuthClient()
+    private OAuth2.Client.Impl.DropboxClient _createDropboxOAuthClient(
+        Guid stateId)
     {
         if (!_oauthOptions.Providers.TryGetValue("dropbox", out var provider))
         {
@@ -107,6 +110,7 @@ public partial class HannibalService : IHannibalService
         }
 
         var oauth2Client = new OAuth2.Client.Impl.DropboxClient(
+            stateId,
             new OAuth2.Infrastructure.RequestFactory(),
             new OAuth2.Configuration.ClientConfiguration
             {
@@ -122,16 +126,18 @@ public partial class HannibalService : IHannibalService
     }
 
 
-    private OAuth2Client _createOAuth2Client(string provider)
+    private OAuth2Client _createOAuth2Client(
+        Guid stateId,
+        string provider)
     {
         OAuth2Client oauth2Client;
         switch (provider)
         {
             case "onedrive":
-                oauth2Client = _createMicrosoftOAuthClient();
+                oauth2Client = _createMicrosoftOAuthClient(stateId);
                 break;
             case "dropbox":
-                oauth2Client = _createDropboxOAuthClient();
+                oauth2Client = _createDropboxOAuthClient(stateId);
                 break;
             default:
                 throw new KeyNotFoundException("provider not found.");
@@ -157,7 +163,9 @@ public partial class HannibalService : IHannibalService
             returnUrl: authParams.AfterAuthUri, 
             cancellationToken );
 
-        OAuth2.Client.OAuth2Client? oauth2Client = _createOAuth2Client(authParams.Provider);
+        OAuth2.Client.OAuth2Client? oauth2Client = _createOAuth2Client(
+            stateId,
+            authParams.Provider);
         
         return new()
         {
@@ -217,7 +225,7 @@ public partial class HannibalService : IHannibalService
             }
             var callbackProvider = stateEntry.Provider;
             
-            var oauth2Client = _createOAuth2Client(stateEntry.Provider);
+            var oauth2Client = _createOAuth2Client(stateEntry.Id, stateEntry.Provider);
             try
             {
                 var userInfo = await oauth2Client.GetUserInfoAsync(
