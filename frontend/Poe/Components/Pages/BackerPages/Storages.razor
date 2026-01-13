@@ -57,11 +57,11 @@ else
                     <td>
                         @if (String.IsNullOrWhiteSpace(sto.AccessToken))
                         {
-                            <button @onclick="() => _onOAuth(sto)">Authenticate...</button>
+                            <button @onclick="() => _onOAuthConnect(sto)">Authenticate...</button>
                         }
                         else
                         {
-                            <button @onclick="() => _onOAuth(sto)">Re-Authenticate...</button>
+                            <button @onclick="() => _onOAuthDisconnect(sto)">Disconnect...</button>
                         }
                         <button @onclick="() => _onDelete(sto)" class="close" aria-label="delete">🗑️</button>
                     </td>
@@ -148,7 +148,7 @@ else
     }
 
 
-    private async Task _onOAuth(Hannibal.Models.Storage? sto)
+    private async Task _onOAuthConnect(Hannibal.Models.Storage? sto)
     {
         if (null == sto)
         {
@@ -166,6 +166,30 @@ else
                 },
                 CancellationToken.None);
             Navigation.NavigateTo(result.RedirectUrl, forceLoad: true);
+        }
+        catch (Exception e)
+        {
+            /*
+             * Wasn't able to fulfile request.
+             */
+            // TXWTODO: Display error.
+        }
+    }
+
+    
+    private async Task _onOAuthDisconnect(Hannibal.Models.Storage? sto)
+    {
+        if (null == sto)
+        {
+            // TXWTODO: Ignore call or display error.
+            return;
+        }
+        try
+        {
+            //var newsto = new Storage(sto);
+            sto.AccessToken = "";
+            await HigginsServiceClient.UpdateStorageAsync(sto.Id, sto, CancellationToken.None);
+            await InvokeAsync(StateHasChanged);      
         }
         catch (Exception e)
         {

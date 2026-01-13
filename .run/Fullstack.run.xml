@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Fullstack" type="CompoundRunConfigurationType">
+    <toRun name="Api: http" type="LaunchSettings" />
+    <toRun name="BackerAgent: http" type="LaunchSettings" />
+    <toRun name="Poe: http" type="LaunchSettings" />
+    <method v="2" />
+  </configuration>
+</component>

@@ -1,9 +1,5 @@
 namespace Hannibal.Models;
 
-
-/**
- * Describes a data storage location for a specific user, like Timo's onedrive. 
- */
 public class Storage
 {
     public int Id { get; set; }
@@ -13,21 +9,13 @@ public class Storage
     public string Networks { get; set; }
 
     public string OAuth2Email { get; set; }
-    
+
     public string ClientId { get; set; }
     public string ClientSecret { get; set; }
     public string AccessToken { get; set; }
     public string RefreshToken { get; set; }
     public DateTime ExpiresAt { get; set; }
-    
-    /*
-     * A storage can be located in a particular network.
-     * A client may or may not be connected to that network.
-     * If the network is part of the client's network [list],
-     * the client can access the storage.
-     */
-    // public string Network { get; set; }
-    
+
     private DateTime _createdAt;
 
     public DateTime CreatedAt
@@ -37,31 +25,67 @@ public class Storage
     }
 
     private DateTime _updatedAt;
-    
-    public DateTime UpdatedAt { 
+
+    public DateTime UpdatedAt
+    {
         get => _updatedAt;
         set => _updatedAt = value.Kind == DateTimeKind.Utc ? value : value.ToUniversalTime();
     }
-    
+
     public bool IsActive { get; set; }
 
-
-    static public Storage Default()
+    // -----------------------------
+    // Parameterless constructor
+    // -----------------------------
+    public Storage()
     {
-        return new Storage()
-        {
-            UserId = "",
-            Technology = Hannibal.Models.Technologies.GetTechnologies().FirstOrDefault(),
-            UriSchema = "",
-            Networks = "",
-            OAuth2Email = "",
-            ClientId = "",
-            ClientSecret = "",
-            AccessToken = "",
-            RefreshToken = "",
-            ExpiresAt = DateTime.UtcNow,
-            IsActive = true,
-        };
+        UserId = "";
+        Technology = Technologies.GetTechnologies().FirstOrDefault();
+        UriSchema = "";
+        Networks = "";
+        OAuth2Email = "";
+        ClientId = "";
+        ClientSecret = "";
+        AccessToken = "";
+        RefreshToken = "";
+        ExpiresAt = DateTime.UtcNow;
+        IsActive = true;
+
+        // Initialize timestamps
+        CreatedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
     }
-    
+
+    // -----------------------------
+    // Copy constructor
+    // -----------------------------
+    public Storage(Storage other)
+    {
+        if (other == null)
+            throw new ArgumentNullException(nameof(other));
+
+        Id = other.Id;
+        UserId = other.UserId;
+        Technology = other.Technology;
+        UriSchema = other.UriSchema;
+        Networks = other.Networks;
+
+        OAuth2Email = other.OAuth2Email;
+
+        ClientId = other.ClientId;
+        ClientSecret = other.ClientSecret;
+        AccessToken = other.AccessToken;
+        RefreshToken = other.RefreshToken;
+        ExpiresAt = other.ExpiresAt;
+
+        CreatedAt = other.CreatedAt;
+        UpdatedAt = other.UpdatedAt;
+
+        IsActive = other.IsActive;
+    }
+
+    // -----------------------------
+    // Default factory
+    // -----------------------------
+    public static Storage Default() => new Storage();
 }
