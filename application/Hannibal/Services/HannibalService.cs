@@ -78,6 +78,20 @@ public partial class HannibalService : IHannibalService
     }
 
 
+    private string _getOAuthScope(string provider)
+    {
+        switch (provider)
+        {
+            case "dropbox":
+                return "files.metadata.write files.content.write files.content.read sharing.write account_info.read";
+            case "onedrive":
+                return "offline_access Files.ReadWrite User.Read";
+            default:
+                throw new KeyNotFoundException($"provider {provider} not found");
+        }
+    }
+
+
     private OAuth2.Client.Impl.MicrosoftGraphClient _createMicrosoftOAuthClient(
         Guid stateId)
     {
@@ -92,10 +106,8 @@ public partial class HannibalService : IHannibalService
             new OAuth2.Configuration.ClientConfiguration
             {
                 ClientId = provider.ClientId.Trim(),
-                // ClientSecret = provider.ClientSecret.Trim(),
-                // RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/microsoft",
                 RedirectUri = "http://localhost:53682/",
-                Scope = "offline_access Files.ReadWrite User.Read"
+                Scope = _getOAuthScope("onedrive")
             });
         return oauth2Client;
     }
@@ -116,10 +128,8 @@ public partial class HannibalService : IHannibalService
             {
                 ClientId = provider.ClientId.Trim(),
                 ClientSecret = provider.ClientSecret.Trim(),
-                // RedirectUri = "http://localhost:5288/api/hannibal/v1/oauth2/dropbox",
                 RedirectUri = "http://localhost:53682/",
-                Scope = "files.metadata.write files.content.write files.content.read sharing.write account_info.read",
-                // Scope = "account_info.read files.metadata.write files.metadata.read files.content.write files.content.read"
+                Scope = _getOAuthScope("dropbox"),
                 IsOfflineToken = true
             });
         return oauth2Client;
