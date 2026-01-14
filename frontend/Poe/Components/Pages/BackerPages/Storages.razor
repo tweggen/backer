@@ -188,6 +188,7 @@ else
         {
             //var newsto = new Storage(sto);
             sto.AccessToken = "";
+            sto.RefreshToken = "";
             await HigginsServiceClient.UpdateStorageAsync(sto.Id, sto, CancellationToken.None);
             await InvokeAsync(StateHasChanged);      
         }

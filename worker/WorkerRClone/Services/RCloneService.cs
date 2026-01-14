@@ -838,17 +838,40 @@ public class RCloneService : BackgroundService
                  */
                 _toWaitConfig("No or invalid user login information.");
             }
-
+            
             /*
              * OK, no exception, online connection works. So progress.
              */
             await _toCheckRCloneProcess();
 
         } catch (Exception e) {
-            _logger.LogError($"Exception while checking online: {e}");
 
-            _areOptionsValid = false;
-            _toWaitConfig("Error checking online connection.");
+            /*
+             * Let's do a discrimination here: In development use, the options are likely
+             * to be valid and pre-configured, it's probably the service that is not up yet
+             * in a debugging situation. In Production however, it's more likely the
+             * service is broken.
+             */
+            if (Tools.EnvironmentDetector.IsInteractiveDev())
+            {
+                /*
+                 * This is a dev version.
+                 * So remain in state _toCheckOnline() and check again later.
+                 */
+                _logger.LogWarning($"Could not connect to server yet, retrying in a second...");
+                await Task.Delay(1000);
+                await _toCheckOnline();
+            }
+            else
+            {
+                /*
+                 * This is a production version, so wait for a better config.
+                 */
+
+                _logger.LogError($"Exception while checking online: {e}");
+                _areOptionsValid = false;
+                _toWaitConfig("Error checking online connection.");
+            }
         }
 
     }
