@@ -87,6 +87,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
+#if false
 builder.Services.AddSingleton<HubConnectionFactory>();
 builder.Services.AddSingleton(provider =>
 {
@@ -100,6 +101,7 @@ builder.Services.AddSingleton(provider =>
         { "hannibal", hannibalConnection }
     };
 });
+#endif
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
