@@ -85,6 +85,7 @@ public partial class HannibalService : IHannibalService
             case "dropbox":
                 return "files.metadata.write files.content.write files.content.read sharing.write account_info.read";
             case "onedrive":
+                //return "https://graph.microsoft.com/offline_access https://graph.microsoft.com/Files.ReadWrite https://graph.microsoft.com/User.Read";
                 return "offline_access Files.ReadWrite User.Read";
             default:
                 throw new KeyNotFoundException($"provider {provider} not found");
@@ -106,6 +107,7 @@ public partial class HannibalService : IHannibalService
             new OAuth2.Configuration.ClientConfiguration
             {
                 ClientId = provider.ClientId.Trim(),
+                ClientSecret = provider.ClientSecret.Trim(),
                 RedirectUri = "http://localhost:53682/",
                 Scope = _getOAuthScope("onedrive")
             });

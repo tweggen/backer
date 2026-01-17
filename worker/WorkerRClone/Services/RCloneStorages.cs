@@ -69,7 +69,7 @@ public static class RCloneStorages
         Storage storage, CancellationToken cancellationToken = default)
     {
         var accessToken  = _getRCloneToken(storage);
-        var (driveId, driveType) = await _getOneDriveInfoAsync(accessToken, cancellationToken);
+        var (driveId, driveType) = await _getOneDriveInfoAsync(storage.AccessToken, cancellationToken);
         return new()
         {
             { "type", "onedrive" },
