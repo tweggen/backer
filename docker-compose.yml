@@ -12,29 +12,29 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  api:
-    build:
-      context: ./
-      dockerfile: Api/Dockerfile
-    image: hannibal-api:latest
-    volumes:
-      - dataprotection:/home/app/.aspnet/DataProtection-Keys
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.api.entrypoints=websecure"
-      - "traefik.http.routers.api.tls=true"
-      - "traefik.http.services.api.loadbalancer.server.port=8080"
-  frontend:
-    build:
-      context: ./
-      dockerfile: frontend/Poe/Dockerfile
-    image: poe-ui:latest
-    volumes:
-      - dataprotection:/home/app/.aspnet/DataProtection-Keys
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.services.frontend.loadbalancer.server.port=8080"
+  #api:
+  #  build:
+  #    context: ./
+  #    dockerfile: Api/Dockerfile
+  #  image: hannibal-api:latest
+  #  volumes:
+  #    - dataprotection:/home/app/.aspnet/DataProtection-Keys
+  #  labels:
+  #    - "traefik.enable=true"
+  #    - "traefik.http.routers.api.entrypoints=websecure"
+  #    - "traefik.http.routers.api.tls=true"
+  #    - "traefik.http.services.api.loadbalancer.server.port=8080"
+  #frontend:
+  #  build:
+  #    context: ./
+  #    dockerfile: frontend/Poe/Dockerfile
+  #  image: poe-ui:latest
+  #  volumes:
+  #    - dataprotection:/home/app/.aspnet/DataProtection-Keys
+  #  labels:
+  #    - "traefik.enable=true"
+  #    - "traefik.http.routers.frontend.entrypoints=websecure"
+  #    - "traefik.http.routers.frontend.tls=true"
+  #    - "traefik.http.services.frontend.loadbalancer.server.port=8080"
 volumes:
   dataprotection:
