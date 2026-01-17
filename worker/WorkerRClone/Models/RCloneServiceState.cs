@@ -64,7 +64,7 @@ public class RCloneServiceState
     }
 
     
-    public RCloneServiceState.ServiceState State { get; private set; }
+    public RCloneServiceState.ServiceState State { get; set; }
     public string StateString { get; set; } = "";
     public string Details { get; set; } = "";
 
@@ -88,5 +88,6 @@ public class RCloneServiceState
     public RCloneServiceState()
     {
         State = ServiceState.Starting;
+        StateString = State.ToString();
     }
 }

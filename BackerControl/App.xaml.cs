@@ -3,6 +3,7 @@ using System.Data;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Threading;
@@ -24,6 +25,7 @@ public partial class App : System.Windows.Application
     private ToolStripMenuItem _startStopItem;
     private ToolStripMenuItem _statusItem;
     private DispatcherTimer  _pollTimer;
+    private System.Threading.SynchronizationContext _formsContext;
 
 
     private void _showTransferWindow()
@@ -68,40 +70,49 @@ public partial class App : System.Windows.Application
         try
         {
             // Example: GET /status returns JSON { "running": true }
-            var status = await http.GetFromJsonAsync<RCloneServiceState>("/status");
+            
+            var status = await http.GetFromJsonAsync<RCloneServiceState>("/status", new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (status != null)
             {
-                _statusItem.Text = status.StateString;
-                switch (status.State)
+                // Update Windows Forms controls on the Forms UI thread
+                _formsContext.Post(_ =>
                 {
-                    case RCloneServiceState.ServiceState.CheckRCloneProcess:
-                    case RCloneServiceState.ServiceState.StartRCloneProcess:
-                    case RCloneServiceState.ServiceState.WaitStop:
-                    case RCloneServiceState.ServiceState.Starting:
-                    case RCloneServiceState.ServiceState.WaitConfig:
-                    case RCloneServiceState.ServiceState.Exiting:
-                    case RCloneServiceState.ServiceState.CheckOnline:
-                        _startStopItem.Text = "";
-                        _startStopItem.Enabled = false;
-                        break;
-                    
-                    case RCloneServiceState.ServiceState.WaitStart:
-                        _startStopItem.Text = "Start Service";
-                        _startStopItem.Enabled = true;
-                        break;
+                    _statusItem.Text = status.StateString;
+                    switch (status.State)
+                    {
+                        case RCloneServiceState.ServiceState.CheckRCloneProcess:
+                        case RCloneServiceState.ServiceState.StartRCloneProcess:
+                        case RCloneServiceState.ServiceState.WaitStop:
+                        case RCloneServiceState.ServiceState.Starting:
+                        case RCloneServiceState.ServiceState.WaitConfig:
+                        case RCloneServiceState.ServiceState.Exiting:
+                        case RCloneServiceState.ServiceState.CheckOnline:
+                            _startStopItem.Text = "";
+                            _startStopItem.Enabled = false;
+                            break;
                         
-                    case RCloneServiceState.ServiceState.Running:
-                        _startStopItem.Text = "Stop Service";
-                        _startStopItem.Enabled = true;
-                        break;
-                }
+                        case RCloneServiceState.ServiceState.WaitStart:
+                            _startStopItem.Text = "Start Service";
+                            _startStopItem.Enabled = true;
+                            break;
+                            
+                        case RCloneServiceState.ServiceState.Running:
+                            _startStopItem.Text = "Stop Service";
+                            _startStopItem.Enabled = true;
+                            break;
+                    }
+                }, null);
             }
         }
         catch
         {
-            _statusItem.Text = "Service unavailable";
-            _startStopItem.Text = "Service unavailable";
-            _startStopItem.Enabled = false;
+            // Update Windows Forms controls on the Forms UI thread
+            _formsContext.Post(_ =>
+            {
+                _statusItem.Text = "Service unavailable";
+                _startStopItem.Text = "Service unavailable";
+                _startStopItem.Enabled = false;
+            }, null);
         }
     }
     
@@ -121,6 +132,10 @@ public partial class App : System.Windows.Application
         };
         
         this.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        
+        // Capture the Windows Forms synchronization context
+        _formsContext = System.Threading.SynchronizationContext.Current 
+            ?? new System.Windows.Forms.WindowsFormsSynchronizationContext();
         
         trayIcon = new NotifyIcon
         {
