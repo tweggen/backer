@@ -24,7 +24,7 @@ COPY ["external/OAuth2/OAuth2.csproj", "external/OAuth2/"]
 COPY Api/ Api/
 COPY application/ application/
 COPY Tools/ Tools/
-COPY external/OAuth2 external/OAuth2
+COPY external/OAuth2/OAuth2 external/OAuth2/OAuth2
 
 RUN dotnet restore "Api/Api.csproj"
 RUN find /src -ls
