@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OAuth2.Client;
 using Tools;
 using WorkerRClone.Client;
 using WorkerRClone.Client.Models;
@@ -302,7 +303,8 @@ public class RCloneService : BackgroundService
     }
 
     
-    private async Task _configureRCloneStorage(RCloneClient rcloneClient,
+    private async Task _configureRCloneStorage(
+        RCloneClient rcloneClient,
         Storage storage, CancellationToken cancellationToken)
     {
         _logger.LogDebug($"RCloneService: _configureRCloneStorage called for storage {storage.UriSchema}.");
