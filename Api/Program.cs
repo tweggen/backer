@@ -143,7 +143,7 @@ builder.Services.AddScoped<ITokenProvider, HttpContextTokenProvider>();
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddHostedService<HubConnectionService>();
+// builder.Services.AddHostedService<HubConnectionService>();
 
 
 // Build the application
