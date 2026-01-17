@@ -10,9 +10,11 @@ WORKDIR /src
 COPY ["frontend/Poe/Poe.csproj", "frontend/Poe/"]
 COPY ["application/Hannibal/Hannibal.csproj", "application/Hannibal/"]
 COPY ["Tools/Tools.csproj", "Tools/"]
+COPY ["external/OAuth2/OAuth2.csproj", "external/OAuth2/"]
 COPY frontend/ frontend/
 COPY application/ application/
 COPY Tools/ Tools/
+COPY external/OAuth2 external/OAuth2
 
 RUN dotnet restore "frontend/Poe/Poe.csproj"
 WORKDIR "/src/frontend/Poe"
