@@ -141,6 +141,9 @@ builder.Services.AddScoped<ITokenProvider, HttpContextTokenProvider>();
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddHostedService<HubConnectionService>();
+
+
 // Build the application
 var app = builder.Build();
 
@@ -152,6 +155,7 @@ app.UseAuthorization();     // Applies authorization policies
 
 app.MapGroup("/api/auth/v1/").MapIdentityApi<IdentityUser>();
 
+#if false
 {
     app.Lifetime.ApplicationStarted.Register(async () =>
     {
@@ -181,6 +185,7 @@ app.MapGroup("/api/auth/v1/").MapIdentityApi<IdentityUser>();
         await Task.WhenAll(connections.Values.Select(conn => conn.StopAsync()).ToArray());
     });
 }
+#endif
 
 
 // Configure middleware pipeline
