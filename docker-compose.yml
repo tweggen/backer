@@ -24,7 +24,6 @@ services:
       - "traefik.http.routers.api.entrypoints=https"
       - "traefik.http.routers.api.rule=Host(`api.essentialvault.de`)"
       - "traefik.http.routers.api.tls=true"
-      - "traefik.http.services.api.loadbalancer.server.port=8080"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
       - "traefik.http.services.api.loadbalancer.server.port=8080"
   frontend:
@@ -39,8 +38,7 @@ services:
       - "traefik.http.routers.frontend.entrypoints=https"
       - "traefik.http.routers.frontend.rule=Host(`essentialvault.de`)"
       - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.services.frontend.loadbalancer.server.port=8080"
-      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.api.loadbalancer.server.port=8080"
 volumes:
   dataprotection:
