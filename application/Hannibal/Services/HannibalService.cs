@@ -107,7 +107,7 @@ public partial class HannibalService : IHannibalService
             new OAuth2.Configuration.ClientConfiguration
             {
                 ClientId = provider.ClientId.Trim(),
-                ClientSecret = provider.ClientSecret.Trim(),
+                ClientSecret = (provider.ClientSecret ?? "").Trim(),
                 RedirectUri = "http://localhost:53682/",
                 Scope = _getOAuthScope("onedrive")
             });
