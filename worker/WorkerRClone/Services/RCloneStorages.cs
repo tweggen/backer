@@ -1,8 +1,12 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Hannibal;
 using Hannibal.Configuration;
+using Hannibal.Models;
 using Microsoft.Extensions.Logging;
+using WorkerRClone.Client;
 using WorkerRClone.Services;
+using EndpointState = WorkerRClone.Services.EndpointState;
 
 namespace WorkerRClone;
 
@@ -10,12 +14,14 @@ public class RCloneStorages
 {
     private OAuthOptions _oAuthOptions;
     private ILogger<RCloneService> _logger;
+    private OAuth2ClientFactory _oauth2ClientFactory;
 
     
     public RCloneStorages(ILogger<RCloneService> logger, OAuthOptions oAuthOptions)
     {
         _logger = logger;
         _oAuthOptions = oAuthOptions;
+        _oauth2ClientFactory = new OAuth2ClientFactory(oAuthOptions);
     }
 
 
@@ -23,13 +29,14 @@ public class RCloneStorages
     {
         if (null == oAuthOptions) return;
         _oAuthOptions = oAuthOptions;
+        _oauth2ClientFactory.OnUpdateOptions(oAuthOptions);
     }
     
     
     public async Task<SortedDictionary<string, string>> _createDropboxFromStorageAsync(
-        WorkerRClone.Services.EndpointState es, CancellationToken cancellationToken)
+        StorageState ss, CancellationToken cancellationToken)
     {
-        var storage = es.Endpoint.Storage;
+        var storage = ss.Storage;
         
         /*
          * Generate a suitable dropbox token object.
@@ -57,11 +64,11 @@ public class RCloneStorages
      * Return the drive id and drive type for a consumer onedrive.
      */
     private async Task<(string DriveId, string DriveType)> _getOneDriveInfoAsync(
-        WorkerRClone.Services.EndpointState es, 
+        WorkerRClone.Services.StorageState ss, 
         string accessToken,
         CancellationToken cancellationToken)
     {
-        var client = es.HttpClient;
+        var client = ss.HttpClient;
 
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", accessToken);
@@ -83,15 +90,15 @@ public class RCloneStorages
 
     
     public async Task<SortedDictionary<string, string>> _createOnedriveFromStorageAsync(
-        WorkerRClone.Services.EndpointState es, CancellationToken cancellationToken)
+        WorkerRClone.Services.StorageState ss, CancellationToken cancellationToken)
     {
-        var storage = es.Endpoint.Storage;
+        var storage = ss.Storage;
         
         /*
          * Make sure we have a current accesstoken.
          */
-        var oldAccessToken = es.Endpoint.Storage.AccessToken;
-        var newAccessToken = await es.OAuthClient.GetCurrentTokenAsync();
+        var oldAccessToken = ss.Storage.AccessToken;
+        var newAccessToken = await ss.OAuthClient.GetCurrentTokenAsync();
         if (string.IsNullOrEmpty(newAccessToken))
         {
             throw new UnauthorizedAccessException("No access token found for onedrive.");
@@ -106,7 +113,7 @@ public class RCloneStorages
         }
         
         var (driveId, driveType) = await _getOneDriveInfoAsync(
-            es, newAccessToken, cancellationToken);
+            ss, newAccessToken, cancellationToken);
 
         var tokenObject = new
         {
@@ -128,17 +135,40 @@ public class RCloneStorages
     }
 
 
-    public async Task<SortedDictionary<string, string>> CreateFromStorageAsync(
-        WorkerRClone.Services.EndpointState es, CancellationToken cancellationToken)
+    public async Task<StorageState> CreateStorageStateAsync(
+        Storage storage,
+        HttpClient httpClient, RCloneClient rcloneClient,
+        CancellationToken cancellationToken)
     {
-        var storage = es.Endpoint.Storage; 
+        StorageState ss = new()
+        {
+            Storage = storage,
+            HttpClient = httpClient,
+            RCloneClient = rcloneClient
+        };
+        
+        /*
+         * Guid only is required for kkce which we currently do not support.
+         */
+        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
+            new Guid(), 
+            storage.UriSchema);
+
+        return ss;
+    }
+    
+
+    public async Task<SortedDictionary<string, string>> CreateFromStorageAsync(
+        WorkerRClone.Services.StorageState ss, CancellationToken cancellationToken)
+    {
+        var storage = ss.Storage; 
         switch (storage.Technology)
         {
             case "dropbox":
-                return await _createDropboxFromStorageAsync(es, cancellationToken);
+                return await _createDropboxFromStorageAsync(ss, cancellationToken);
             
             case "onedrive":
-                return await _createOnedriveFromStorageAsync(es, cancellationToken);
+                return await _createOnedriveFromStorageAsync(ss, cancellationToken);
             
             default:
                 /*

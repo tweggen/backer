@@ -67,8 +67,6 @@ public class RCloneService : BackgroundService
     private RCloneConfigManager? _configManager = null;
     private RCloneStorages _rcloneStorages;
 
-    private OAuth2ClientFactory _oauth2ClientFactory;
-    
     public RCloneService(
         ILogger<RCloneService> logger,
         ProcessManager processManager,
@@ -88,7 +86,6 @@ public class RCloneService : BackgroundService
         
         _processManager = processManager;
         _options = optionsMonitor.CurrentValue;
-        _oauth2ClientFactory = new OAuth2ClientFactory(_options.OAuth2);
         _rcloneStorages = new RCloneStorages(logger, _options.OAuth2);
         
         optionsMonitor.OnChange(async updated =>
@@ -102,7 +99,6 @@ public class RCloneService : BackgroundService
                 _logger.LogInformation("Using options.");
                 _options = updated;
                 _rcloneStorages.OnUpdateOptions(updated.OAuth2);
-                _oauth2ClientFactory.OnUpdateOptions(updated.OAuth2);
                 _areOptionsValid = true;
                 
                 /*
@@ -167,6 +163,7 @@ public class RCloneService : BackgroundService
             {
                 case RCloneServiceState.ServiceState.Starting:
                 case RCloneServiceState.ServiceState.CheckOnline:
+                case RCloneServiceState.ServiceState.BackendsLoggingIn:
                 case RCloneServiceState.ServiceState.CheckRCloneProcess:
                 case RCloneServiceState.ServiceState.WaitConfig:
                 case RCloneServiceState.ServiceState.StartRCloneProcess:
@@ -320,7 +317,8 @@ public class RCloneService : BackgroundService
         JobState js, EndpointState es, 
         CancellationToken cancellationToken)
     {
-        Storage storage = es.Endpoint.Storage;
+        #error continue to add a dictionary of providers/storages to the rclonestorages. Take care all are updated.
+        Storage storage = ss.Storage;
         _logger.LogDebug($"RCloneService: _configureRCloneStorage called for storage {storage.UriSchema}.");
 
         if (!_isStarted)
@@ -336,30 +334,24 @@ public class RCloneService : BackgroundService
         }
         
         var parameters = await _rcloneStorages.CreateFromStorageAsync(
-            es, cancellationToken);
+            ss, cancellationToken);
 
         _configManager.AddOrUpdateRemote(storage.UriSchema, parameters);
         _configManager.SaveToFile(_rcloneConfigFile());
     }
 
 
-    public async Task<EndpointState> _createEndpointStateAsync(JobState js, Hannibal.Models.Endpoint endpoint,
+    public async Task<EndpointState> _createEndpointStateAsync(JobState js, 
+        Hannibal.Models.Endpoint endpoint,
         CancellationToken cancellationToken)
     {
         string uri = $"{endpoint.Storage.UriSchema}:/{endpoint.Path}";
         EndpointState es = new()
         {
             Endpoint = endpoint,
-            HttpClient = js.HttpClient,
-            RCloneClient = js.RCloneClient,
             Uri = uri
         };
 
-        /*
-         * Guid only is required for kkce which we currently do not support.
-         */
-        es.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(new Guid(), endpoint.Storage.UriSchema);
-        
         await _configureRCloneStorage(js, es, cancellationToken);
         
         return es;
@@ -718,6 +710,20 @@ public class RCloneService : BackgroundService
         /*
          * We do not actively act, just wait for the REST put call.
          */
+    }
+
+
+    private void _toBackendsLoggingIn(string resson)
+    {
+        _state.SetState(RCloneServiceState.ServiceState.BackendsLoggingIn, resson);
+        
+        _logger.LogInformation("RCloneService: Backends logging in.");
+        
+        /*
+         * We request backend login from our storages system, which in
+         * turn will write the rclone config.
+         */
+        
     }
 
 
