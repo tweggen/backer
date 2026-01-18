@@ -3,37 +3,59 @@ using System.Text.Json;
 using Hannibal;
 using Hannibal.Configuration;
 using Hannibal.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using WorkerRClone.Client;
+using WorkerRClone.Configuration;
 using WorkerRClone.Services;
 using EndpointState = WorkerRClone.Services.EndpointState;
 
 namespace WorkerRClone;
 
+/**
+ * Service to maintain a list of storages.
+ */
 public class RCloneStorages
 {
-    private OAuthOptions _oAuthOptions;
-    private ILogger<RCloneService> _logger;
-    private OAuth2ClientFactory _oauth2ClientFactory;
+    private OAuthOptions _oauthOptions;
+    private readonly ILogger<RCloneStorages> _logger;
+    private IServiceScopeFactory _serviceScopeFactory;
 
+    private readonly OAuth2ClientFactory _oauth2ClientFactory;
     
-    public RCloneStorages(ILogger<RCloneService> logger, OAuthOptions oAuthOptions)
+    private SortedDictionary<string, StorageState> _mapStorageStates = new();
+    
+    public RCloneStorages(
+        ILogger<RCloneStorages> logger,
+        IOptionsMonitor<RCloneServiceOptions> optionsMonitor,
+        IServiceScopeFactory serviceScopeFactory)
     {
         _logger = logger;
-        _oAuthOptions = oAuthOptions;
-        _oauth2ClientFactory = new OAuth2ClientFactory(oAuthOptions);
+        _serviceScopeFactory = serviceScopeFactory;
+        _oauthOptions = optionsMonitor.CurrentValue.OAuth2 ?? new OAuthOptions();
+        _oauth2ClientFactory = new OAuth2ClientFactory(_oauthOptions);
+
+        optionsMonitor.OnChange(async updated =>
+        {
+            _logger.LogInformation($"RCloneStorages: Options changed to {updated}.");
+            if (updated?.OAuth2 != null)
+            {
+                _onUpdateOptions(updated.OAuth2);
+            }
+        });
     }
 
 
-    public void OnUpdateOptions(OAuthOptions? oAuthOptions)
+    private void _onUpdateOptions(OAuthOptions? oAuthOptions)
     {
         if (null == oAuthOptions) return;
-        _oAuthOptions = oAuthOptions;
+        _oauthOptions = oAuthOptions;
         _oauth2ClientFactory.OnUpdateOptions(oAuthOptions);
     }
     
     
-    public async Task<SortedDictionary<string, string>> _createDropboxFromStorageAsync(
+    public async Task _fillDropboxFromStorageAsync(
         StorageState ss, CancellationToken cancellationToken)
     {
         var storage = ss.Storage;
@@ -50,13 +72,16 @@ public class RCloneStorages
         }; 
         string tokenJson = JsonSerializer.Serialize(tokenObject);
         
-        return new()
+        ss.RCloneParameters = new()
         {
             { "type", "dropbox" },
             { "client_id", storage.ClientId },
             { "client_secret", storage.ClientSecret },
             { "token", tokenJson }
         };
+        
+        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
+            new Guid(), "onedrive");
     }
 
 
@@ -69,6 +94,10 @@ public class RCloneStorages
         CancellationToken cancellationToken)
     {
         var client = ss.HttpClient;
+        if (null == client)
+        {
+            throw new InvalidOperationException("No http client available, should have been setup earlier.");
+        }
 
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", accessToken);
@@ -89,16 +118,28 @@ public class RCloneStorages
     }
 
     
-    public async Task<SortedDictionary<string, string>> _createOnedriveFromStorageAsync(
+    public async Task _fillOnedriveFromStorageAsync(
         WorkerRClone.Services.StorageState ss, CancellationToken cancellationToken)
     {
         var storage = ss.Storage;
         
         /*
+         * We need an http client for a couple of operations.
+         */
+        ss.HttpClient = new HttpClient()
+        {
+            BaseAddress = new Uri("https://graph.microsoft.com/")
+        };
+
+        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
+            new Guid(), "onedrive");
+        
+        /*
          * Make sure we have a current accesstoken.
          */
         var oldAccessToken = ss.Storage.AccessToken;
-        var newAccessToken = await ss.OAuthClient.GetCurrentTokenAsync();
+        var newAccessToken = await ss.OAuthClient.GetCurrentTokenAsync(
+            ss.Storage.RefreshToken, false, cancellationToken);
         if (string.IsNullOrEmpty(newAccessToken))
         {
             throw new UnauthorizedAccessException("No access token found for onedrive.");
@@ -124,7 +165,7 @@ public class RCloneStorages
         }; 
         string tokenJson = JsonSerializer.Serialize(tokenObject);
 
-        return new()
+        ss.RCloneParameters = new()
         {
             { "type", "onedrive" },
             { "client_id", storage.ClientId },
@@ -132,50 +173,78 @@ public class RCloneStorages
             { "drive_id", driveId }, { "drive_type", driveType },
             { "token", tokenJson }
         };
-    }
 
-
-    public async Task<StorageState> CreateStorageStateAsync(
-        Storage storage,
-        HttpClient httpClient, RCloneClient rcloneClient,
-        CancellationToken cancellationToken)
-    {
-        StorageState ss = new()
-        {
-            Storage = storage,
-            HttpClient = httpClient,
-            RCloneClient = rcloneClient
-        };
-        
-        /*
-         * Guid only is required for kkce which we currently do not support.
-         */
-        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
-            new Guid(), 
-            storage.UriSchema);
-
-        return ss;
+        ss.HttpClient.Dispose();
+        ss.HttpClient = null;
     }
     
 
-    public async Task<SortedDictionary<string, string>> CreateFromStorageAsync(
+    /**
+     * Fill the storagestate with everything that is specific to one
+     * provider.
+     */
+    private async Task _fillProviderSpecific(
         WorkerRClone.Services.StorageState ss, CancellationToken cancellationToken)
     {
-        var storage = ss.Storage; 
-        switch (storage.Technology)
+        var provider = ss.Storage.Technology;
+        
+        switch (provider)
         {
             case "dropbox":
-                return await _createDropboxFromStorageAsync(ss, cancellationToken);
+                await _fillDropboxFromStorageAsync(ss, cancellationToken);
+                break;
             
             case "onedrive":
-                return await _createOnedriveFromStorageAsync(ss, cancellationToken);
+                await _fillOnedriveFromStorageAsync(ss, cancellationToken);
+                break;
             
             default:
                 /*
                  * Not supported or no config required.
                  */
-                return new();
+                ss.RCloneParameters = new();
                 break;
         }
+
+    }
+
+
+    private async Task<StorageState> _createStorageState(Storage storage, CancellationToken cancellationToken)
+    {
+        StorageState ss = new()
+        {
+            Storage = storage,
+        };
+
+        /*
+         * Now fill everything that is specific for one particular provider. 
+         */
+        try
+        {
+            await _fillProviderSpecific(ss, cancellationToken);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError($"Error filling out provider specific for {storage.Technology}: {e}");
+        }
+
+        return ss;
+    }
+
+    
+    public async Task<StorageState> FindStorageState(Storage storage, CancellationToken cancellationToken)
+    {
+        // TXWTODO: We know that we would require locking for the map. However, we create it at the very beginning.
+        StorageState ss;
+        if (_mapStorageStates.TryGetValue(storage.Technology, out ss))
+        {
+        }
+        else
+        {
+            ss = await _createStorageState(storage, cancellationToken);
+            _mapStorageStates[storage.Technology] = ss;
+        }
+
+        return ss;
     }
 }

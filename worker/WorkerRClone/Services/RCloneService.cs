@@ -65,11 +65,13 @@ public class RCloneService : BackgroundService
     private readonly INetworkIdentifier _networkIdentifier;
     
     private RCloneConfigManager? _configManager = null;
+    private IReadOnlyList<Storage> _listStorages;
     private RCloneStorages _rcloneStorages;
 
     public RCloneService(
         ILogger<RCloneService> logger,
         ProcessManager processManager,
+        RCloneStorages rcloneStorages,
         IOptionsMonitor<RCloneServiceOptions> optionsMonitor,
         Dictionary<string, HubConnection> connections,
         IServiceScopeFactory serviceScopeFactory,
@@ -86,11 +88,11 @@ public class RCloneService : BackgroundService
         
         _processManager = processManager;
         _options = optionsMonitor.CurrentValue;
-        _rcloneStorages = new RCloneStorages(logger, _options.OAuth2);
+        _rcloneStorages = rcloneStorages;
         
         optionsMonitor.OnChange(async updated =>
         {
-            _logger.LogInformation($"RCloneService: Options changed to {_options}.");
+            _logger.LogInformation($"RCloneService: options changed to {updated}.");
 
             if (_state.State == RCloneServiceState.ServiceState.Starting
                 || _state.State == RCloneServiceState.ServiceState.WaitConfig
@@ -98,7 +100,6 @@ public class RCloneService : BackgroundService
             {
                 _logger.LogInformation("Using options.");
                 _options = updated;
-                _rcloneStorages.OnUpdateOptions(updated.OAuth2);
                 _areOptionsValid = true;
                 
                 /*
@@ -313,13 +314,11 @@ public class RCloneService : BackgroundService
      * Take care we have all remotes that we need for this endpoint in the configuration.
      * If necessary, create them, restart rclone.
      */
-    private async Task _configureRCloneStorage(
-        JobState js, EndpointState es, 
+    private async Task _ensureConfiguredEndpoint(
+        EndpointState es, 
         CancellationToken cancellationToken)
     {
-        #error continue to add a dictionary of providers/storages to the rclonestorages. Take care all are updated.
-        Storage storage = ss.Storage;
-        _logger.LogDebug($"RCloneService: _configureRCloneStorage called for storage {storage.UriSchema}.");
+        _logger.LogDebug($"RCloneService: _configureRCloneStorage called for storage {es.Endpoint.Storage.UriSchema}.");
 
         if (!_isStarted)
         {
@@ -332,11 +331,11 @@ public class RCloneService : BackgroundService
             _logger.LogWarning($"Called although config manager does not exuist.");
             return;
         }
-        
-        var parameters = await _rcloneStorages.CreateFromStorageAsync(
-            ss, cancellationToken);
 
-        _configManager.AddOrUpdateRemote(storage.UriSchema, parameters);
+        Storage storage = es.Endpoint.Storage;
+        StorageState ss = await _rcloneStorages.FindStorageState(storage, cancellationToken);
+        
+        _configManager.AddOrUpdateRemote(storage.UriSchema, ss.RCloneParameters);
         _configManager.SaveToFile(_rcloneConfigFile());
     }
 
@@ -352,7 +351,10 @@ public class RCloneService : BackgroundService
             Uri = uri
         };
 
-        await _configureRCloneStorage(js, es, cancellationToken);
+        /*
+         * Ensure we have a valid configuration.
+         */
+        await _ensureConfiguredEndpoint(es, cancellationToken);
         
         return es;
     }
@@ -713,7 +715,7 @@ public class RCloneService : BackgroundService
     }
 
 
-    private void _toBackendsLoggingIn(string resson)
+    private async Task _toBackendsLoggingIn(string resson)
     {
         _state.SetState(RCloneServiceState.ServiceState.BackendsLoggingIn, resson);
         
@@ -723,7 +725,17 @@ public class RCloneService : BackgroundService
          * We request backend login from our storages system, which in
          * turn will write the rclone config.
          */
-        
+        foreach (var storage in _listStorages)
+        {
+            _logger.LogInformation($"Creating storage state for ${storage.UriSchema}");
+            
+            /*
+             * Ensure all storage states are created and initialized.
+             */
+            await _rcloneStorages.FindStorageState(storage, CancellationToken.None);
+        }
+
+        await _toCheckRCloneProcess();
     }
 
 
@@ -896,11 +908,18 @@ public class RCloneService : BackgroundService
                  */
                 _toWaitConfig("No or invalid user login information.");
             }
+
+            /*
+             * We also need to read the list of storages to preload them before
+             * we start rsync.
+             */
+            var storages = await hannibalService.GetStoragesAsync(CancellationToken.None);
+            _listStorages = new List<Storage>(storages).AsReadOnly();
             
             /*
              * OK, no exception, online connection works. So progress.
              */
-            await _toCheckRCloneProcess();
+            await _toBackendsLoggingIn("Online connection works.");
 
         } catch (Exception e) {
 

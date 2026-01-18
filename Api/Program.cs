@@ -87,21 +87,6 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
-#if false
-builder.Services.AddSingleton<HubConnectionFactory>();
-builder.Services.AddSingleton(provider =>
-{
-    var apiOptions = new ApiOptions();
-    builder.Configuration.GetSection("Api").Bind(apiOptions);
-    
-    var factory = provider.GetRequiredService<HubConnectionFactory>();
-    var hannibalConnection = factory.CreateConnection($"{apiOptions.UrlSignalR}/hannibal");
-    return new Dictionary<string, HubConnection>
-    {
-        { "hannibal", hannibalConnection }
-    };
-});
-#endif
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -156,39 +141,6 @@ app.UseAuthorization();     // Applies authorization policies
 
 
 app.MapGroup("/api/auth/v1/").MapIdentityApi<IdentityUser>();
-
-#if false
-{
-    app.Lifetime.ApplicationStarted.Register(async () =>
-    {
-        var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
-        await Task.WhenAll(connections.Values.Select(conn =>
-        {
-            while (true)
-            {
-                try
-                {
-                    var t = conn.StartAsync();
-                    Console.WriteLine("Connection started.");
-                    return t;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"Error starting connection: {e.Message}");
-                }
-                Task.Delay(1000);
-            }
-        }).ToArray());
-    });
-
-    app.Lifetime.ApplicationStopping.Register(async () =>
-    {
-        var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
-        await Task.WhenAll(connections.Values.Select(conn => conn.StopAsync()).ToArray());
-    });
-}
-#endif
-
 
 // Configure middleware pipeline
 if (app.Environment.IsDevelopment())

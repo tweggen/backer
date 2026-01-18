@@ -145,6 +145,7 @@ builder.Services
 
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
+builder.Services.AddSingleton<RCloneStorages>();
 builder.Services.AddSingleton<RCloneService>();
 builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<RCloneService>());
 builder.Services.AddSingleton<HubConnectionFactory>();
@@ -194,18 +195,6 @@ app.MapPost("/quit", async (
 {
     await rCloneService.StopAsync(cancellationToken);
 });
-
-#if false
-app.MapPost("/restart", async (
-    RCloneService rcloneService,
-    HttpContext ctx,
-    CancellationToken cancellationToken
-) =>
-{
-    await rcloneService.StopAsync(cancellationToken);
-    await rcloneService.StartAsync(cancellationToken);
-});
-#endif
 
 
 app.MapPost("/start", async (
