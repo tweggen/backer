@@ -82,7 +82,7 @@ public partial class HannibalService
         storage.ClientSecret = updatedStorage.ClientSecret;
         storage.AccessToken = updatedStorage.AccessToken;
         storage.RefreshToken = updatedStorage.RefreshToken;
-        storage.ExpiresAt = updatedStorage.ExpiresAt;
+        storage.ExpiresAt = updatedStorage.ExpiresAt.ToUniversalTime();
 
         await _context.SaveChangesAsync(cancellationToken);
         
