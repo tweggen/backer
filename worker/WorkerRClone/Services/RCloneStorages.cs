@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Hannibal;
+using Hannibal.Client;
 using Hannibal.Configuration;
 using Hannibal.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -138,19 +139,44 @@ public class RCloneStorages
          * Make sure we have a current accesstoken.
          */
         var oldAccessToken = ss.Storage.AccessToken;
+        var oldRefreshToken = ss.Storage.RefreshToken;
+        
         var newAccessToken = await ss.OAuthClient.GetCurrentTokenAsync(
             ss.Storage.RefreshToken, false, cancellationToken);
+        
         if (string.IsNullOrEmpty(newAccessToken))
         {
             throw new UnauthorizedAccessException("No access token found for onedrive.");
         }
+        
+        var newRefreshToken = ss.OAuthClient.RefreshToken;
+        var newExpiresAt = ss.OAuthClient.ExpiresAt;
 
+        bool tokensChanged = false;
+        
         if (oldAccessToken != newAccessToken)
         {
-            // TXWTODO: Update access token in the database.
-            /*
-             * Update access token for others.
-             */
+            _logger.LogInformation($"Access token refreshed for storage {storage.UriSchema}");
+            storage.AccessToken = newAccessToken;
+            tokensChanged = true;
+        }
+        
+        if (!string.IsNullOrEmpty(newRefreshToken) && oldRefreshToken != newRefreshToken)
+        {
+            _logger.LogInformation($"Refresh token updated for storage {storage.UriSchema}");
+            storage.RefreshToken = newRefreshToken;
+            tokensChanged = true;
+        }
+    
+        if (newExpiresAt != default && storage.ExpiresAt != newExpiresAt)
+        {
+            storage.ExpiresAt = newExpiresAt;
+            tokensChanged = true;
+        }
+        
+        if (tokensChanged)
+        {
+            await _updateStorageInDatabase(storage, cancellationToken);
         }
         
         var (driveId, driveType) = await _getOneDriveInfoAsync(
@@ -176,6 +202,24 @@ public class RCloneStorages
 
         ss.HttpClient.Dispose();
         ss.HttpClient = null;
+    }
+    
+    
+    private async Task _updateStorageInDatabase(Storage storage, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+        
+            await hannibalService.UpdateStorageAsync(storage.Id, storage, cancellationToken);
+        
+            _logger.LogInformation($"Updated storage {storage.UriSchema} tokens in database");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Failed to update storage in database: {ex}");
+        }
     }
     
 
