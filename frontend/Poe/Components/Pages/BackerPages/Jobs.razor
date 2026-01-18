@@ -1,8 +1,12 @@
 @page "/backer/jobs"
 @using Hannibal.Client
+@using Hannibal.Client.Configuration
 @using Hannibal.Models
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.Extensions.Options
 @using Poe.Services
+@using Tools
 @rendermode InteractiveServer
 
 @inject IHannibalServiceClient HigginsServiceClient
@@ -10,6 +14,8 @@
 @inject AuthState AuthState
 @inject NavigationManager Navigation
 @inject Tools.AppBasePath BasePath
+@inject IOptions<HannibalServiceClientOptions> HannibalServiceClientOptions
+@inject ITokenProvider TokenProvider  
 
 <h3>Jobs</h3>
 
@@ -52,11 +58,15 @@ else
 @code {
     private List<Job> listJobs;
     private IdentityUser? _user;
+    private HubConnection? hubConnection;
 
     
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        // Dispose logic if needed
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 
 
@@ -65,7 +75,7 @@ else
         try
         {
             await HannibalServiceClient.DeleteJobsAsync(CancellationToken.None);
-            await InvokeAsync(StateHasChanged);
+            await _loadJobsAsync();
         }
         catch (Exception e)
         {
@@ -73,6 +83,25 @@ else
         }
     }
 
+    
+    private async Task _loadJobsAsync()
+    {
+        try
+        {
+            listJobs = new List<Job>(
+                await HannibalServiceClient.GetJobsAsync(
+                    new ResultPage() { Offset = 0, Length = 20 },
+                    new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing },
+                    CancellationToken.None
+                ));
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception e)
+        {
+            // Handle error
+        }
+    }
+    
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -95,18 +124,52 @@ else
             if (null == _user)
             {
                 AuthState.TriggerRedirectToLogin();
+                return;
             }
 
-            listJobs = new List<Job>(
-                await HannibalServiceClient.GetJobsAsync(
-                    new ResultPage() { Offset = 0, Length = 20 },
-                    new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing },
-                    CancellationToken.None
-                ));
+            await _loadJobsAsync();
+
+            await _setupSignalRConnection();
         }
         catch (Exception e)
         {
             // TXWTODO: Catch 401 ?
+        }
+    }
+    
+
+    private async Task _setupSignalRConnection()
+    {
+        try
+        {
+            var options = HannibalServiceClientOptions.Value;
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl($"{options.BaseUrl}/hannibal", httpOptions =>
+                {
+                    httpOptions.AccessTokenProvider = async () => await TokenProvider.GetToken();
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            // Listen for job updates
+            hubConnection.On<int, string>("JobUpdated", async (jobId, newState) =>
+            {
+                // Reload the jobs list when any job is updated
+                await _loadJobsAsync();
+            });
+            
+            // Also keep the old "NewJobAvailable" handler for backward compatibility
+            hubConnection.On("NewJobAvailable", async () =>
+            {
+                await _loadJobsAsync();
+            });
+
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log the error - connection failed
+            Console.WriteLine($"SignalR connection failed: {ex.Message}");
         }
     }
 }

@@ -162,6 +162,10 @@ builder.Services.AddSingleton(provider =>
     };
 });
 
+builder.Services.AddHostedService<HubConnectionService>();
+
+
+
 builder.WebHost.ConfigureKestrel(options =>
 {
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -286,37 +290,6 @@ app.MapGet("/status", async (
 {
     return Results.Ok(rcloneService.GetState());
 });
-
-
-{
-    app.Lifetime.ApplicationStarted.Register(async () =>
-    {
-        var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
-        await Task.WhenAll(connections.Values.Select(async conn =>
-        {
-            while (true)
-            {
-                try
-                {
-                    var t = conn.StartAsync();
-                    Console.WriteLine("Connection started.");
-                    return t;
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"Error starting connection: {e.Message}");
-                }
-                await Task.Delay(1000);
-            }
-        }).ToArray());
-    });
-
-    app.Lifetime.ApplicationStopping.Register(async () =>
-    {
-        var connections = app.Services.GetRequiredService<Dictionary<string, HubConnection>>();
-        await Task.WhenAll(connections.Values.Select(conn => conn.StopAsync()).ToArray());
-    });
-}
 
 
 /*

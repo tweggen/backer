@@ -57,22 +57,28 @@ public class BackofficeService : BackgroundService
             .RuleStates
             // TXWTODO: .Where(r => r.User == me)
             .ToListAsync(cancellationToken);
-        Dictionary<Rule, RuleState> dictRuleStates = new();
+
+        Dictionary<int, RuleState> dictRuleStates = new();
 
         foreach (var rs in myRuleStates)
         {
             if (rs.Rule != null)
             {
-                dictRuleStates.Add(rs.Rule, rs);
+                // ✨ Use TryAdd to avoid duplicates (defensive programming)
+                if (!dictRuleStates.TryAdd(rs.Rule.Id, rs))
+                {
+                    _logger.LogWarning($"Duplicate RuleState found for Rule ID {rs.Rule.Id}. Keeping the first one.");
+                }
             }
             else
             {
-                // This is an invalid rule state, delete it.
+                _logger.LogWarning($"RuleState {rs.Id} has null Rule. Should be cleaned up.");
+                // TXWTODO: Delete invalid rule state
             }
         }
-        
+
         /*
-         * Now process every rule. 
+         * Now process every rule.
          */
         foreach (var r in myRules)
         {
@@ -81,7 +87,7 @@ public class BackofficeService : BackgroundService
             bool isNewState = false;
             bool shallCompute = false;
 
-            if (!dictRuleStates.TryGetValue(r, out rs))
+            if (!dictRuleStates.TryGetValue(r.Id, out rs))
             {
                 _logger.LogWarning($"creating new rule state for rule {r}.");
                 rs = new()
@@ -95,30 +101,42 @@ public class BackofficeService : BackgroundService
             else
             {
                 _logger.LogWarning($"found existing rule state for rule {r}.");
-                _logger.LogWarning($"recent job {rs.RecentJob?.Id} state {rs.RecentJob?.State}");
-                switch (rs.RecentJob.State)
+                if (rs.RecentJob != null)
                 {
-                    case Job.JobState.Ready:
-                        break;
-                    case Job.JobState.DoneFailure:
-                        _logger.LogWarning($"job last reported {rs.RecentJob.LastReported} min retry time {r.MinRetryTime}, now {now}", rs.RecentJob.Id);
-                        if (rs.RecentJob.LastReported + r.MinRetryTime <= now)
-                        {
-                            shallCompute = true;
-                        }
+                    _logger.LogWarning($"recent job {rs.RecentJob?.Id} state {rs.RecentJob?.State}");
+                    switch (rs.RecentJob.State)
+                    {
+                        case Job.JobState.Ready:
+                            break;
+                        case Job.JobState.DoneFailure:
+                            _logger.LogWarning(
+                                $"job last reported {rs.RecentJob.LastReported} min retry time {r.MinRetryTime}, now {now}",
+                                rs.RecentJob.Id);
+                            if (rs.RecentJob.LastReported + r.MinRetryTime <= now)
+                            {
+                                shallCompute = true;
+                            }
 
-                        break;
-                    case Job.JobState.DoneSuccess:
-                        if (rs.ExpiredAfter <= now)
-                        {
-                            shallCompute = true;
-                        }
+                            break;
+                        case Job.JobState.DoneSuccess:
+                            if (rs.ExpiredAfter <= now)
+                            {
+                                shallCompute = true;
+                            }
 
-                        break;
-                    case Job.JobState.Executing:
-                        break;
-                    case Job.JobState.Preparing:
-                        break;
+                            break;
+                        case Job.JobState.Executing:
+                            break;
+                        case Job.JobState.Preparing:
+                            break;
+                    }
+                }
+                else
+                {
+                    /*
+                     * No recent job, need to compute.
+                     */
+                    shallCompute = true;
                 }
             }
 

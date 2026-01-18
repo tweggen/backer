@@ -67,25 +67,6 @@ public partial class HannibalService
         // var user = await _context.Users.FirstAsync(u => u.Username == acquireParams.Username, cancellationToken); 
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
-        #if false
-        /*
-         * convert the capabilities into a set of remotes.
-         */
-        var setRemotes = new HashSet<string>();
-        var capaList = acquireParams.Capabilities.Split(',');
-        foreach (var capa in capaList)
-        {
-            try
-            {
-                setRemotes.Add(capa.Trim());
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Invalid capability {capa}, ifnoring: {e}");
-            }
-        }
-        #endif
-        
         var listPossibleJobs = await _context.Jobs
             .Where(j => j.State == Job.JobState.Ready && j.Owner == "")
             .Include(j => j.SourceEndpoint)
@@ -102,20 +83,6 @@ public partial class HannibalService
         }
         foreach (var candidate in listPossibleJobs)
         {
-            #if false
-            if (!setRemotes.Contains(candidate.SourceEndpoint.Storage.UriSchema))
-            {
-                _logger.LogInformation($"Skipping job {candidate.Id} because source endpoint {candidate.SourceEndpoint.Name} is not in set of remotes.");
-                continue;
-            }
-
-            if (!setRemotes.Contains(candidate.DestinationEndpoint.Storage.UriSchema))
-            {
-                _logger.LogInformation($"Skipping job {candidate.Id} because destination endpoint {candidate.DestinationEndpoint.Name} is not in set of remotes.");
-                continue;
-            }
-            #endif
-            
             if (!String.IsNullOrWhiteSpace(candidate.SourceEndpoint.Storage.Networks)
                 && acquireNetworks != candidate.SourceEndpoint.Storage.Networks.Trim())
             {
@@ -154,6 +121,9 @@ public partial class HannibalService
             job.State = Job.JobState.Executing;
             job.LastReported = DateTime.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
+            
+            await _hannibalHub.Clients.All.SendAsync("JobUpdated", job.Id, job.State.ToString());
+
             return job;
         }
         else
@@ -345,6 +315,8 @@ public partial class HannibalService
             }
             
             await _context.SaveChangesAsync(cancellationToken);
+
+            await _hannibalHub.Clients.All.SendAsync("JobUpdated", job.Id, job.State.ToString());
 
             result = 0;
         }

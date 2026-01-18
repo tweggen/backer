@@ -183,7 +183,6 @@ public class RCloneService : BackgroundService
                         wasStart = true;
                         try
                         {
-                            // rCloneServiceParams = await _taskChannel.Reader.ReadAsync(cancellationToken);
                             /*
                              * Initially, we trigger reading all matching todos from hannibal.
                              * Whatever we got we execute.
