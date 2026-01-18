@@ -29,6 +29,12 @@ public class RCloneServiceState
         CheckOnline,
         
         /**
+         * We try to authenticate with all backends that recommend
+         * pre-authentication.
+         */
+        BackendsLoggingIn,
+        
+        /**
          * We check if there is a running rclone instance fitting our
          * requirements. If there is, we transition to Running.
          */

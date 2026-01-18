@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
+using Hannibal;
 using Hannibal.Client;
 using Hannibal.Models;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -16,7 +17,6 @@ using WorkerRClone.Client;
 using WorkerRClone.Client.Models;
 using WorkerRClone.Configuration;
 using WorkerRClone.Models;
-using Result = WorkerRClone.Models.Result;
 
 namespace WorkerRClone.Services;
 
@@ -65,22 +65,10 @@ public class RCloneService : BackgroundService
     private readonly INetworkIdentifier _networkIdentifier;
     
     private RCloneConfigManager? _configManager = null;
+    private RCloneStorages _rcloneStorages;
 
-    private string _rcloneConfigFile()
-    {
-        return Path.Combine(
-            Tools.EnvironmentDetector.GetConfigDir("Backer"),
-            "backer-rclone.conf");
-    }
+    private OAuth2ClientFactory _oauth2ClientFactory;
     
-    
-    private string _rcloneConfigDir()
-    {
-        return Path.Combine(
-            Tools.EnvironmentDetector.GetConfigDir("Backer"));
-    }
-    
-
     public RCloneService(
         ILogger<RCloneService> logger,
         ProcessManager processManager,
@@ -100,6 +88,9 @@ public class RCloneService : BackgroundService
         
         _processManager = processManager;
         _options = optionsMonitor.CurrentValue;
+        _oauth2ClientFactory = new OAuth2ClientFactory(_options.OAuth2);
+        _rcloneStorages = new RCloneStorages(logger, _options.OAuth2);
+        
         optionsMonitor.OnChange(async updated =>
         {
             _logger.LogInformation($"RCloneService: Options changed to {_options}.");
@@ -110,6 +101,8 @@ public class RCloneService : BackgroundService
             {
                 _logger.LogInformation("Using options.");
                 _options = updated;
+                _rcloneStorages.OnUpdateOptions(updated.OAuth2);
+                _oauth2ClientFactory.OnUpdateOptions(updated.OAuth2);
                 _areOptionsValid = true;
                 
                 /*
@@ -123,6 +116,7 @@ public class RCloneService : BackgroundService
                 _logger.LogError($"RCloneService: Options changed while not in WaitConfig state (but {_state.State}. This is not supported. Ignoring.");
             }
         });
+        
         _hannibalConnection = connections["hannibal"];
         _serviceScopeFactory = serviceScopeFactory;
         
@@ -133,6 +127,21 @@ public class RCloneService : BackgroundService
 
     }
 
+
+    private string _rcloneConfigFile()
+    {
+        return Path.Combine(
+            Tools.EnvironmentDetector.GetConfigDir("Backer"),
+            "backer-rclone.conf");
+    }
+    
+    
+    private string _rcloneConfigDir()
+    {
+        return Path.Combine(
+            Tools.EnvironmentDetector.GetConfigDir("Backer"));
+    }
+    
 
     private void _onNetworkChanged(object sender, EventArgs e)
     {
@@ -182,7 +191,7 @@ public class RCloneService : BackgroundService
                              * Whatever we got we execute.
                              * If we have nothing, we sleep until receiving an signalr update.
                              */
-                            _triggerFetchJob(cancellationToken);
+                            _triggerFetchJobAsync(cancellationToken);
                         }
                         catch (Exception e)
                         {
@@ -302,11 +311,16 @@ public class RCloneService : BackgroundService
         }
     }
 
-    
+
+    /**
+     * Take care we have all remotes that we need for this endpoint in the configuration.
+     * If necessary, create them, restart rclone.
+     */
     private async Task _configureRCloneStorage(
-        RCloneClient rcloneClient,
-        Storage storage, CancellationToken cancellationToken)
+        JobState js, EndpointState es, 
+        CancellationToken cancellationToken)
     {
+        Storage storage = es.Endpoint.Storage;
         _logger.LogDebug($"RCloneService: _configureRCloneStorage called for storage {storage.UriSchema}.");
 
         if (!_isStarted)
@@ -321,55 +335,69 @@ public class RCloneService : BackgroundService
             return;
         }
         
-        var parameters = await RCloneStorages.CreateFromStorage(storage);
+        var parameters = await _rcloneStorages.CreateFromStorageAsync(
+            es, cancellationToken);
 
         _configManager.AddOrUpdateRemote(storage.UriSchema, parameters);
         _configManager.SaveToFile(_rcloneConfigFile());
+    }
+
+
+    public async Task<EndpointState> _createEndpointStateAsync(JobState js, Hannibal.Models.Endpoint endpoint,
+        CancellationToken cancellationToken)
+    {
+        string uri = $"{endpoint.Storage.UriSchema}:/{endpoint.Path}";
+        EndpointState es = new()
+        {
+            Endpoint = endpoint,
+            HttpClient = js.HttpClient,
+            RCloneClient = js.RCloneClient,
+            Uri = uri
+        };
+
+        /*
+         * Guid only is required for kkce which we currently do not support.
+         */
+        es.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(new Guid(), endpoint.Storage.UriSchema);
         
-        // TXWTODO: Restart rsync.
-            
+        await _configureRCloneStorage(js, es, cancellationToken);
+        
+        return es;
     }
     
-
-    private async Task<AsyncResult> _startJob(Job job, CancellationToken cancellationToken)
+    
+    private async Task<AsyncResult> _startJobAsync(JobState js, CancellationToken cancellationToken)
     {
-        var rcloneClient = new RCloneClient(_rcloneHttpClient);
+        Job job = js.Job;
         
         try
         {
             _logger.LogInformation($"Starting job {job.Id}");
 
-            // TXWTODO: Compare the configuration to the storages listed before.
+            js.SourceEndpointState = await _createEndpointStateAsync(js, job.SourceEndpoint, cancellationToken);
+            js.DestinationEndpointState = await _createEndpointStateAsync(js, job.DestinationEndpoint, cancellationToken);
             
-            /*
-             * Resolve the endpoints.
-             */
-            var sourceEndpoint = job.SourceEndpoint;
-            var destinationEndpoint = job.DestinationEndpoint;
-
-            await _configureRCloneStorage(rcloneClient, sourceEndpoint.Storage, cancellationToken);
-            await _configureRCloneStorage(rcloneClient, destinationEndpoint.Storage, cancellationToken);
-
-            string sourceUri = $"{sourceEndpoint.Storage.UriSchema}:/{sourceEndpoint.Path}";
-            string destinationUri = $"{destinationEndpoint.Storage.UriSchema}:/{destinationEndpoint.Path}";
-            
-            _logger.LogInformation($"sourceUri is {sourceUri}");
-            _logger.LogInformation($"destinationUri is {destinationUri}");
+            _logger.LogInformation($"sourceUri is {js.SourceEndpointState.Uri}");
+            _logger.LogInformation($"destinationUri is {js.DestinationEndpointState.Uri}");
             
             AsyncResult? asyncResult;
             switch (job.Operation /* Rule.RuleOperation.Nop */)
             {
                 case Rule.RuleOperation.Copy:
-                    asyncResult = await rcloneClient.CopyAsync(sourceUri, destinationUri, CancellationToken.None);
+                    asyncResult = await js.RCloneClient.CopyAsync(
+                        js.SourceEndpointState.Uri, js.DestinationEndpointState.Uri, 
+                        cancellationToken);
                     break;
                 default:
                     asyncResult = new() { jobid = 0 };
                     break;
                 case Rule.RuleOperation.Nop:
-                    asyncResult = await rcloneClient.NoopAsync(CancellationToken.None);
+                    asyncResult = await js.RCloneClient.NoopAsync(cancellationToken);
                     break;
                 case Rule.RuleOperation.Sync:
-                    asyncResult = await rcloneClient.SyncAsync(sourceUri, destinationUri, CancellationToken.None);
+                    asyncResult = await js.RCloneClient.SyncAsync(
+                        js.SourceEndpointState.Uri, js.DestinationEndpointState.Uri,
+                        cancellationToken);
                     break;
 
             }
@@ -385,9 +413,30 @@ public class RCloneService : BackgroundService
             throw e;
         }
     }
+
+
+    private JobState _createJobState(Job job)
+    {
+        if (null == _rcloneHttpClient)
+        {
+            throw new InvalidOperationException("RCloneService: No http client available.");
+        }
+        
+        var httpClient = _rcloneHttpClient;
+        var rCloneClient = new RCloneClient(httpClient);
+
+        JobState js = new()
+        {
+            Job = job,
+            HttpClient = httpClient,
+            RCloneClient = rCloneClient 
+        };
+
+        return js;
+    }
     
 
-    private async Task _triggerFetchJob(CancellationToken cancellationToken)
+    private async Task _triggerFetchJobAsync(CancellationToken cancellationToken)
     {
         _logger.LogDebug("RCloneService: _triggerFetchJob called.");
         if (_state.State != RCloneServiceState.ServiceState.Running)
@@ -439,16 +488,17 @@ public class RCloneService : BackgroundService
                 return;
             }
 
+            JobState jobState = _createJobState(job);
+
             /*
              * Execute the job, remember the result.
              */
-            Result jobResult = new();
             try
             {
                 /*
                  * Execute the job.
                  */
-                var asyncResult = await _startJob(job, cancellationToken);
+                var asyncResult = await _startJobAsync(jobState, cancellationToken);
                 _logger.LogInformation($"Started executing job {job.Id}");
                 
                 /*
@@ -735,7 +785,7 @@ public class RCloneService : BackgroundService
             {
                 if (_state.State == RCloneServiceState.ServiceState.Running)
                 {
-                    await _triggerFetchJob(CancellationToken.None);
+                    await _triggerFetchJobAsync(CancellationToken.None);
                 }
             });
             

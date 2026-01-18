@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Hannibal.Configuration;
 using Hannibal.Models;
 
 namespace WorkerRClone.Configuration;
@@ -22,18 +25,14 @@ public class RCloneServiceOptions
      * Shall the rclone operations be started automatically on startup?
      */
     public bool Autostart { get; set; }
-
-
+    
+    [JsonPropertyName("oauth2")]
+    public OAuthOptions? OAuth2 { get; set; }
+    
+    
     public override string ToString()
     {
-        return $"{{\n"
-               + $"\"BackerUsername\": \"{BackerUsername}\",\n"
-               + $"\"BackerPassword\": \"xxx\",\n"
-               + $"\"RClonePath\": \"{RClonePath}\"\n"
-               + $"\"RCloneOptions\": \"{RCloneOptions}\"\n"
-               + $"\"UrlSignalR\": \"{UrlSignalR}\"\n"
-               + $"}}"
-            ;
+        return JsonSerializer.Serialize(this);
     }
 
     public RCloneServiceOptions(RCloneServiceOptions o)
@@ -44,6 +43,7 @@ public class RCloneServiceOptions
         RCloneOptions = o.RCloneOptions;
         UrlSignalR = o.UrlSignalR;
         Autostart = o.Autostart;
+        OAuth2 = OAuth2 != null ? new OAuthOptions(o.OAuth2) : null;
     }
 
     public RCloneServiceOptions()

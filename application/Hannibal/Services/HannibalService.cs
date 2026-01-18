@@ -34,6 +34,7 @@ public partial class HannibalService : IHannibalService
 
     private readonly IServiceProvider _serviceProvider;
 
+    private readonly OAuth2ClientFactory _oAuth2ClientFactory;
     
     public HannibalService(
         HannibalContext context,
@@ -55,6 +56,7 @@ public partial class HannibalService : IHannibalService
         _oauthStateService = oauthStateService;
         _httpContextAccessor = httpContextAccessor;
         _serviceProvider = serviceProvider;
+        _oAuth2ClientFactory = new OAuth2ClientFactory(oauthOptions.Value);
     }
 
 
@@ -78,87 +80,6 @@ public partial class HannibalService : IHannibalService
     }
 
 
-    private string _getOAuthScope(string provider)
-    {
-        switch (provider)
-        {
-            case "dropbox":
-                return "files.metadata.write files.content.write files.content.read sharing.write account_info.read";
-            case "onedrive":
-                //return "https://graph.microsoft.com/offline_access https://graph.microsoft.com/Files.ReadWrite https://graph.microsoft.com/User.Read";
-                return "offline_access Files.ReadWrite User.Read";
-            default:
-                throw new KeyNotFoundException($"provider {provider} not found");
-        }
-    }
-
-
-    private OAuth2.Client.Impl.MicrosoftGraphClient _createMicrosoftOAuthClient(
-        Guid stateId)
-    {
-        if (!_oauthOptions.Providers.TryGetValue("onedrive", out var provider))
-        {
-            throw new KeyNotFoundException("provider onedrive not found");
-        }
-
-        var oauth2Client = new OAuth2.Client.Impl.MicrosoftGraphClient(
-            stateId,
-            new OAuth2.Infrastructure.RequestFactory(),
-            new OAuth2.Configuration.ClientConfiguration
-            {
-                ClientId = provider.ClientId.Trim(),
-                ClientSecret = (provider.ClientSecret ?? "").Trim(),
-                RedirectUri = "http://localhost:53682/",
-                Scope = _getOAuthScope("onedrive")
-            });
-        return oauth2Client;
-    }
-    
-
-    private OAuth2.Client.Impl.DropboxClient _createDropboxOAuthClient(
-        Guid stateId)
-    {
-        if (!_oauthOptions.Providers.TryGetValue("dropbox", out var provider))
-        {
-            throw new KeyNotFoundException("provider dropbox not found");
-        }
-
-        var oauth2Client = new OAuth2.Client.Impl.DropboxClient(
-            stateId,
-            new OAuth2.Infrastructure.RequestFactory(),
-            new OAuth2.Configuration.ClientConfiguration
-            {
-                ClientId = provider.ClientId.Trim(),
-                ClientSecret = provider.ClientSecret.Trim(),
-                RedirectUri = "http://localhost:53682/",
-                Scope = _getOAuthScope("dropbox"),
-                IsOfflineToken = true
-            });
-        return oauth2Client;
-    }
-
-
-    private OAuth2Client _createOAuth2Client(
-        Guid stateId,
-        string provider)
-    {
-        OAuth2Client oauth2Client;
-        switch (provider)
-        {
-            case "onedrive":
-                oauth2Client = _createMicrosoftOAuthClient(stateId);
-                break;
-            case "dropbox":
-                oauth2Client = _createDropboxOAuthClient(stateId);
-                break;
-            default:
-                throw new KeyNotFoundException("provider not found.");
-        }
-
-        return oauth2Client;
-    }
-    
-
     public async Task<TriggerOAuth2Result> TriggerOAuth2Async(
         OAuth2Params authParams, CancellationToken cancellationToken)
     {
@@ -175,7 +96,7 @@ public partial class HannibalService : IHannibalService
             returnUrl: authParams.AfterAuthUri, 
             cancellationToken );
 
-        OAuth2.Client.OAuth2Client? oauth2Client = _createOAuth2Client(
+        OAuth2.Client.OAuth2Client? oauth2Client = _oAuth2ClientFactory.CreateOAuth2Client(
             stateId,
             authParams.Provider);
         
@@ -237,7 +158,7 @@ public partial class HannibalService : IHannibalService
             }
             var callbackProvider = stateEntry.Provider;
             
-            var oauth2Client = _createOAuth2Client(stateEntry.Id, stateEntry.Provider);
+            var oauth2Client = _oAuth2ClientFactory.CreateOAuth2Client(stateEntry.Id, stateEntry.Provider);
             try
             {
                 var userInfo = await oauth2Client.GetUserInfoAsync(
