@@ -133,4 +133,26 @@ public partial class HannibalService
         var list = await _context.Rules.ToListAsync(cancellationToken);
         return list;
     }
+
+
+    public async Task FlushRulesAsync(
+        CancellationToken cancellationToken)
+    {
+        await _obtainUser(); // If you need user context
+    
+        var list = await _context.RuleStates
+            .Where(rs => rs.Rule.UserId == _currentUser!.Id)
+            .ToListAsync(cancellationToken);
+    
+        foreach (var rs in list)
+        {
+            rs.ExpiredAfter = DateTime.MinValue;
+        }
+    
+        await _context.SaveChangesAsync(cancellationToken);
+    
+        await _hannibalHub.Clients.All.SendAsync("RulesFlushed");
+    }
+
+
 }

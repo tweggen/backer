@@ -65,6 +65,9 @@ public interface IHannibalServiceClient
     public Task DeleteRuleAsync(
         int id,
         CancellationToken cancellationToken);
+    public Task FlushRulesAsync(
+        CancellationToken cancellationToken);
+
     #endregion
     
     #region Jobs

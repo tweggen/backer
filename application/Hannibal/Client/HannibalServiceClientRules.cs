@@ -60,4 +60,12 @@ public partial class HannibalServiceClient
         var response = await _httpClient.DeleteAsync($"/api/hannibal/v1/rules/{id}", cancellationToken);
         response.EnsureSuccessStatusCode();
     }
+
+    
+    public async Task FlushRulesAsync(CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.PostAsync($"/api/hannibal/v1/rules/flush", null, cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
 }

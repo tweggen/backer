@@ -42,65 +42,65 @@ else
         {
             @if (_editRuleId == ru.Id && _listEndpoints != null)
             {
-                    <tr>
-                        <td>&nbsp;</td>
-                        <td><InputText id="name" class="form-control" @bind-Value="_editRule.Name" /></td>
-                        <td>
-                            <InputSelect id="source" 
-                                         placeholder="Source Endpoint"
-                                         class="form-control"
-                                         @bind-Value="_editSourceEndpointId"
-                                         @bind-Value:after="_onEditSourceEndpointChanged">
-                                @foreach (var ep in _listEndpoints)
-                                {
-                                    <option value="@ep.Id">@ep.Name</option>
-                                }
-                            </InputSelect>
-                        </td>
-                        <td>
-                            <InputSelect id="operation"
-                                         placeholder="Operation"
-                                         class="form-control"
-                                         @bind-Value="_editRule.Operation">
-                                @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
-                                {
-                                    <option value="@op">@op</option>
-                                }
-                            </InputSelect>
-                        </td>
-                        <td>
-                            <InputSelect id="destination"
-                                         placeholder="Destination Endpoint"
-                                         class="form-control"
-                                         @bind-Value="_editDestinationEndpointId"
-                                         @bind-Value:after="_onEditDestinationEndpointChanged">
-                                @foreach (var ep in _listEndpoints)
-                                {
-                                    <option value="@ep.Id">@ep.Name</option>
-                                }
-                            </InputSelect>
-                        </td>
-                        <td>
-                            <InputNumber id="maxDestAge"
-                                         @bind-Value="_editMaxDestAge"
-                                         class="form-control"/>
-                        </td>
-                        <td>
-                            <InputNumber id="minRetryTime"
-                                         @bind-Value="_editMinRetryTime"
-                                         class="form-control"/>
-                        </td>
-                        <td>
-                            <InputNumber id="dailyTriggerTime"
-                                         @bind-Value="_editDailyTriggerTime"
-                                         class="form-control"/>
-                        </td>
-                        <td><InputText id="comment" @bind-Value="_editRule.Comment" class="form-control"/></td>
-                        <td>
-                            <button @onclick="_onEditRuleSubmit" id="submiteditrule" class="close">✔</button>
-                            <button @onclick="_onEditRuleCancel" class="close" aria-label="delete">❌️</button>
-                        </td>
-                    </tr>
+                <tr>
+                    <td>&nbsp;</td>
+                    <td><InputText id="name" class="form-control" @bind-Value="_editRule.Name" /></td>
+                    <td>
+                        <InputSelect id="source" 
+                                     placeholder="Source Endpoint"
+                                     class="form-control"
+                                     @bind-Value="_editSourceEndpointId"
+                                     @bind-Value:after="_onEditSourceEndpointChanged">
+                            @foreach (var ep in _listEndpoints)
+                            {
+                                <option value="@ep.Id">@ep.Name</option>
+                            }
+                        </InputSelect>
+                    </td>
+                    <td>
+                        <InputSelect id="operation"
+                                     placeholder="Operation"
+                                     class="form-control"
+                                     @bind-Value="_editRule.Operation">
+                            @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
+                            {
+                                <option value="@op">@op</option>
+                            }
+                        </InputSelect>
+                    </td>
+                    <td>
+                        <InputSelect id="destination"
+                                     placeholder="Destination Endpoint"
+                                     class="form-control"
+                                     @bind-Value="_editDestinationEndpointId"
+                                     @bind-Value:after="_onEditDestinationEndpointChanged">
+                            @foreach (var ep in _listEndpoints)
+                            {
+                                <option value="@ep.Id">@ep.Name</option>
+                            }
+                        </InputSelect>
+                    </td>
+                    <td>
+                        <InputNumber id="maxDestAge"
+                                     @bind-Value="_editMaxDestAge"
+                                     class="form-control"/>
+                    </td>
+                    <td>
+                        <InputNumber id="minRetryTime"
+                                     @bind-Value="_editMinRetryTime"
+                                     class="form-control"/>
+                    </td>
+                    <td>
+                        <InputNumber id="dailyTriggerTime"
+                                     @bind-Value="_editDailyTriggerTime"
+                                     class="form-control"/>
+                    </td>
+                    <td><InputText id="comment" @bind-Value="_editRule.Comment" class="form-control"/></td>
+                    <td>
+                        <button @onclick="_onEditRuleSubmit" id="submiteditrule" class="close">✔</button>
+                        <button @onclick="_onEditRuleCancel" class="close" aria-label="delete">❌️</button>
+                    </td>
+                </tr>
                 
             } else
             {
@@ -122,6 +122,8 @@ else
         }
         </tbody>
     </table>
+    
+    <button @onclick="() => _onFlush()">Flush</button>
 }
 
 @if (_listEndpoints == null)
@@ -256,6 +258,18 @@ else
         // Dispose logic if needed
     }
 
+
+    private async Task _onFlush()
+    {
+        try
+        {
+            await HannibalServiceClient.FlushRulesAsync(CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+        }
+
+    }
     
     private void _onEditSourceEndpointChanged()
     {

@@ -70,7 +70,7 @@ public interface IHannibalService
      */
     
     public Task<Storage> GetStorageAsync(
-        int id,
+        int storageId,
         CancellationToken cancellationToken);
 
     public Task<IEnumerable<Storage>> GetStoragesAsync(
@@ -82,11 +82,11 @@ public interface IHannibalService
         CancellationToken cancellationToken);
 
     public Task DeleteStorageAsync(
-        int id,
+        int storageId,
         CancellationToken cancellationToken);
 
     public Task<Storage> UpdateStorageAsync(
-        int id,
+        int storageId,
         Storage storage,
         CancellationToken cancellationToken);
 
@@ -103,12 +103,15 @@ public interface IHannibalService
         ResultPage resultPage, RuleFilter filter, CancellationToken cancellationToken);
 
     public Task<Rule> UpdateRuleAsync(
-        int id,
+        int ruleId,
         Rule updatedRule,
         CancellationToken cancellationToken);
 
     public Task DeleteRuleAsync(
-        int id,
+        int ruleId,
+        CancellationToken cancellationToken);
+
+    public Task FlushRulesAsync(
         CancellationToken cancellationToken);
     
     #endregion

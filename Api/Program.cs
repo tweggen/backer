@@ -403,6 +403,26 @@ app.MapDelete("/api/hannibal/v1/rules/{id}", async (
     .WithName("DeleteRule")
     .WithOpenApi();
 
+app.MapPost("/api/hannibal/v1/rules/flush", async (
+    IHannibalService hannibalService,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        await hannibalService.FlushRulesAsync(cancellationToken);
+        return Results.Ok();
+    }
+    catch (KeyNotFoundException)
+    {
+        return Results.InternalServerError();
+    }
+})
+.RequireAuthorization()
+.WithName("FlushRules")
+.WithOpenApi();
+    
+    
+
 #endregion
 
 
