@@ -113,7 +113,7 @@ public interface IHannibalService
 
     public Task FlushRulesAsync(
         CancellationToken cancellationToken);
-    
+
     #endregion
     
     #region Jobs
@@ -163,4 +163,5 @@ public interface IHannibalService
         MergeStrategy mergeStrategy,
         CancellationToken cancellationToken);
     #endregion
+public Task<IEnumerable<HannibalService.RuleStateDto>> GetRuleStatesAsync(CancellationToken cancellationToken);
 }

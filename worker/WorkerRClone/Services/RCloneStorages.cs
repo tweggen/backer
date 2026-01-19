@@ -59,6 +59,13 @@ public class RCloneStorages
     private async Task _getLatestToken(StorageState ss, CancellationToken cancellationToken)
     {
         var storage = ss.Storage;
+
+        if (String.IsNullOrWhiteSpace(ss.Storage.AccessToken) 
+            && String.IsNullOrWhiteSpace(ss.Storage.RefreshToken))
+        {
+            _logger.LogInformation("BackerAgent: Skipping token refresh, no login happened yet.");
+            return;
+        }
         
         /*
          * Make sure we have a current accesstoken.
@@ -114,33 +121,38 @@ public class RCloneStorages
         /*
          * We do not need an http client of our own.
          */
-        
-        
         ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
             new Guid(), "dropbox");
 
         await _getLatestToken(ss, cancellationToken);
         
+        
         /*
-         * Generate a suitable dropbox token object.
+         * Only compute parameters if we have a token.
          */
-        var tokenObject = new
+        if (!String.IsNullOrWhiteSpace(ss.Storage.AccessToken))
         {
-            access_token = storage.AccessToken,
-            refresh_token = storage.RefreshToken,
-            token_type = "bearer", 
-            expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
-        }; 
-        string tokenJson = JsonSerializer.Serialize(tokenObject);
-        
-        ss.RCloneParameters = new()
-        {
-            { "type", "dropbox" },
-            { "client_id", storage.ClientId },
-            { "client_secret", storage.ClientSecret },
-            { "token", tokenJson }
-        };
-        
+            /*
+             * Generate a suitable dropbox token object.
+             */
+            var tokenObject = new
+            {
+                access_token = storage.AccessToken,
+                refresh_token = storage.RefreshToken,
+                token_type = "bearer",
+                expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
+            };
+            string tokenJson = JsonSerializer.Serialize(tokenObject);
+
+            ss.RCloneParameters = new()
+            {
+                { "type", "dropbox" },
+                { "client_id", storage.ClientId },
+                { "client_secret", storage.ClientSecret },
+                { "token", tokenJson }
+            };
+        }
+
     }
 
 
@@ -196,27 +208,33 @@ public class RCloneStorages
 
 
         await _getLatestToken(ss, cancellationToken);
-        
-        var (driveId, driveType) = await _getOneDriveInfoAsync(
-            ss, storage.AccessToken, cancellationToken);
 
-        var tokenObject = new
+        /*
+         * Only compute parameters if we have a token.
+         */
+        if (!String.IsNullOrWhiteSpace(ss.Storage.AccessToken))
         {
-            access_token = storage.AccessToken,
-            refresh_token = storage.RefreshToken,
-            token_type = "bearer", 
-            expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
-        }; 
-        string tokenJson = JsonSerializer.Serialize(tokenObject);
+            var (driveId, driveType) = await _getOneDriveInfoAsync(
+                ss, storage.AccessToken, cancellationToken);
 
-        ss.RCloneParameters = new()
-        {
-            { "type", "onedrive" },
-            { "client_id", storage.ClientId },
-            { "client_secret", storage.ClientSecret },
-            { "drive_id", driveId }, { "drive_type", driveType },
-            { "token", tokenJson }
-        };
+            var tokenObject = new
+            {
+                access_token = storage.AccessToken,
+                refresh_token = storage.RefreshToken,
+                token_type = "bearer",
+                expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
+            };
+            string tokenJson = JsonSerializer.Serialize(tokenObject);
+
+            ss.RCloneParameters = new()
+            {
+                { "type", "onedrive" },
+                { "client_id", storage.ClientId },
+                { "client_secret", storage.ClientSecret },
+                { "drive_id", driveId }, { "drive_type", driveType },
+                { "token", tokenJson }
+            };
+        }
 
         ss.HttpClient.Dispose();
         ss.HttpClient = null;

@@ -352,17 +352,28 @@ app.MapGet("/api/hannibal/v1/rules", async (
     var rules = await hannibalService.GetRulesAsync(
         new ResultPage
         {
-            Offset = 20*(page ?? 0), 
+            Offset = 20*(page ?? 0),
             Length = 20
-        }, 
+        },
         new RuleFilter
         {
-        }, 
+        },
         cancellationToken);
     return rules is not null ? Results.Ok(rules) : Results.Ok(new List<Rule>());
 })
 .RequireAuthorization()
 .WithName("GetRules")
+.WithOpenApi();
+
+app.MapGet("/api/hannibal/v1/rule-states", async (
+    IHannibalService hannibalService,
+    CancellationToken cancellationToken) =>
+{
+    var states = await hannibalService.GetRuleStatesAsync(cancellationToken);
+    return Results.Ok(states);
+})
+.RequireAuthorization()
+.WithName("GetRuleStates")
 .WithOpenApi();
 
 

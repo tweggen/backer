@@ -19,26 +19,26 @@ public partial class HannibalServiceClient
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
-    
+
     public async Task<Endpoint> GetEndpointAsync(string name, CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
             $"/api/hannibal/v1/endpoints/{Uri.EscapeDataString(name)}",
             cancellationToken);
-        response.EnsureSuccessStatusCode(); 
-        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<Endpoint>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
-    
-    
+
+
     public async Task<IEnumerable<Endpoint>> GetEndpointsAsync(CancellationToken cancellationToken)
     {
         var response = await _httpClient.GetAsync(
             $"/api/hannibal/v1/endpoints",
             cancellationToken);
-        response.EnsureSuccessStatusCode(); 
-        var content = await response.Content.ReadAsStringAsync(cancellationToken); 
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<List<Endpoint>>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
@@ -60,5 +60,16 @@ public partial class HannibalServiceClient
     {
         var response = await _httpClient.DeleteAsync($"/api/hannibal/v1/endpoints/{id}", cancellationToken);
         response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<List<RuleState>> GetRuleStatesAsync(CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.GetAsync(
+            $"/api/hannibal/v1/rule-states",
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        return JsonSerializer.Deserialize<List<RuleState>>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 }

@@ -81,4 +81,5 @@ public interface IHannibalServiceClient
     #region Lifecycle
     public Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationToken);
     #endregion
+    public Task<List<RuleState>> GetRuleStatesAsync(CancellationToken cancellationToken);
 }

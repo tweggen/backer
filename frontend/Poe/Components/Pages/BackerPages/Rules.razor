@@ -113,6 +113,7 @@ else
                     <td>@ru.MaxDestinationAge.TotalSeconds</td>
                     <td>@ru.MinRetryTime.TotalSeconds</td>
                     <td>@ru.DailyTriggerTime.TotalSeconds</td>
+                    <td>@( _ruleStates.TryGetValue(ru.Id, out var rs) ? (rs.ExpiredAfter > DateTime.UtcNow ? "Active" : "Expired") : "" )</td>
                     <td>@ru.Comment</td>
                     <td>
                         <button @onclick="() => _onDelete(ru)" class="close" aria-label="delete">🗑️</button>
@@ -230,6 +231,7 @@ else
 
 @code {
     private List<Hannibal.Models.Rule>? _listRules = null;
+    private Dictionary<int, RuleState> _ruleStates = new();
     private List<Hannibal.Models.Endpoint>? _listEndpoints = null;
     private IdentityUser? _user = null;
 
@@ -436,11 +438,11 @@ else
             {
                 AuthState.TriggerRedirectToLogin();
             }
-
+    
             _listEndpoints = new List<Hannibal.Models.Endpoint>(
                 await HannibalServiceClient.GetEndpointsAsync(CancellationToken.None)
             );
-
+    
             _newRule = new() { UserId = _user.Id };
             _newSourceEndpoint = _listEndpoints.FirstOrDefault(ep => true);
             _newSourceEndpointId = (_newSourceEndpoint != null) ? _newSourceEndpoint.Id : -1;
@@ -450,8 +452,15 @@ else
             _newRule.SourceEndpointId = _newSourceEndpointId;
             _newRule.DestinationEndpoint = _newDestinationEndpoint;
             _newRule.DestinationEndpointId = _newDestinationEndpointId;
-
+    
             await _reloadRulePage(CancellationToken.None);
+    
+            // Load rule states
+            var states = await HannibalServiceClient.GetRuleStatesAsync(CancellationToken.None);
+            foreach (var state in states)
+            {
+                _ruleStates[state.RuleId] = state;
+            }
         }
         catch (Exception e)
         {

@@ -8,7 +8,7 @@ namespace Hannibal.Services;
 
 public partial class HannibalService
 {
-    public async Task<CreateRuleResult> CreateRuleAsync(
+        public async Task<CreateRuleResult> CreateRuleAsync(
         Rule rule,
         CancellationToken cancellationToken)
     {
@@ -21,15 +21,17 @@ public partial class HannibalService
         {
             throw new KeyNotFoundException($"No source endpoint found for endpointid {sourceEndpoint.Id}");
         }
+
         rule.SourceEndpoint = sourceEndpoint;
         rule.SourceEndpointId = sourceEndpoint.Id;
-        
+
         var destinationEndpoint =
             await _context.Endpoints.FirstAsync(e => e.Id == rule.DestinationEndpointId, cancellationToken);
         if (null == destinationEndpoint)
         {
             throw new KeyNotFoundException($"No destination endpoint found for endpointid {destinationEndpoint.Id}");
         }
+
         rule.DestinationEndpoint = destinationEndpoint;
         rule.DestinationEndpointId = destinationEndpoint.Id;
             
@@ -68,6 +70,7 @@ public partial class HannibalService
         {
             throw new KeyNotFoundException($"No source endpoint found for endpointid {sourceEndpoint.Id}");
         }
+
         rule.SourceEndpoint = sourceEndpoint;
         
         var destinationEndpoint =
@@ -76,6 +79,7 @@ public partial class HannibalService
         {
             throw new KeyNotFoundException($"No destination endpoint found for endpointid {destinationEndpoint.Id}");
         }
+
         rule.DestinationEndpoint = destinationEndpoint;
         
         // Check if scheduling-relevant fields changed BEFORE updating
@@ -189,4 +193,25 @@ public partial class HannibalService
     }
 
 
+    public class RuleStateDto
+    {
+        public int RuleId { get; set; }
+        public DateTime ExpiredAfter { get; set; }
+        public int? RecentJobId { get; set; }
+    }
+
+    public async Task<IEnumerable<RuleStateDto>> GetRuleStatesAsync(CancellationToken cancellationToken)
+    {
+        await _obtainUser();
+        var states = await _context.RuleStates
+            .Where(rs => rs.Rule.UserId == _currentUser!.Id)
+            .Select(rs => new RuleStateDto
+            {
+                RuleId = rs.RuleId,
+                ExpiredAfter = rs.ExpiredAfter,
+                RecentJobId = rs.RecentJob != null ? (int?)rs.RecentJob.Id : null
+            })
+            .ToListAsync(cancellationToken);
+        return states;
+    }
 }
