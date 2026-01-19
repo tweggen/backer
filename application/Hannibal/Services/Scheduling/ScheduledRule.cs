@@ -49,5 +49,10 @@ public enum ScheduleReason
     /// <summary>
     /// Rule was modified, needs re-evaluation
     /// </summary>
-    RuleModified
+    RuleModified,
+    
+    /// <summary>
+    /// A job is currently in progress (Executing, Preparing, or Ready)
+    /// </summary>
+    JobInProgress
 }

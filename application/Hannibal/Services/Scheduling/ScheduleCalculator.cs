@@ -9,6 +9,16 @@ namespace Hannibal.Services.Scheduling;
 public class ScheduleCalculator
 {
     private readonly ILogger<ScheduleCalculator> _logger;
+    
+    // Use a far-future date instead of DateTime.MaxValue to avoid overflow issues
+    // This represents "not scheduled" - 1 year from now is effectively "indefinitely"
+    private static readonly TimeSpan NotScheduledDelay = TimeSpan.FromDays(365);
+    
+    // Default retry time if MinRetryTime is not set
+    private static readonly TimeSpan DefaultRetryTime = TimeSpan.FromMinutes(15);
+    
+    // Default max age if MaxDestinationAge is not set
+    private static readonly TimeSpan DefaultMaxAge = TimeSpan.FromDays(1);
 
     public ScheduleCalculator(ILogger<ScheduleCalculator> logger)
     {
@@ -33,34 +43,40 @@ public class ScheduleCalculator
         {
             case Job.JobState.DoneSuccess:
                 // Next execution = last completion + MaxDestinationAge
-                var nextTime = job.LastReported + rule.MaxDestinationAge;
+                var maxAge = rule.MaxDestinationAge > TimeSpan.Zero 
+                    ? rule.MaxDestinationAge 
+                    : DefaultMaxAge;
+                var nextTime = job.LastReported + maxAge;
                 _logger.LogDebug(
                     "Rule {RuleId}: Last success at {LastReported}, next execution at {NextTime} (MaxAge: {MaxAge})",
-                    rule.Id, job.LastReported, nextTime, rule.MaxDestinationAge);
+                    rule.Id, job.LastReported, nextTime, maxAge);
                 return nextTime;
             
             case Job.JobState.DoneFailure:
                 // Next execution = last attempt + MinRetryTime
-                var retryTime = job.LastReported + rule.MinRetryTime;
+                var retryTime = rule.MinRetryTime > TimeSpan.Zero 
+                    ? rule.MinRetryTime 
+                    : DefaultRetryTime;
+                var retryAt = job.LastReported + retryTime;
                 _logger.LogDebug(
-                    "Rule {RuleId}: Last failure at {LastReported}, retry at {RetryTime} (MinRetry: {MinRetry})",
-                    rule.Id, job.LastReported, retryTime, rule.MinRetryTime);
-                return retryTime;
+                    "Rule {RuleId}: Last failure at {LastReported}, retry at {RetryAt} (MinRetry: {MinRetry})",
+                    rule.Id, job.LastReported, retryAt, retryTime);
+                return retryAt;
             
             case Job.JobState.Executing:
             case Job.JobState.Preparing:
-                // Don't schedule until current job completes
+                // Don't schedule until current job completes - use far future but not MaxValue
                 _logger.LogDebug(
-                    "Rule {RuleId}: Job {JobId} still {State}, not scheduling",
+                    "Rule {RuleId}: Job {JobId} still {State}, deferring schedule",
                     rule.Id, job.Id, job.State);
-                return DateTime.MaxValue;
+                return now + NotScheduledDelay;
             
             case Job.JobState.Ready:
                 // Job exists but not started yet, don't create another
                 _logger.LogDebug(
-                    "Rule {RuleId}: Job {JobId} ready but not started, not scheduling",
+                    "Rule {RuleId}: Job {JobId} ready but not started, deferring schedule",
                     rule.Id, job.Id);
-                return DateTime.MaxValue;
+                return now + NotScheduledDelay;
             
             default:
                 _logger.LogWarning(
@@ -85,6 +101,11 @@ public class ScheduleCalculator
             
             case Job.JobState.DoneFailure:
                 return ScheduleReason.RetryAfterFailure;
+            
+            case Job.JobState.Executing:
+            case Job.JobState.Preparing:
+            case Job.JobState.Ready:
+                return ScheduleReason.JobInProgress;
             
             default:
                 return ScheduleReason.InitialSchedule;

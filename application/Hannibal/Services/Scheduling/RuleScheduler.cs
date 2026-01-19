@@ -109,11 +109,16 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
                     var delay = nextExecuteTime.Value - DateTime.UtcNow;
                     if (delay > TimeSpan.Zero)
                     {
+                        // Cap delay to 24 hours - SemaphoreSlim.WaitAsync only accepts up to ~24.8 days
+                        // and we want to wake up periodically anyway to check for changes
+                        var maxDelay = TimeSpan.FromHours(24);
+                        var actualDelay = delay > maxDelay ? maxDelay : delay;
+                        
                         _logger.LogDebug("Waiting {Delay} until next scheduled rule at {Time}", 
-                            delay, nextExecuteTime.Value);
+                            actualDelay, nextExecuteTime.Value);
                         
                         // Wait with timeout for next scheduled time
-                        await _wakeupSignal.WaitAsync(delay, cancellationToken);
+                        await _wakeupSignal.WaitAsync(actualDelay, cancellationToken);
                     }
                 }
                 else
