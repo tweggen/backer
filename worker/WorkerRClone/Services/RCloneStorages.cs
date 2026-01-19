@@ -54,86 +54,11 @@ public class RCloneStorages
         _oauthOptions = oAuthOptions;
         _oauth2ClientFactory.OnUpdateOptions(oAuthOptions);
     }
-    
-    
-    public async Task _fillDropboxFromStorageAsync(
-        StorageState ss, CancellationToken cancellationToken)
+
+
+    private async Task _getLatestToken(StorageState ss, CancellationToken cancellationToken)
     {
         var storage = ss.Storage;
-        
-        /*
-         * Generate a suitable dropbox token object.
-         */
-        var tokenObject = new
-        {
-            access_token = storage.AccessToken,
-            refresh_token = storage.RefreshToken,
-            token_type = "bearer", 
-            expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
-        }; 
-        string tokenJson = JsonSerializer.Serialize(tokenObject);
-        
-        ss.RCloneParameters = new()
-        {
-            { "type", "dropbox" },
-            { "client_id", storage.ClientId },
-            { "client_secret", storage.ClientSecret },
-            { "token", tokenJson }
-        };
-        
-        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
-            new Guid(), "onedrive");
-    }
-
-
-    /**
-     * Return the drive id and drive type for a consumer onedrive.
-     */
-    private async Task<(string DriveId, string DriveType)> _getOneDriveInfoAsync(
-        WorkerRClone.Services.StorageState ss, 
-        string accessToken,
-        CancellationToken cancellationToken)
-    {
-        var client = ss.HttpClient;
-        if (null == client)
-        {
-            throw new InvalidOperationException("No http client available, should have been setup earlier.");
-        }
-
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", accessToken);
-
-        var response = await client.GetAsync(
-            "https://graph.microsoft.com/v1.0/me/drive",
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        using var doc = JsonDocument.Parse(json);
-        string driveId = doc.RootElement.GetProperty("id").GetString()!;
-        string driveType = doc.RootElement.GetProperty("driveType").GetString()!;
-
-        return (driveId, driveType);
-    }
-
-    
-    public async Task _fillOnedriveFromStorageAsync(
-        WorkerRClone.Services.StorageState ss, CancellationToken cancellationToken)
-    {
-        var storage = ss.Storage;
-        
-        /*
-         * We need an http client for a couple of operations.
-         */
-        ss.HttpClient = new HttpClient()
-        {
-            BaseAddress = new Uri("https://graph.microsoft.com/")
-        };
-
-        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
-            new Guid(), "onedrive");
         
         /*
          * Make sure we have a current accesstoken.
@@ -178,13 +103,106 @@ public class RCloneStorages
         {
             await _updateStorageInDatabase(storage, cancellationToken);
         }
+    }
+    
+    
+    public async Task _fillDropboxFromStorageAsync(
+        StorageState ss, CancellationToken cancellationToken)
+    {
+        var storage = ss.Storage;
+        
+        /*
+         * We do not need an http client of our own.
+         */
+        
+        
+        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
+            new Guid(), "dropbox");
+
+        await _getLatestToken(ss, cancellationToken);
+        
+        /*
+         * Generate a suitable dropbox token object.
+         */
+        var tokenObject = new
+        {
+            access_token = storage.AccessToken,
+            refresh_token = storage.RefreshToken,
+            token_type = "bearer", 
+            expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
+        }; 
+        string tokenJson = JsonSerializer.Serialize(tokenObject);
+        
+        ss.RCloneParameters = new()
+        {
+            { "type", "dropbox" },
+            { "client_id", storage.ClientId },
+            { "client_secret", storage.ClientSecret },
+            { "token", tokenJson }
+        };
+        
+    }
+
+
+    /**
+     * Return the drive id and drive type for a consumer onedrive.
+     */
+    private async Task<(string DriveId, string DriveType)> _getOneDriveInfoAsync(
+        WorkerRClone.Services.StorageState ss, 
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        var client = ss.HttpClient;
+        if (null == client)
+        {
+            throw new InvalidOperationException("No http client available, should have been setup earlier.");
+        }
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await client.GetAsync(
+            "https://graph.microsoft.com/v1.0/me/drive",
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        using var doc = JsonDocument.Parse(json);
+        string driveId = doc.RootElement.GetProperty("id").GetString()!;
+        string driveType = doc.RootElement.GetProperty("driveType").GetString()!;
+
+        return (driveId, driveType);
+    }
+
+    
+    public async Task _fillOnedriveFromStorageAsync(
+        WorkerRClone.Services.StorageState ss, CancellationToken cancellationToken)
+    {
+        var storage = ss.Storage;
+        
+        /*
+         * We need an http client for a couple of operations.
+         */
+        // TXWTODO: This client leaks. Use using 
+        ss.HttpClient = new HttpClient()
+        {
+            BaseAddress = new Uri("https://graph.microsoft.com/")
+        };
+
+        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
+            new Guid(), "onedrive");
+
+
+        await _getLatestToken(ss, cancellationToken);
         
         var (driveId, driveType) = await _getOneDriveInfoAsync(
-            ss, newAccessToken, cancellationToken);
+            ss, storage.AccessToken, cancellationToken);
 
         var tokenObject = new
         {
-            access_token = newAccessToken,
+            access_token = storage.AccessToken,
             refresh_token = storage.RefreshToken,
             token_type = "bearer", 
             expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
