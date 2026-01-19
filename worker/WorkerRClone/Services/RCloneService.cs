@@ -1074,8 +1074,8 @@ public class RCloneService : BackgroundService
     /// Compare two sets of rclone parameters for equality
     /// </summary>
     private bool _areRCloneParametersEqual(
-        Dictionary<string, string> current, 
-        Dictionary<string, string> updated)
+        IDictionary<string, string> current, 
+        IDictionary<string, string> updated)
     {
         // Check if all keys and values match
         if (current.Count != updated.Count)

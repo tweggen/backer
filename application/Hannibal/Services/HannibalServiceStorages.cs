@@ -1,5 +1,7 @@
 using Hannibal.Models;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Hannibal.Services;
 
