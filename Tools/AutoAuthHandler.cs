@@ -68,7 +68,7 @@ public class AutoAuthHandler : DelegatingHandler
              * Clone request and retry
              */
             var newRequest = await CloneHttpRequestMessageAsync(request);
-
+            newRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", newToken);
 
             return await base.SendAsync(newRequest, cancellationToken);
         }
