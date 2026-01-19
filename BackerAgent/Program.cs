@@ -52,7 +52,7 @@ Log.Logger = new LoggerConfiguration()
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30,
         shared: true) // useful when multiple processes/threads may write
-    .WriteTo.Console() // great for dev & container logs
+    .WriteTo.Console(theme: Serilog.Sinks.SystemConsole.Themes.ConsoleTheme.None) // monochrome output
     .CreateLogger();
 
 builder.Host.UseSerilog();
