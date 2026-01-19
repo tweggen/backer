@@ -37,11 +37,20 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddHostedService<BackofficeService>();
+        // services.AddHostedService<BackofficeService>();
         
         
         services.AddSingleton<ScheduleCalculator>();
-        services.AddSingleton<RuleScheduler>();
+        services.AddSingleton<RuleScheduler>(sp =>
+        {
+            var scheduler = ActivatorUtilities.CreateInstance<RuleScheduler>(sp);
+            scheduler.SetJobCreationEnabled(true);
+            return scheduler;
+        });
+        
+        // Register ISchedulerEventPublisher so HannibalService can publish events
+        services.AddSingleton<ISchedulerEventPublisher>(sp => sp.GetRequiredService<RuleScheduler>());
+        
         services.AddHostedService(sp => sp.GetRequiredService<RuleScheduler>());
         
         return services;

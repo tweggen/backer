@@ -42,7 +42,7 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
                       ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") 
                       ?? "Production"; 
         
-        var machine = Environment.MachineName;
+        var machine = GetMachineName();
 
         _logger.LogInformation($"envName = {envName}, machine = {machine}");
         
@@ -97,5 +97,41 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
         var tempFile = _configFilePath + ".tmp";
         File.WriteAllText(tempFile, json);
         File.Move(tempFile, _configFilePath, overwrite: true);
+    }
+
+    /// <summary>
+    /// Get the machine name, preferring LocalHostName on macOS since
+    /// Environment.MachineName can return unexpected values (e.g., Android emulator IDs).
+    /// </summary>
+    private static string GetMachineName()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo("scutil", "--get LocalHostName")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var process = System.Diagnostics.Process.Start(psi);
+                if (process != null)
+                {
+                    var output = process.StandardOutput.ReadToEnd().Trim();
+                    process.WaitForExit();
+                    if (!string.IsNullOrWhiteSpace(output))
+                    {
+                        return output;
+                    }
+                }
+            }
+            catch
+            {
+                // Fall through to default
+            }
+        }
+        
+        return Environment.MachineName;
     }
 }
