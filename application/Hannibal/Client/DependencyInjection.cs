@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Hannibal.Client.Configuration;
 using Hannibal.Services;
+using Hannibal.Services.Scheduling;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
@@ -37,6 +38,11 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         services.AddHostedService<BackofficeService>();
+        
+        
+        services.AddSingleton<ScheduleCalculator>();
+        services.AddSingleton<RuleScheduler>();
+        services.AddHostedService(sp => sp.GetRequiredService<RuleScheduler>());
         
         return services;
     }

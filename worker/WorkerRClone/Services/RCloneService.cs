@@ -62,8 +62,8 @@ public class RCloneService : BackgroundService
     internal RCloneStorages _rcloneStorages;
     
     // Callbacks for external notification (used by BackerControlHub)
-    internal Action<RCloneServiceState>? OnStateChanged { get; set; }
-    internal Action<TransferStatsResult>? OnTransferStatsChanged { get; set; }
+    public Action<RCloneServiceState>? OnStateChanged { get; set; }
+    public Action<TransferStatsResult>? OnTransferStatsChanged { get; set; }
 
     public RCloneService(
         ILogger<RCloneService> logger,
