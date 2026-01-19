@@ -682,10 +682,9 @@ public class RCloneService : BackgroundService
             {
                 /*
                  * This means we cannot authenticate using username and password.
+                 * Throw an exception so it gets caught and retried in dev mode.
                  */
-                _areOptionsValid = false;
-                await _stateMachine!.TransitionAsync(ServiceEvent.OnlineCheckFailed);
-                return;
+                throw new InvalidOperationException("No or invalid user login information.");
             }
 
             /*
