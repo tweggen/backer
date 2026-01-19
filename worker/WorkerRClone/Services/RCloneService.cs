@@ -674,6 +674,14 @@ public class RCloneService : BackgroundService
     // These methods contain the business logic for each state
     // ============================================================================
 
+    // Retry state for _checkOnlineImpl
+    private int _onlineCheckRetryCount = 0;
+    private const int _maxOnlineCheckRetries = 10;
+    private const int _baseRetryDelayMs = 1000;  // 1 second base
+    private const int _retryDelayIncrementMs = 1000;  // +1 second per retry
+    private const int _retryDelayJitterMs = 500;  // ±500ms randomization
+    private static readonly Random _retryRandom = new();
+
     internal async Task _checkOnlineImpl()
     {
         _logger.LogInformation("RCloneService: Checking online.");
@@ -687,9 +695,9 @@ public class RCloneService : BackgroundService
             {
                 /*
                  * This means we cannot authenticate using username and password.
-                 * Throw an exception so it gets caught and retried in dev mode.
+                 * This is an authentication error, not a transient network error.
                  */
-                throw new InvalidOperationException("No or invalid user login information.");
+                throw new UnauthorizedAccessException("No or invalid user login information.");
             }
 
             /*
@@ -701,36 +709,67 @@ public class RCloneService : BackgroundService
             
             /*
              * OK, no exception, online connection works. So progress.
+             * Reset retry counter for next time.
              */
+            _onlineCheckRetryCount = 0;
             await _stateMachine!.TransitionAsync(ServiceEvent.OnlineCheckPassed);
 
-        } catch (Exception e) {
-
+        }
+        catch (UnauthorizedAccessException e)
+        {
             /*
-             * Let's do a discrimination here: In development use, the options are likely
-             * to be valid and pre-configured, it's probably the service that is not up yet
-             * in a debugging situation. In Production however, it's more likely the
-             * service is broken.
+             * Authentication failed (401) - this won't fix itself by retrying.
+             * Need new credentials, so go to WaitConfig.
              */
-            if (Tools.EnvironmentDetector.IsInteractiveDev())
+            _logger.LogError($"Authentication failed: {e.Message}");
+            _areOptionsValid = false;
+            _onlineCheckRetryCount = 0;
+            await _stateMachine!.TransitionAsync(ServiceEvent.OnlineCheckFailed);
+        }
+        catch (HttpRequestException e) when (e.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            /*
+             * HTTP 401 Unauthorized - credentials are wrong, don't retry.
+             */
+            _logger.LogError($"HTTP 401 Unauthorized: {e.Message}");
+            _areOptionsValid = false;
+            _onlineCheckRetryCount = 0;
+            await _stateMachine!.TransitionAsync(ServiceEvent.OnlineCheckFailed);
+        }
+        catch (Exception e)
+        {
+            /*
+             * Other errors (network issues, server down, etc.) - may be transient.
+             * Retry with linear backoff + jitter, up to max retries.
+             */
+            _onlineCheckRetryCount++;
+            
+            if (_onlineCheckRetryCount >= _maxOnlineCheckRetries)
             {
                 /*
-                 * This is a dev version.
-                 * So retry after a delay.
+                 * Exceeded max retries, give up and wait for config change.
                  */
-                _logger.LogWarning($"Could not connect to server yet, retrying in a second...");
-                await Task.Delay(1000);
-                await _checkOnlineImpl();
-            }
-            else
-            {
-                /*
-                 * This is a production version, so wait for a better config.
-                 */
-                _logger.LogError($"Exception while checking online: {e}");
+                _logger.LogError($"Failed to connect after {_maxOnlineCheckRetries} attempts: {e.Message}");
                 _areOptionsValid = false;
+                _onlineCheckRetryCount = 0;
                 await _stateMachine!.TransitionAsync(ServiceEvent.OnlineCheckFailed);
+                return;
             }
+            
+            /*
+             * Calculate delay: linear backoff with randomization
+             * Delay = base + (retryCount * increment) + random jitter
+             */
+            int jitter = _retryRandom.Next(-_retryDelayJitterMs, _retryDelayJitterMs + 1);
+            int delayMs = _baseRetryDelayMs + (_onlineCheckRetryCount * _retryDelayIncrementMs) + jitter;
+            delayMs = Math.Max(delayMs, 500);  // Minimum 500ms
+            
+            _logger.LogWarning(
+                $"Could not connect to server (attempt {_onlineCheckRetryCount}/{_maxOnlineCheckRetries}): {e.Message}. " +
+                $"Retrying in {delayMs}ms...");
+            
+            await Task.Delay(delayMs);
+            await _checkOnlineImpl();
         }
     }
 
