@@ -1,4 +1,5 @@
 using Hannibal.Models;
+using Hannibal.Services.Scheduling;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -7,7 +8,7 @@ namespace Hannibal.Services;
 
 public partial class HannibalService
 {
-        public async Task<CreateRuleResult> CreateRuleAsync(
+    public async Task<CreateRuleResult> CreateRuleAsync(
         Rule rule,
         CancellationToken cancellationToken)
     {
@@ -34,6 +35,13 @@ public partial class HannibalService
             
         await _context.Rules.AddAsync(rule, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Notify scheduler about new rule
+        await _schedulerEventPublisher.PublishEventAsync(new RuleChangedEvent
+        {
+            RuleId = rule.Id,
+            ChangeType = RuleChangeType.Created
+        });
 
         return new CreateRuleResult() { Id = rule.Id };
     }
@@ -69,9 +77,18 @@ public partial class HannibalService
             throw new KeyNotFoundException($"No destination endpoint found for endpointid {destinationEndpoint.Id}");
         }
         rule.DestinationEndpoint = destinationEndpoint;
-            
+        
+        // Check if scheduling-relevant fields changed BEFORE updating
+        bool hasSchedulingChanges = 
+            rule.SourceEndpointId != updatedRule.SourceEndpointId ||
+            rule.DestinationEndpointId != updatedRule.DestinationEndpointId ||
+            rule.Operation != updatedRule.Operation ||
+            rule.MaxDestinationAge != updatedRule.MaxDestinationAge ||
+            rule.MinRetryTime != updatedRule.MinRetryTime ||
+            rule.MaxTimeAfterSourceModification != updatedRule.MaxTimeAfterSourceModification ||
+            rule.DailyTriggerTime != updatedRule.DailyTriggerTime;
 
-        // Update other properties
+        // Update all properties
         rule.Name = updatedRule.Name;
         rule.Comment = updatedRule.Comment;
         // We do not allow to change the username
@@ -86,6 +103,16 @@ public partial class HannibalService
         rule.DailyTriggerTime = updatedRule.DailyTriggerTime;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Only notify scheduler if scheduling-relevant fields changed
+        if (hasSchedulingChanges)
+        {
+            await _schedulerEventPublisher.PublishEventAsync(new RuleChangedEvent
+            {
+                RuleId = rule.Id,
+                ChangeType = RuleChangeType.Updated
+            });
+        }
 
         /*
          * There might be a new job available right now.
@@ -108,6 +135,13 @@ public partial class HannibalService
 
         _context.Rules.Remove(rule);
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Notify scheduler about deleted rule
+        await _schedulerEventPublisher.PublishEventAsync(new RuleChangedEvent
+        {
+            RuleId = id,
+            ChangeType = RuleChangeType.Deleted
+        });
     }
     
 

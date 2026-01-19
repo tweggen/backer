@@ -1,4 +1,5 @@
 using Hannibal.Models;
+using Hannibal.Services.Scheduling;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -7,7 +8,7 @@ namespace Hannibal.Services;
 
 public partial class HannibalService
 {
-        public async Task<Job> GetJobAsync(int jobId, CancellationToken cancellationToken)
+    public async Task<Job> GetJobAsync(int jobId, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Information requested about job {jobId}", jobId);
 
@@ -39,10 +40,27 @@ public partial class HannibalService
 
         var jobsToDelete = await _context.Jobs
             .Where(j => j.UserId == _currentUser!.Id)
+            .Include(j => j.FromRule)
             .ToListAsync(cancellationToken);
+        
+        // Collect affected rule IDs before deletion
+        var affectedRuleIds = jobsToDelete
+            .Where(j => j.FromRule != null)
+            .Select(j => j.FromRule!.Id)
+            .Distinct()
+            .ToList();
+        
         _context.Jobs.RemoveRange(jobsToDelete);
-
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Notify scheduler about deleted jobs so it can reschedule affected rules
+        if (affectedRuleIds.Count > 0)
+        {
+            await _schedulerEventPublisher.PublishEventAsync(new JobsDeletedEvent
+            {
+                AffectedRuleIds = affectedRuleIds
+            });
+        }
     }
 
     
@@ -283,11 +301,17 @@ public partial class HannibalService
 
         int result;
         bool hasFinished = false;
+        int? ruleId = null;
+        Job.JobState? finalState = null;
         
-        var job = await _context.Jobs.FirstOrDefaultAsync(
-            j => j.State == Job.JobState.Executing && j.Id == jobStatus.JobId, cancellationToken);
+        var job = await _context.Jobs
+            .Include(j => j.FromRule)
+            .FirstOrDefaultAsync(
+                j => j.State == Job.JobState.Executing && j.Id == jobStatus.JobId, cancellationToken);
         if (job != null)
         {
+            ruleId = job.FromRule?.Id;
+            
             switch (jobStatus.State)
             {
                 case Job.JobState.Executing:
@@ -304,6 +328,7 @@ public partial class HannibalService
                     job.State = Job.JobState.Ready;
                     job.Owner = "";
                     hasFinished = true;
+                    finalState = Job.JobState.DoneFailure;
                     break;
                 
                 case Job.JobState.DoneSuccess:
@@ -311,6 +336,7 @@ public partial class HannibalService
                     job.State = Job.JobState.DoneSuccess;
                     job.Owner = "";
                     hasFinished = true;
+                    finalState = Job.JobState.DoneSuccess;
                     break;
             }
             
@@ -338,12 +364,22 @@ public partial class HannibalService
              * Inform all workers there might be a new job available right now.
              */
             await _hannibalHub.Clients.All.SendAsync("NewJobAvailable");
+            
+            // Notify scheduler about job completion so it can reschedule the rule
+            if (ruleId.HasValue && finalState.HasValue)
+            {
+                await _schedulerEventPublisher.PublishEventAsync(new JobCompletedEvent
+                {
+                    JobId = jobStatus.JobId,
+                    RuleId = ruleId.Value,
+                    FinalState = finalState.Value
+                });
+            }
         }
 
         return new Result
         {
             Status = result
         };
-
     }
 }

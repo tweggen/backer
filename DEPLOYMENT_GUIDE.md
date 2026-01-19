@@ -2,16 +2,19 @@
 
 ## What You Have Now
 
-✅ **4 C# files ready to use:**
+✅ **5 C# files ready to use:**
 - `application/Hannibal/Services/Scheduling/RuleScheduler.cs`
 - `application/Hannibal/Services/Scheduling/ScheduleCalculator.cs`
 - `application/Hannibal/Services/Scheduling/ScheduledRule.cs`
 - `application/Hannibal/Services/Scheduling/SchedulerEvent.cs`
+- `application/Hannibal/Services/Scheduling/ISchedulerEventPublisher.cs`
 
-✅ **3 documentation files:**
-- `STORAGE_REAUTH_IMPLEMENTATION.md` - Storage reauth feature
-- `SIGNALR_IMPLEMENTATION.md` - BackerControl real-time updates
-- `EVENT_DRIVEN_SCHEDULER_README.md` - This scheduler overview
+✅ **Event publishing already integrated in HannibalService:**
+- `CreateRuleAsync()` → publishes `RuleChangedEvent`
+- `UpdateRuleAsync()` → publishes `RuleChangedEvent` (only for meaningful changes)
+- `DeleteRuleAsync()` → publishes `RuleChangedEvent`
+- `DeleteJobsAsync()` → publishes `JobsDeletedEvent`
+- `ReportJobAsync()` → publishes `JobCompletedEvent`
 
 ## Quick Start - Phase 1 (Safe Parallel Deployment)
 
@@ -26,8 +29,12 @@ builder.Services.AddHostedService<BackofficeService>();
 // ADD THIS - new scheduler runs alongside in DRY-RUN mode
 builder.Services.AddSingleton<ScheduleCalculator>();
 builder.Services.AddSingleton<RuleScheduler>();
+builder.Services.AddSingleton<ISchedulerEventPublisher>(sp => 
+    sp.GetRequiredService<RuleScheduler>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RuleScheduler>());
 ```
+
+**Important:** The `ISchedulerEventPublisher` registration connects HannibalService to RuleScheduler. Without it, HannibalService uses the `NullSchedulerEventPublisher` (which does nothing).
 
 That's it! RuleScheduler will start in DRY-RUN mode (no job creation).
 
@@ -41,6 +48,13 @@ dotnet build
 ### Step 3: Monitor Logs
 
 Watch for these patterns:
+
+**Event Publishing (shows HannibalService → RuleScheduler communication):**
+```
+[RuleScheduler] Processing event RuleChangedEvent
+[RuleScheduler] Rule 1 Created
+[RuleScheduler] Scheduled rule 1 for 2025-01-19 16:00:00 (reason: InitialSchedule)
+```
 
 **BackofficeService (creates actual jobs):**
 ```
@@ -78,6 +92,7 @@ grep "RuleScheduler.*\[DRY-RUN\]" your-log-file.log | tail -20
 - ✅ Timing matches (within a few seconds)
 - ✅ No errors in RuleScheduler logs
 - ✅ No missing rules
+- ✅ Events are being received and processed
 
 ## Phase 2: Enable Job Creation (After 1-2 Weeks)
 
@@ -89,51 +104,31 @@ Once Phase 1 validates correctly, enable RuleScheduler:
 // builder.Services.AddHostedService<BackofficeService>();
 
 // Enable RuleScheduler job creation:
+builder.Services.AddSingleton<ScheduleCalculator>();
 builder.Services.AddSingleton<RuleScheduler>(sp =>
 {
     var scheduler = ActivatorUtilities.CreateInstance<RuleScheduler>(sp);
     scheduler.SetJobCreationEnabled(true);  // ENABLE
     return scheduler;
 });
+builder.Services.AddSingleton<ISchedulerEventPublisher>(sp => 
+    sp.GetRequiredService<RuleScheduler>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RuleScheduler>());
 ```
 
-### Add Event Publishing
+### Events Already Working
 
-For instant reactivity, add event publishing when jobs complete:
+Since Phase 1 registered `ISchedulerEventPublisher`, events are already flowing:
 
-```csharp
-// In HannibalService.ReportJobAsync() - after saving job state:
-if (job.State == Job.JobState.DoneSuccess || 
-    job.State == Job.JobState.DoneFailure)
-{
-    var ruleScheduler = _serviceProvider.GetService<RuleScheduler>();
-    if (ruleScheduler != null)
-    {
-        await ruleScheduler.PublishEventAsync(new JobCompletedEvent
-        {
-            JobId = job.Id,
-            RuleId = job.FromRule!.Id,
-            FinalState = job.State
-        });
-    }
-}
-```
+| Event | Trigger | Effect |
+|-------|---------|--------|
+| `RuleChangedEvent` (Created) | New rule created | Scheduler adds rule immediately |
+| `RuleChangedEvent` (Updated) | Rule scheduling fields changed | Scheduler recalculates timing |
+| `RuleChangedEvent` (Deleted) | Rule deleted | Scheduler removes from queue |
+| `JobCompletedEvent` | Job finishes (success/failure) | Scheduler recalculates next run |
+| `JobsDeletedEvent` | "Clear Jobs" button clicked | Scheduler reschedules affected rules |
 
-And when rules change:
-
-```csharp
-// In CreateRuleAsync() / UpdateRuleAsync() - after saving:
-var ruleScheduler = _serviceProvider.GetService<RuleScheduler>();
-if (ruleScheduler != null)
-{
-    await ruleScheduler.PublishEventAsync(new RuleChangedEvent
-    {
-        RuleId = rule.Id,
-        ChangeType = RuleChangeType.Created  // or Updated
-    });
-}
-```
+**Note:** Cosmetic changes (Name, Comment) do NOT trigger events.
 
 ## Phase 3: Full Migration (After Phase 2 Validates)
 
@@ -151,6 +146,8 @@ builder.Services.AddSingleton<RuleScheduler>(sp =>
     scheduler.SetJobCreationEnabled(true);
     return scheduler;
 });
+builder.Services.AddSingleton<ISchedulerEventPublisher>(sp => 
+    sp.GetRequiredService<RuleScheduler>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<RuleScheduler>());
 ```
 
@@ -196,6 +193,13 @@ After full migration, you should see:
 - Rules have associated `RuleState` entries
 - Database connection working
 
+### "Events not being processed"
+
+**Check:**
+- `ISchedulerEventPublisher` is registered and pointing to `RuleScheduler`
+- Look for log entries: `Processing event {EventType}`
+- Verify HannibalService has the `_schedulerEventPublisher` field
+
 ### "Jobs created at wrong times"
 
 **Compare logs:**
@@ -209,14 +213,18 @@ grep "\[DRY-RUN\].*rule 123" service.log
 
 Check if timing logic matches your expectations.
 
-### "RuleScheduler not waking up"
+### "New rules not scheduled immediately"
 
-**Check logs for:**
-```
-[RuleScheduler] Waiting {delay} until next scheduled rule at {time}
-```
+**Check:**
+- `CreateRuleAsync()` publishes `RuleChangedEvent` after saving
+- Look for: `Rule {RuleId} Created`
 
-If not present, check if rules are being added to priority queue.
+### "Clear Jobs doesn't trigger new jobs"
+
+**Check:**
+- `DeleteJobsAsync()` publishes `JobsDeletedEvent`
+- Look for: `Jobs deleted for {Count} rules`
+- Then: `Rescheduling rule {RuleId} after job deletion`
 
 ## Configuration Options
 
@@ -246,18 +254,19 @@ SELECT AVG(TIMESTAMPDIFF(SECOND, StartFrom, Created)) as AvgLag FROM Jobs;
 
 ## Summary
 
-**Current Status:** Phase 1 ready to deploy
+**Current Status:** Phase 1 ready to deploy with full event integration
 **Next Step:** Register services and monitor logs
 **Timeline:** 
 - Phase 1: 1-2 weeks validation
 - Phase 2: 1-2 weeks transition
 - Phase 3: Full migration
 
-The code is complete and tested. Just follow the phases!
+The code is complete with event publishing integrated. Just follow the phases!
 
 ## Questions?
 
 - Phase 1 deployment is **zero risk** (DRY-RUN mode)
 - You can run Phase 1 indefinitely for validation
-- Event publishing (Phase 2+) makes it truly reactive
+- Event publishing is already integrated (no extra code needed)
+- Scheduler reacts immediately to rule changes and job deletions
 - Performance improvements are substantial (99%+ reduction)

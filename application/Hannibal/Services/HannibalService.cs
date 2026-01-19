@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using Hannibal.Configuration;
 using Hannibal.Data;
 using Hannibal.Models;
+using Hannibal.Services.Scheduling;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
@@ -26,6 +27,7 @@ public partial class HannibalService : IHannibalService
     private readonly OAuthOptions _oauthOptions;
     private readonly IHubContext<HannibalHub> _hannibalHub;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ISchedulerEventPublisher _schedulerEventPublisher;
     
     private IdentityUser? _currentUser = null;
     
@@ -45,7 +47,8 @@ public partial class HannibalService : IHannibalService
         UserManager<IdentityUser> userManager,
         IOAuthStateService oauthStateService,
         IHttpContextAccessor httpContextAccessor,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        ISchedulerEventPublisher? schedulerEventPublisher = null)
     {
         _context = context;
         _logger = logger;
@@ -57,6 +60,7 @@ public partial class HannibalService : IHannibalService
         _httpContextAccessor = httpContextAccessor;
         _serviceProvider = serviceProvider;
         _oAuth2ClientFactory = new OAuth2ClientFactory(oauthOptions.Value);
+        _schedulerEventPublisher = schedulerEventPublisher ?? new NullSchedulerEventPublisher();
     }
 
 

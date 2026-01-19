@@ -13,7 +13,7 @@ namespace Hannibal.Services.Scheduling;
 /// Event-driven rule scheduler that replaces polling-based BackofficeService.
 /// Runs alongside BackofficeService during transition period (Phase 1).
 /// </summary>
-public class RuleScheduler : BackgroundService
+public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
 {
     private readonly ILogger<RuleScheduler> _logger;
     private readonly IServiceScopeFactory _serviceScopeFactory;
@@ -37,6 +37,11 @@ public class RuleScheduler : BackgroundService
     
     // Configuration
     private bool _enableJobCreation = false;  // Start disabled, enable via config
+    
+    /// <summary>
+    /// ISchedulerEventPublisher.IsAvailable - always true for active scheduler
+    /// </summary>
+    public bool IsAvailable => true;
     
     public RuleScheduler(
         ILogger<RuleScheduler> logger,
@@ -383,6 +388,10 @@ public class RuleScheduler : BackgroundService
                 await HandleJobCompletedAsync(jobEvent, cancellationToken);
                 break;
             
+            case JobsDeletedEvent jobsDeletedEvent:
+                await HandleJobsDeletedAsync(jobsDeletedEvent, cancellationToken);
+                break;
+            
             case RuleChangedEvent ruleEvent:
                 await HandleRuleChangedAsync(ruleEvent, cancellationToken);
                 break;
@@ -394,6 +403,40 @@ public class RuleScheduler : BackgroundService
             default:
                 _logger.LogWarning("Unknown event type: {Type}", evt.GetType().Name);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Handle jobs deleted event (e.g., "Clear Jobs" button in UI)
+    /// </summary>
+    private async Task HandleJobsDeletedAsync(JobsDeletedEvent evt, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Jobs deleted for {Count} rules", evt.AffectedRuleIds.Count);
+        
+        using var scope = _serviceScopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<HannibalContext>();
+        
+        // Reschedule all affected rules immediately
+        foreach (var ruleId in evt.AffectedRuleIds)
+        {
+            var rule = await context.Rules.FindAsync(new object[] { ruleId }, cancellationToken);
+            if (rule == null)
+            {
+                _logger.LogWarning("Rule {RuleId} not found after job deletion", ruleId);
+                continue;
+            }
+            
+            // Jobs were deleted, so rule state is now "no recent job" - schedule immediately
+            _logger.LogInformation("Rescheduling rule {RuleId} ({RuleName}) after job deletion", 
+                ruleId, rule.Name);
+            ScheduleRule(ruleId, DateTime.UtcNow, ScheduleReason.ManualTrigger);
+        }
+        
+        // Wake up scheduler to process immediately
+        if (evt.AffectedRuleIds.Count > 0)
+        {
+            try { _wakeupSignal.Release(); }
+            catch (SemaphoreFullException) { }
         }
     }
 

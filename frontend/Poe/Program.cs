@@ -18,6 +18,12 @@ if (null == basePath)
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure monochrome console logging
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Disabled;
+});
+
 builder.Services
     .AddScoped<AuthState>();
 

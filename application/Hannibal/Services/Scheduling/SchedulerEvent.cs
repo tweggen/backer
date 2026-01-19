@@ -21,6 +21,17 @@ public class JobCompletedEvent : SchedulerEvent
 }
 
 /// <summary>
+/// Event fired when jobs are deleted (e.g., via UI "Clear Jobs")
+/// </summary>
+public class JobsDeletedEvent : SchedulerEvent
+{
+    /// <summary>
+    /// Rule IDs that had jobs deleted. Empty means all rules affected.
+    /// </summary>
+    public List<int> AffectedRuleIds { get; set; } = new();
+}
+
+/// <summary>
 /// Event fired when a rule is created, updated, or deleted
 /// </summary>
 public class RuleChangedEvent : SchedulerEvent
