@@ -22,17 +22,10 @@ namespace WorkerRClone.Services;
 
 public class RCloneService : BackgroundService
 {
-    private RCloneServiceState _state = new();
-
-    enum PendingRequest
-    {
-        None,
-        Start,
-        Stop
-    }
+    internal RCloneServiceState _state = new();
+    private RCloneStateMachine? _stateMachine;
     
-    private PendingRequest _lastPendingRequest = PendingRequest.None;
-    private bool _wasUserStop = false;
+    internal bool _wasUserStop = false;
     
     private static object _classLock = new();
     private static int _nextId;
@@ -42,16 +35,16 @@ public class RCloneService : BackgroundService
     private string _ownerId;
     private int _nRunningJobs = 0;
     
-    private ILogger<RCloneService> _logger;
+    internal ILogger<RCloneService> _logger;
     private ProcessManager _processManager;
     private HubConnection _hannibalConnection;
     private bool _isConnectionSubscribed = false;
 
     private RCloneServiceOptions? _options = null;
-    private bool _areOptionsValid = true;
+    internal bool _areOptionsValid = true;
 
     private Process? _processRClone;
-    private HttpClient? _rcloneHttpClient;
+    internal HttpClient? _rcloneHttpClient;
 
     private SortedDictionary<int, Job> _mapRCloneToJob = new();
     
@@ -65,8 +58,8 @@ public class RCloneService : BackgroundService
     private readonly INetworkIdentifier _networkIdentifier;
     
     private RCloneConfigManager? _configManager = null;
-    private IReadOnlyList<Storage> _listStorages;
-    private RCloneStorages _rcloneStorages;
+    internal IReadOnlyList<Storage> _listStorages;
+    internal RCloneStorages _rcloneStorages;
 
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -121,7 +114,6 @@ public class RCloneService : BackgroundService
         _networkIdentifier.NetworkChanged += _onNetworkChanged;
         
         _logger.LogInformation($"RCloneService: Network initially is {_networkIdentifier.GetCurrentNetwork()}.");
-
     }
 
 
@@ -672,52 +664,74 @@ public class RCloneService : BackgroundService
     }
 
 
-    /**
-     * We are running and supposed to wait until the jobs are done.
-     */
-    private async Task _toWaitStop()
+    // ============================================================================
+    // State Machine Implementation Methods
+    // These methods contain the business logic for each state
+    // ============================================================================
+
+    internal async Task _checkOnlineImpl()
     {
-        _state.SetState(RCloneServiceState.ServiceState.WaitStop);
-        _logger.LogInformation("RCloneService: Waiting for stop request.");
+        _logger.LogInformation("RCloneService: Checking online.");
         
-        var rcloneClient = new RCloneClient(_rcloneHttpClient);
-        var jobList = await rcloneClient.GetJobListAsync(CancellationToken.None);
-        List<int>? list = null;
+        try {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+            var user = await hannibalService.GetUserAsync(-1, CancellationToken.None);
 
-        if (jobList.running_ids != null)
-        {
-            list = jobList.running_ids;
-        }
-
-        if (list != null)
-        {
-            foreach (var jobid in list)
+            if (null == user)
             {
-                _logger.LogInformation($"RCloneService: Stopping job {jobid}");
-                await rcloneClient.StopJobAsync(CancellationToken.None);
+                /*
+                 * This means we cannot authenticate using username and password.
+                 */
+                _areOptionsValid = false;
+                await _stateMachine!.TransitionAsync(ServiceEvent.OnlineCheckFailed);
+                return;
+            }
+
+            /*
+             * We also need to read the list of storages to preload them before
+             * we start rsync.
+             */
+            var storages = await hannibalService.GetStoragesAsync(CancellationToken.None);
+            _listStorages = new List<Storage>(storages).AsReadOnly();
+            
+            /*
+             * OK, no exception, online connection works. So progress.
+             */
+            await _stateMachine!.TransitionAsync(ServiceEvent.OnlineCheckPassed);
+
+        } catch (Exception e) {
+
+            /*
+             * Let's do a discrimination here: In development use, the options are likely
+             * to be valid and pre-configured, it's probably the service that is not up yet
+             * in a debugging situation. In Production however, it's more likely the
+             * service is broken.
+             */
+            if (Tools.EnvironmentDetector.IsInteractiveDev())
+            {
+                /*
+                 * This is a dev version.
+                 * So retry after a delay.
+                 */
+                _logger.LogWarning($"Could not connect to server yet, retrying in a second...");
+                await Task.Delay(1000);
+                await _checkOnlineImpl();
+            }
+            else
+            {
+                /*
+                 * This is a production version, so wait for a better config.
+                 */
+                _logger.LogError($"Exception while checking online: {e}");
+                _areOptionsValid = false;
+                await _stateMachine!.TransitionAsync(ServiceEvent.OnlineCheckFailed);
             }
         }
-
-        await _toWaitStart();
     }
 
-
-    private void _toWaitConfig(string reason)
+    internal async Task _backendsLoginImpl()
     {
-        _state.SetState(RCloneServiceState.ServiceState.WaitConfig, reason);
-        
-        _logger.LogInformation("RCloneService: Waiting for configuration.");
-        
-        /*
-         * We do not actively act, just wait for the REST put call.
-         */
-    }
-
-
-    private async Task _toBackendsLoggingIn(string resson)
-    {
-        _state.SetState(RCloneServiceState.ServiceState.BackendsLoggingIn, resson);
-        
         _logger.LogInformation("RCloneService: Backends logging in.");
         
         /*
@@ -734,13 +748,26 @@ public class RCloneService : BackgroundService
             await _rcloneStorages.FindStorageState(storage, CancellationToken.None);
         }
 
-        await _toCheckRCloneProcess();
+        await _stateMachine!.TransitionAsync(ServiceEvent.BackendsLoggedIn);
     }
 
-
-    private async Task _toStartRClone()
+    internal async Task _checkRCloneProcessImpl()
     {
-        _state.SetState(RCloneServiceState.ServiceState.StartRCloneProcess);
+        _logger.LogInformation("RCloneService: Checking rclone process.");
+        bool haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);
+        
+        if (haveRCloneProcess)
+        {
+            await _stateMachine!.TransitionAsync(ServiceEvent.RCloneProcessFound);
+        }
+        else
+        {
+            await _stateMachine!.TransitionAsync(ServiceEvent.RCloneProcessNotFound);
+        }
+    }
+
+    internal async Task _startRCloneProcessImpl()
+    {
         _logger.LogInformation("RCloneService: Starting rclone process.");
         try
         {
@@ -753,7 +780,7 @@ public class RCloneService : BackgroundService
             int nTries = 10;
             while (--nTries > 0)
             {
-                haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);;
+                haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);
                 if (haveRCloneProcess) break;
                 _logger.LogWarning("RCloneService: waiting for rest interface to become available.");
                 await Task.Delay(1000);
@@ -763,26 +790,56 @@ public class RCloneService : BackgroundService
             {
                 _areOptionsValid = false;
                 _logger.LogError("RCloneService: rclone process did not start.");
-                _toWaitConfig("rclone process did not start.");
+                await _stateMachine!.TransitionAsync(ServiceEvent.RCloneProcessStartFailed);
                 return;
             }   
         
             _logger.LogInformation("RCloneService: rclone process started.");
-            await _toWaitStart();
+            await _stateMachine!.TransitionAsync(ServiceEvent.RCloneProcessStarted);
         }
         catch (Exception e)
         {
             _areOptionsValid = false;
             _logger.LogError($"Exception while starting rclone: {e}");
-            _toWaitConfig("Error starting rclone.");
-            return;
+            await _stateMachine!.TransitionAsync(ServiceEvent.RCloneProcessStartFailed);
         }
     }
 
-
-    private async Task _toRunning()
+    internal async Task _handleWaitStartImpl()
     {
-        _state.SetState(RCloneServiceState.ServiceState.Running);
+        _logger.LogInformation("RCloneService: WaitStart - checking for autostart.");
+        
+        /*
+         * Must not happen, checked in previous state.
+         */
+        if (_options == null)
+        {
+            _logger.LogError("RCloneService: No options in WaitStart state!");
+            return;
+        }
+        
+        /*
+         * Check if we should immediately transition to running
+         */
+        if (_stateMachine!.CanHandle(ServiceEvent.StopRequested))
+        {
+            // There's a queued stop request, let it be processed
+            return;
+        }
+        
+        if (_options.Autostart && !_wasUserStop)
+        {
+            _logger.LogInformation("RCloneService: Autostart enabled, transitioning to Running.");
+            await _stateMachine.TransitionAsync(ServiceEvent.StartRequested);
+        }
+        else
+        {
+            _logger.LogInformation("RCloneService: Waiting for explicit start request.");
+        }
+    }
+
+    internal async Task _startRunningImpl()
+    {
         _logger.LogInformation("RCloneService: Running.");
 
         /*
@@ -793,7 +850,7 @@ public class RCloneService : BackgroundService
         
         /*
          * Start the actual operation.
-         * Unfortunately we cannot unsubscribe from this subscription, sp we
+         * Unfortunately we cannot unsubscribe from this subscription, so we
          * need to check, if the connection is desired.
          */
         if (!_isConnectionSubscribed)
@@ -813,143 +870,34 @@ public class RCloneService : BackgroundService
                     await _fetchStorageOptions(CancellationToken.None);
                 }
             });
-        }
-    }
-
-
-    /**
-     * We are ready to go and just need a start request or an
-     * autostart option.
-     */
-    private async Task _toWaitStart()
-    {
-        _state.SetState(RCloneServiceState.ServiceState.WaitStart);
-        _logger.LogInformation("RCloneService: ToWaitStart");
-        
-        /*
-         * Must not happen, checked in previous state.
-         */
-        if (_options == null)
-        {
-            _toWaitConfig("No options available.");
-        }
-        
-        /*
-         * Has stop been triggered in the meantime?
-         */
-        if (_lastPendingRequest == PendingRequest.Stop)
-        {
-            _lastPendingRequest = PendingRequest.None;
-            await _toWaitStop();
-        }
-        
-        /*
-         * Shall we transition directly to running without waiting
-         * for a start request?
-         */
-        bool triggerStart = false;
-        if (_lastPendingRequest == PendingRequest.Start)
-        {
-            _lastPendingRequest = PendingRequest.None;
-            triggerStart = true;
-        }
-
-        if (_options!.Autostart && !_wasUserStop)
-        {
-            triggerStart = true;
-        }
-        
-        /*
-         * So, if we think we should start immediately, do it.
-         */
-        if (triggerStart)
-        {
-            await _toRunning();
-        }
-        else
-        {
-            _logger.LogInformation("RCloneService: Waiting for explicit start request.");
-        }
-    }
-    
-    
-    private async Task _toCheckRCloneProcess()
-    {
-        _state.SetState(RCloneServiceState.ServiceState.CheckRCloneProcess);
-        _logger.LogInformation("RCloneService: Checking rclone process.");
-        bool haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);
-        if (!haveRCloneProcess)
-        {
-            await _toStartRClone();
-        }
-        else
-        {
-            await _toWaitStart();
-        }
-    }
-    
-    
-    private async Task _toCheckOnline()
-    {
-        _state.SetState(RCloneServiceState.ServiceState.CheckOnline);
-        _logger.LogInformation("RCloneService: Checking online.");
-        
-        try {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
-            var user = await hannibalService.GetUserAsync(-1, CancellationToken.None);
-
-            if (null == user)
-            {
-                /*
-                 * This means we cannot authenticate using username and password.
-                 * So go back to _toWaitConfig()
-                 */
-                _toWaitConfig("No or invalid user login information.");
-            }
-
-            /*
-             * We also need to read the list of storages to preload them before
-             * we start rsync.
-             */
-            var storages = await hannibalService.GetStoragesAsync(CancellationToken.None);
-            _listStorages = new List<Storage>(storages).AsReadOnly();
             
-            /*
-             * OK, no exception, online connection works. So progress.
-             */
-            await _toBackendsLoggingIn("Online connection works.");
+            _isConnectionSubscribed = true;
+        }
+    }
 
-        } catch (Exception e) {
+    internal async Task _stopJobsImpl()
+    {
+        _logger.LogInformation("RCloneService: Stopping jobs.");
+        
+        var rcloneClient = new RCloneClient(_rcloneHttpClient);
+        var jobList = await rcloneClient.GetJobListAsync(CancellationToken.None);
+        List<int>? list = null;
 
-            /*
-             * Let's do a discrimination here: In development use, the options are likely
-             * to be valid and pre-configured, it's probably the service that is not up yet
-             * in a debugging situation. In Production however, it's more likely the
-             * service is broken.
-             */
-            if (Tools.EnvironmentDetector.IsInteractiveDev())
+        if (jobList.running_ids != null)
+        {
+            list = jobList.running_ids;
+        }
+
+        if (list != null)
+        {
+            foreach (var jobid in list)
             {
-                /*
-                 * This is a dev version.
-                 * So remain in state _toCheckOnline() and check again later.
-                 */
-                _logger.LogWarning($"Could not connect to server yet, retrying in a second...");
-                await Task.Delay(1000);
-                await _toCheckOnline();
-            }
-            else
-            {
-                /*
-                 * This is a production version, so wait for a better config.
-                 */
-
-                _logger.LogError($"Exception while checking online: {e}");
-                _areOptionsValid = false;
-                _toWaitConfig("Error checking online connection.");
+                _logger.LogInformation($"RCloneService: Stopping job {jobid}");
+                await rcloneClient.StopJobAsync(CancellationToken.None);
             }
         }
 
+        await _stateMachine!.TransitionAsync(ServiceEvent.JobsCompleted);
     }
 
 
@@ -959,16 +907,14 @@ public class RCloneService : BackgroundService
         if (null == _options)
         {
             _logger.LogWarning("RCloneService: No configuration at all.");
-        
-            _toWaitConfig("No configuration available.");
+            await _stateMachine!.TransitionAsync(ServiceEvent.ConfigInvalid);
             return;
         }
 
         if (!_areOptionsValid)
         {
             _logger.LogWarning("RCloneService: Invalidated configuration found.");
-        
-            _toWaitConfig("Invalid configuration.");
+            await _stateMachine!.TransitionAsync(ServiceEvent.ConfigInvalid);
             return;
         }
         
@@ -979,16 +925,14 @@ public class RCloneService : BackgroundService
             || String.IsNullOrWhiteSpace(_options.UrlSignalR))
         {
             _logger.LogWarning("RCloneService: Configuration incomplete.");
-        
-            _toWaitConfig("Incomplete configuration.");
+            await _stateMachine!.TransitionAsync(ServiceEvent.ConfigInvalid);
             return;
         }
         
         /*
          * Configuration appears to be valid. Progress to the next step.
          */
-        await _toCheckOnline();
-
+        await _stateMachine!.TransitionAsync(ServiceEvent.ConfigReceived);
     }
 
 
@@ -997,45 +941,55 @@ public class RCloneService : BackgroundService
      */
     public async Task StartJobsAsync(CancellationToken cancellationToken)
     {
+        if (_stateMachine == null)
+        {
+            _logger.LogWarning("StartJobsAsync called before service started.");
+            return;
+        }
+        
         switch (_state.State)
         {
             case RCloneServiceState.ServiceState.Starting:
             case RCloneServiceState.ServiceState.WaitConfig:
             case RCloneServiceState.ServiceState.CheckOnline:
+            case RCloneServiceState.ServiceState.BackendsLoggingIn:
             case RCloneServiceState.ServiceState.CheckRCloneProcess:
             case RCloneServiceState.ServiceState.StartRCloneProcess:
                 /*
-                 * Still booting up, remember request.
+                 * Still booting up, queue the start request.
                  */
-                _lastPendingRequest = PendingRequest.Start;
+                _logger.LogInformation("RCloneService: Queueing start request (still starting up).");
+                _stateMachine.QueueEvent(ServiceEvent.StartRequested);
                 break;
             
             case RCloneServiceState.ServiceState.WaitStart:
                 /*
-                 * Already started up, kick it.
-                 * But clear any contradicting requets.
+                 * Ready to start, trigger immediately.
                  */
-                _lastPendingRequest = PendingRequest.None;
-                await _toRunning();
+                _logger.LogInformation("RCloneService: Starting jobs.");
+                await _stateMachine.TransitionAsync(ServiceEvent.StartRequested);
                 break;
             
             case RCloneServiceState.ServiceState.Running:
                 /*
                  * Already running, ignore request.
                  */
+                _logger.LogInformation("RCloneService: Already running, ignoring start request.");
                 break;
 
             case RCloneServiceState.ServiceState.WaitStop:
                 /*
-                 * Remember request to restart.
+                 * Queue start request to restart after stopping.
                  */
-                _lastPendingRequest = PendingRequest.Start;
+                _logger.LogInformation("RCloneService: Queueing start request (currently stopping).");
+                _stateMachine.QueueEvent(ServiceEvent.StartRequested);
                 break;
             
             case RCloneServiceState.ServiceState.Exiting:
                 /*
                  * Ignore, we are shutting down.
                  */
+                _logger.LogWarning("RCloneService: Start requested but service is exiting.");
                 break;
         }
     }
@@ -1046,6 +1000,12 @@ public class RCloneService : BackgroundService
      */
     public async Task StopJobsAsync(CancellationToken cancellationToken)
     {
+        if (_stateMachine == null)
+        {
+            _logger.LogWarning("StopJobsAsync called before service started.");
+            return;
+        }
+        
         _wasUserStop = true;
         
         switch (_state.State)
@@ -1053,42 +1013,43 @@ public class RCloneService : BackgroundService
             case RCloneServiceState.ServiceState.Starting:
             case RCloneServiceState.ServiceState.WaitConfig:
             case RCloneServiceState.ServiceState.CheckOnline:
+            case RCloneServiceState.ServiceState.BackendsLoggingIn:
             case RCloneServiceState.ServiceState.CheckRCloneProcess:
             case RCloneServiceState.ServiceState.StartRCloneProcess:
                 /*
-                 * Still booting up, remember request.
+                 * Still booting up, queue the stop request.
                  */
-                // TXWTODO: What should that do with autostart enabled?
-                _lastPendingRequest = PendingRequest.Stop;
+                _logger.LogInformation("RCloneService: Queueing stop request (still starting up).");
+                _stateMachine.QueueEvent(ServiceEvent.StopRequested);
                 break;
             
             case RCloneServiceState.ServiceState.WaitStart:
                 /*
-                 * Not started at all.
-                 * Clear any contradicting requets.
+                 * Not started yet, nothing to stop.
                  */
-                _lastPendingRequest = PendingRequest.None;
+                _logger.LogInformation("RCloneService: Not started yet, nothing to stop.");
                 break;
             
             case RCloneServiceState.ServiceState.Running:
                 /*
-                 * Ask to shup down, clear any pending requests.
+                 * Currently running, trigger stop.
                  */
-                _lastPendingRequest = PendingRequest.None;
-                await _toWaitStop();
+                _logger.LogInformation("RCloneService: Stopping jobs.");
+                await _stateMachine.TransitionAsync(ServiceEvent.StopRequested);
                 break;
 
             case RCloneServiceState.ServiceState.WaitStop:
                 /*
-                 * Already stopping
+                 * Already stopping.
                  */
-                _lastPendingRequest = PendingRequest.None;
+                _logger.LogInformation("RCloneService: Already stopping.");
                 break;
             
             case RCloneServiceState.ServiceState.Exiting:
                 /*
                  * Ignore, we are shutting down.
                  */
+                _logger.LogWarning("RCloneService: Stop requested but service is exiting.");
                 break;
         }
     }
@@ -1180,8 +1141,12 @@ public class RCloneService : BackgroundService
         _configManager.SaveToFile(_rcloneConfigFile());
         
         /*
-         * Initially, we wait for the configuration
-         * to arrive.
+         * Initialize the state machine
+         */
+        _stateMachine = new RCloneStateMachine(this);
+        
+        /*
+         * Initially, we wait for the configuration to arrive.
          */
         _state.SetState(RCloneServiceState.ServiceState.WaitConfig);
         await _checkConfig();
