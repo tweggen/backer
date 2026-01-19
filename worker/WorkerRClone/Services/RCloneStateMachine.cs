@@ -60,7 +60,8 @@ public class RCloneStateMachine
                 OnEnter = async () => await _service._backendsLoginImpl(),
                 Transitions = new()
                 {
-                    [ServiceEvent.BackendsLoggedIn] = RCloneServiceState.ServiceState.CheckRCloneProcess
+                    [ServiceEvent.BackendsLoggedIn] = RCloneServiceState.ServiceState.CheckRCloneProcess,
+                    [ServiceEvent.StorageReauthenticationRequired] = RCloneServiceState.ServiceState.RestartingForReauth
                 }
             },
             
@@ -71,7 +72,8 @@ public class RCloneStateMachine
                 Transitions = new()
                 {
                     [ServiceEvent.RCloneProcessFound] = RCloneServiceState.ServiceState.WaitStart,
-                    [ServiceEvent.RCloneProcessNotFound] = RCloneServiceState.ServiceState.StartRCloneProcess
+                    [ServiceEvent.RCloneProcessNotFound] = RCloneServiceState.ServiceState.StartRCloneProcess,
+                    [ServiceEvent.StorageReauthenticationRequired] = RCloneServiceState.ServiceState.RestartingForReauth
                 }
             },
             
@@ -82,7 +84,8 @@ public class RCloneStateMachine
                 Transitions = new()
                 {
                     [ServiceEvent.RCloneProcessStarted] = RCloneServiceState.ServiceState.WaitStart,
-                    [ServiceEvent.RCloneProcessStartFailed] = RCloneServiceState.ServiceState.WaitConfig
+                    [ServiceEvent.RCloneProcessStartFailed] = RCloneServiceState.ServiceState.WaitConfig,
+                    [ServiceEvent.StorageReauthenticationRequired] = RCloneServiceState.ServiceState.RestartingForReauth
                 }
             },
             
@@ -93,7 +96,8 @@ public class RCloneStateMachine
                 Transitions = new()
                 {
                     [ServiceEvent.StartRequested] = RCloneServiceState.ServiceState.Running,
-                    [ServiceEvent.StopRequested] = RCloneServiceState.ServiceState.WaitStop
+                    [ServiceEvent.StopRequested] = RCloneServiceState.ServiceState.WaitStop,
+                    [ServiceEvent.StorageReauthenticationRequired] = RCloneServiceState.ServiceState.RestartingForReauth
                 }
             },
             
@@ -104,7 +108,8 @@ public class RCloneStateMachine
                 OnExit = async () => { _service._wasUserStop = false; },
                 Transitions = new()
                 {
-                    [ServiceEvent.StopRequested] = RCloneServiceState.ServiceState.WaitStop
+                    [ServiceEvent.StopRequested] = RCloneServiceState.ServiceState.WaitStop,
+                    [ServiceEvent.StorageReauthenticationRequired] = RCloneServiceState.ServiceState.RestartingForReauth
                 }
             },
             
@@ -116,6 +121,16 @@ public class RCloneStateMachine
                 {
                     [ServiceEvent.JobsCompleted] = RCloneServiceState.ServiceState.WaitStart,
                     [ServiceEvent.StartRequested] = RCloneServiceState.ServiceState.Running
+                }
+            },
+            
+            [RCloneServiceState.ServiceState.RestartingForReauth] = new()
+            {
+                State = RCloneServiceState.ServiceState.RestartingForReauth,
+                OnEnter = async () => await _service._handleStorageReauthImpl(),
+                Transitions = new()
+                {
+                    [ServiceEvent.ReauthCleanupComplete] = RCloneServiceState.ServiceState.BackendsLoggingIn
                 }
             },
             

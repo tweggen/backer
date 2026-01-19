@@ -16,5 +16,7 @@ public enum ServiceEvent
     RCloneProcessStartFailed,
     StartRequested,
     StopRequested,
-    JobsCompleted
+    JobsCompleted,
+    StorageReauthenticationRequired,
+    ReauthCleanupComplete
 }

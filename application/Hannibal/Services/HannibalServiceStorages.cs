@@ -74,6 +74,19 @@ public partial class HannibalService
             throw new InvalidDataException($"Unable to change user id");
         }
 
+        // Track if tokens changed for reauthentication notification
+        bool tokensChanged = false;
+        if (!string.IsNullOrEmpty(updatedStorage.AccessToken) && 
+            storage.AccessToken != updatedStorage.AccessToken)
+        {
+            tokensChanged = true;
+        }
+        if (!string.IsNullOrEmpty(updatedStorage.RefreshToken) && 
+            storage.RefreshToken != updatedStorage.RefreshToken)
+        {
+            tokensChanged = true;
+        }
+
         storage.Technology = updatedStorage.Technology;
         storage.UriSchema = updatedStorage.UriSchema;
         storage.Networks = updatedStorage.Networks;
@@ -87,9 +100,17 @@ public partial class HannibalService
         await _context.SaveChangesAsync(cancellationToken);
         
         /*
-         * At this point we must inform the local instancecs that the storage
-         * config has changed.
+         * At this point we must inform the local instances that the storage
+         * config has changed - but only if tokens actually changed
          */
+        if (tokensChanged)
+        {
+            _logger.LogInformation($"Storage {storage.UriSchema} tokens updated, notifying agents");
+            await _hannibalHub.Clients.All.SendAsync(
+                "StorageReauthenticated", 
+                storage.UriSchema, 
+                cancellationToken);
+        }
         
         return storage;
     }

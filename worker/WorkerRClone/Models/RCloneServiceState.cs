@@ -64,6 +64,12 @@ public class RCloneServiceState
         WaitStop,
         
         /**
+         * We are restarting due to storage reauthentication.
+         * Clean up rclone process and config before re-logging in to backends.
+         */
+        RestartingForReauth,
+        
+        /**
          * Exit has been requested.
          */
         Exiting

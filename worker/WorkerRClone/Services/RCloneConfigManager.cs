@@ -142,4 +142,69 @@ public class RCloneConfigManager
             return null;
         }
     }
+
+    // ------------------------------------------------------------
+    // Export current config to string for comparison
+    // ------------------------------------------------------------
+    public string ExportToString()
+    {
+        lock (_lo)
+        {
+            var sb = new StringBuilder();
+            foreach (var remote in _remotes)
+            {
+                sb.AppendLine($"[{remote.Key}]");
+                foreach (var kv in remote.Value)
+                {
+                    sb.AppendLine($"{kv.Key} = {kv.Value}");
+                }
+                sb.AppendLine();
+            }
+            return sb.ToString();
+        }
+    }
+
+    // ------------------------------------------------------------
+    // Load config from string
+    // ------------------------------------------------------------
+    public void LoadFromString(string configContent)
+    {
+        lock (_lo)
+        {
+            _remotes.Clear();
+            
+            string[] lines = configContent.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            string? currentSection = null;
+
+            foreach (var rawLine in lines)
+            {
+                string line = rawLine.Trim();
+
+                // Skip empty lines and comments
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
+                    continue;
+
+                // Section header: [remoteName]
+                if (line.StartsWith("[") && line.EndsWith("]"))
+                {
+                    currentSection = line.Substring(1, line.Length - 2).Trim();
+                    if (!_remotes.ContainsKey(currentSection))
+                        _remotes[currentSection] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    continue;
+                }
+
+                // Key/value: key = value
+                if (currentSection != null)
+                {
+                    int eq = line.IndexOf('=');
+                    if (eq > 0)
+                    {
+                        string key = line.Substring(0, eq).Trim();
+                        string value = line.Substring(eq + 1).Trim();
+                        _remotes[currentSection][key] = value;
+                    }
+                }
+            }
+        }
+    }
 }

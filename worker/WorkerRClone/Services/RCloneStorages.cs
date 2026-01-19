@@ -294,10 +294,20 @@ public class RCloneStorages
     }
 
     
-    public async Task<StorageState> FindStorageState(Storage storage, CancellationToken cancellationToken)
+    public async Task<StorageState> FindStorageState(
+        Storage storage, 
+        CancellationToken cancellationToken,
+        bool forceRefresh = false)
     {
         // TXWTODO: We know that we would require locking for the map. However, we create it at the very beginning.
         StorageState ss;
+        
+        if (forceRefresh)
+        {
+            // Remove from cache if exists, force re-fetch
+            _mapStorageStates.Remove(storage.Technology);
+        }
+        
         if (_mapStorageStates.TryGetValue(storage.Technology, out ss))
         {
         }
@@ -308,5 +318,14 @@ public class RCloneStorages
         }
 
         return ss;
+    }
+    
+    /// <summary>
+    /// Clear all storage states, forcing them to be recreated with fresh tokens
+    /// </summary>
+    public void ClearStorageStates()
+    {
+        _mapStorageStates.Clear();
+        _logger.LogInformation("RCloneStorages: Cleared all storage states for reauth");
     }
 }

@@ -160,6 +160,7 @@ public class RCloneService : BackgroundService
                 case RCloneServiceState.ServiceState.CheckRCloneProcess:
                 case RCloneServiceState.ServiceState.WaitConfig:
                 case RCloneServiceState.ServiceState.StartRCloneProcess:
+                case RCloneServiceState.ServiceState.RestartingForReauth:
                 case RCloneServiceState.ServiceState.Exiting:
                     /*
                      * No action required,
@@ -870,6 +871,44 @@ public class RCloneService : BackgroundService
                 }
             });
             
+            // Listen for storage reauthentication events
+            _hannibalConnection.On<string>("StorageReauthenticated", async (storageUriSchema) =>
+            {
+                _logger.LogInformation($"RCloneService: Received storage reauthentication event for {storageUriSchema}");
+                
+                try
+                {
+                    // Check if restart is actually needed
+                    bool restartRequired = await _doesStorageChangeRequireRestart(storageUriSchema);
+                    
+                    if (!restartRequired)
+                    {
+                        _logger.LogInformation($"RCloneService: Storage {storageUriSchema} reauthenticated but no changes detected, continuing normally");
+                        return;
+                    }
+                    
+                    // Only trigger restart if actually needed
+                    if (_stateMachine!.CanHandle(ServiceEvent.StorageReauthenticationRequired))
+                    {
+                        await _stateMachine.TransitionAsync(ServiceEvent.StorageReauthenticationRequired);
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"RCloneService: Queueing reauth event (current state: {_state.State})");
+                        _stateMachine.QueueEvent(ServiceEvent.StorageReauthenticationRequired);
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError($"Error checking storage reauth impact: {e}");
+                    // On error, safer to restart
+                    if (_stateMachine!.CanHandle(ServiceEvent.StorageReauthenticationRequired))
+                    {
+                        await _stateMachine.TransitionAsync(ServiceEvent.StorageReauthenticationRequired);
+                    }
+                }
+            });
+            
             _isConnectionSubscribed = true;
         }
     }
@@ -897,6 +936,162 @@ public class RCloneService : BackgroundService
         }
 
         await _stateMachine!.TransitionAsync(ServiceEvent.JobsCompleted);
+    }
+
+    /// <summary>
+    /// Handle storage reauthentication by cleaning up and preparing for restart
+    /// </summary>
+    internal async Task _handleStorageReauthImpl()
+    {
+        _logger.LogInformation("RCloneService: Handling storage reauthentication - cleaning up...");
+        
+        try
+        {
+            // 1. Stop all running jobs
+            if (_rcloneHttpClient != null)
+            {
+                try
+                {
+                    var rcloneClient = new RCloneClient(_rcloneHttpClient);
+                    var jobList = await rcloneClient.GetJobListAsync(CancellationToken.None);
+                    
+                    if (jobList.running_ids != null)
+                    {
+                        foreach (var jobid in jobList.running_ids)
+                        {
+                            _logger.LogInformation($"RCloneService: Stopping job {jobid} for reauth");
+                            await rcloneClient.StopJobAsync(CancellationToken.None);
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.LogWarning($"Failed to stop jobs gracefully: {e.Message}");
+                }
+            }
+            
+            // 2. Kill rclone process
+            if (_processRClone != null && !_processRClone.HasExited)
+            {
+                _logger.LogInformation("RCloneService: Killing rclone process for reauth");
+                _processRClone.Kill();
+                _processRClone.Dispose();
+                _processRClone = null;
+            }
+            
+            // 3. Dispose HTTP client
+            if (_rcloneHttpClient != null)
+            {
+                _rcloneHttpClient.Dispose();
+                _rcloneHttpClient = null;
+            }
+            
+            // 4. Clear job mappings
+            lock (_lo)
+            {
+                _mapRCloneToJob.Clear();
+            }
+            
+            // 5. Clear/reset config manager (will be regenerated with new tokens)
+            if (_configManager != null)
+            {
+                _logger.LogInformation("RCloneService: Clearing rclone configuration");
+                // Clear the config in memory and on disk
+                _configManager = new RCloneConfigManager();
+                _configManager.SaveToFile(_rcloneConfigFile());
+            }
+            
+            // 6. Clear storage states in RCloneStorages so they reload with new tokens
+            _rcloneStorages.ClearStorageStates();
+            
+            // 7. Reload the storage list from Hannibal to get updated tokens
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+                var storages = await hannibalService.GetStoragesAsync(CancellationToken.None);
+                _listStorages = new List<Storage>(storages).AsReadOnly();
+                _logger.LogInformation("RCloneService: Reloaded storage list with updated tokens");
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to reload storage list: {e}");
+            }
+            
+            _logger.LogInformation("RCloneService: Cleanup complete, proceeding to backends login");
+            
+            // Transition to BackendsLoggingIn
+            await _stateMachine!.TransitionAsync(ServiceEvent.ReauthCleanupComplete);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError($"Error during reauth cleanup: {e}");
+            // Still try to continue - transition to BackendsLoggingIn anyway
+            await _stateMachine!.TransitionAsync(ServiceEvent.ReauthCleanupComplete);
+        }
+    }
+
+    /// <summary>
+    /// Check if storage change requires restart by comparing configurations
+    /// </summary>
+    private async Task<bool> _doesStorageChangeRequireRestart(string storageUriSchema)
+    {
+        _logger.LogInformation($"RCloneService: Checking if storage {storageUriSchema} requires restart");
+        
+        // 1. Get the storage object from our list
+        Storage? storage = _listStorages?.FirstOrDefault(s => s.UriSchema == storageUriSchema);
+        if (storage == null)
+        {
+            _logger.LogWarning($"Storage {storageUriSchema} not found in current list");
+            // Unknown storage, safer to restart
+            return true;
+        }
+        
+        // 2. Get current parameters from config manager
+        var currentParams = _configManager?.GetRemote(storageUriSchema);
+        if (currentParams == null)
+        {
+            _logger.LogInformation($"Storage {storageUriSchema} not in current config, restart needed");
+            return true;
+        }
+        
+        // 3. Get new storage state with fresh tokens
+        StorageState newState = await _rcloneStorages.FindStorageState(
+            storage, CancellationToken.None, forceRefresh: true);
+        
+        // 4. Compare the parameters
+        if (_areRCloneParametersEqual(currentParams, newState.RCloneParameters))
+        {
+            _logger.LogInformation($"Storage {storageUriSchema} parameters unchanged, no restart needed");
+            return false;
+        }
+        
+        _logger.LogInformation($"Storage {storageUriSchema} parameters changed, restart required");
+        return true;
+    }
+
+    /// <summary>
+    /// Compare two sets of rclone parameters for equality
+    /// </summary>
+    private bool _areRCloneParametersEqual(
+        Dictionary<string, string> current, 
+        Dictionary<string, string> updated)
+    {
+        // Check if all keys and values match
+        if (current.Count != updated.Count)
+            return false;
+        
+        foreach (var kvp in current)
+        {
+            if (!updated.TryGetValue(kvp.Key, out var updatedValue))
+                return false;
+                
+            // Special handling for tokens - compare as case-sensitive
+            if (kvp.Value != updatedValue)
+                return false;
+        }
+        
+        return true;
     }
 
 
