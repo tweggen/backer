@@ -74,4 +74,28 @@ public partial class TransferWindow : Window
             _manager.UpdateTransfers(listStats);
         }
     }
+    
+    /// <summary>
+    /// Called by SignalR when transfer stats are pushed from BackerAgent
+    /// </summary>
+    public void UpdateTransferStats(TransferStatsResult transferStatsResult)
+    {
+        List<FileTransferStats> listStats = new();
+        foreach (var item in transferStatsResult.TransferringItems)
+        {
+            FileTransferStats fts = new()
+            {
+                Id = item.Name,
+                Speed = item.Speed,
+                Progress = item.PercentDone,
+                State = "transferring",
+                Size = item.TotalSize,
+                DestinationPath = item.Name,
+                SourcePath = item.Name
+            };
+            listStats.Insert(0, fts);
+        }
+        
+        _manager.UpdateTransfers(listStats);
+    }
 }

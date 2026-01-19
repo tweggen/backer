@@ -37,7 +37,7 @@ public class RCloneService : BackgroundService
     
     internal ILogger<RCloneService> _logger;
     private ProcessManager _processManager;
-    private HubConnection _hannibalConnection;
+    private HubConnection _hannibalConnection;  // CLIENT role: connects to Hannibal
     private bool _isConnectionSubscribed = false;
 
     private RCloneServiceOptions? _options = null;
@@ -60,6 +60,10 @@ public class RCloneService : BackgroundService
     private RCloneConfigManager? _configManager = null;
     internal IReadOnlyList<Storage> _listStorages;
     internal RCloneStorages _rcloneStorages;
+    
+    // Callbacks for external notification (used by BackerControlHub)
+    internal Action<RCloneServiceState>? OnStateChanged { get; set; }
+    internal Action<TransferStatsResult>? OnTransferStatsChanged { get; set; }
 
     public RCloneService(
         ILogger<RCloneService> logger,

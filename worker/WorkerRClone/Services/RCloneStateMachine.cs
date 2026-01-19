@@ -162,6 +162,16 @@ public class RCloneStateMachine
             _service._logger.LogInformation($"State transition: {previousState} -> {nextState} (event: {evt})");
         }
         
+        // Notify external listeners (BackerControl) of state change
+        try
+        {
+            _service.OnStateChanged?.Invoke(_service.GetState());
+        }
+        catch (Exception ex)
+        {
+            _service._logger.LogError(ex, "Error invoking OnStateChanged callback");
+        }
+        
         // Execute exit action outside of lock
         var prevConfig = _stateConfigs[_currentState];
         if (prevConfig.OnExit != null)

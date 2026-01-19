@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using WorkerRClone;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
@@ -146,7 +147,28 @@ builder.Services
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
 builder.Services.AddSingleton<RCloneStorages>();
-builder.Services.AddSingleton<RCloneService>();
+builder.Services.AddSingleton<RCloneService>(sp =>
+{
+    // Create RCloneService
+    var rcloneService = ActivatorUtilities.CreateInstance<RCloneService>(sp);
+    
+    // Wire up callbacks for BackerControl notifications
+    var hubContext = sp.GetRequiredService<IHubContext<BackerAgent.Hubs.BackerControlHub>>();
+    
+    rcloneService.OnStateChanged = (state) =>
+    {
+        // Broadcast state changes to all connected BackerControl clients
+        _ = hubContext.Clients.All.SendAsync("ServiceStateChanged", state);
+    };
+    
+    rcloneService.OnTransferStatsChanged = (stats) =>
+    {
+        // Broadcast transfer stats to all connected BackerControl clients
+        _ = hubContext.Clients.All.SendAsync("TransferStatsUpdated", stats);
+    };
+    
+    return rcloneService;
+});
 builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<RCloneService>());
 builder.Services.AddSingleton<HubConnectionFactory>();
 builder.Services.AddSingleton(provider =>
@@ -372,6 +394,9 @@ app.UseHttpLogging();
 
 // Health check endpoint
 app.MapHealthChecks("/health");
+
+// Map SignalR hub for BackerControl (local desktop control panel)
+app.MapHub<BackerAgent.Hubs.BackerControlHub>("/backercontrolhub");
 
 // Global error handler
 app.Use(async (context, next) =>

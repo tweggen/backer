@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Threading;
+using Microsoft.AspNetCore.SignalR.Client;
 using WorkerRClone.Models;
 
 namespace BackerControl;
@@ -24,8 +25,11 @@ public partial class App : System.Windows.Application
     
     private ToolStripMenuItem _startStopItem;
     private ToolStripMenuItem _statusItem;
-    private DispatcherTimer  _pollTimer;
+    private DispatcherTimer _pollTimer;
     private System.Threading.SynchronizationContext _formsContext;
+    
+    // SignalR connection (BackerControl as CLIENT, BackerAgent as SERVER)
+    private HubConnection? _backerAgentConnection;
 
 
     private void _showTransferWindow()
@@ -117,7 +121,7 @@ public partial class App : System.Windows.Application
     }
     
     
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -140,14 +144,14 @@ public partial class App : System.Windows.Application
         trayIcon = new NotifyIcon
         {
             Icon = System.Drawing.SystemIcons.Application,
-            Text = "My Service Control",
+            Text = "Backer Control",
             Visible = true
         };
 
-        _statusItem = new ToolStripMenuItem("Checking state...");
+        _statusItem = new ToolStripMenuItem("Connecting...");
         _statusItem.Enabled = false;
 
-        _startStopItem = new ToolStripMenuItem("Checking state...");
+        _startStopItem = new ToolStripMenuItem("Connecting...");
         
         _startStopItem.Click += async (s, ev) =>
         {
@@ -186,12 +190,151 @@ public partial class App : System.Windows.Application
 
         trayIcon.ContextMenuStrip = menu;
         
-        // Poll service state every second
+        // Setup SignalR connection to BackerAgent
+        await _setupSignalRConnection();
+        
+        // Fallback poll every 10 seconds in case SignalR disconnects
         _pollTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromSeconds(1)
+            Interval = TimeSpan.FromSeconds(10)
         };
-        _pollTimer.Tick += async (s, ev) => await _updateServiceState();
+        _pollTimer.Tick += async (s, ev) => 
+        {
+            // Only poll if SignalR is disconnected
+            if (_backerAgentConnection?.State != HubConnectionState.Connected)
+            {
+                await _updateServiceState();
+            }
+        };
         _pollTimer.Start();
+    }
+    
+    private async Task _setupSignalRConnection()
+    {
+        try
+        {
+            _backerAgentConnection = new HubConnectionBuilder()
+                .WithUrl("http://localhost:5931/backercontrolhub")
+                .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+                .Build();
+            
+            // Subscribe to service state changes
+            _backerAgentConnection.On<RCloneServiceState>("ServiceStateChanged", state =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    _updateUIWithState(state);
+                });
+            });
+            
+            // Subscribe to transfer stats updates
+            _backerAgentConnection.On<TransferStatsResult>("TransferStatsUpdated", stats =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    _winTransfer?.UpdateTransferStats(stats);
+                });
+            });
+            
+            // Handle reconnection
+            _backerAgentConnection.Reconnecting += error =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    _formsContext.Post(_ =>
+                    {
+                        _statusItem.Text = "Reconnecting...";
+                        _startStopItem.Enabled = false;
+                    }, null);
+                });
+                return Task.CompletedTask;
+            };
+            
+            _backerAgentConnection.Reconnected += connectionId =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    _formsContext.Post(_ =>
+                    {
+                        _statusItem.Text = "Reconnected";
+                    }, null);
+                });
+                return Task.CompletedTask;
+            };
+            
+            _backerAgentConnection.Closed += async error =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    _formsContext.Post(_ =>
+                    {
+                        _statusItem.Text = "Disconnected";
+                        _startStopItem.Enabled = false;
+                    }, null);
+                });
+                
+                // Try to reconnect after 5 seconds
+                await Task.Delay(5000);
+                await _connectSignalR();
+            };
+            
+            await _connectSignalR();
+        }
+        catch (Exception ex)
+        {
+            File.AppendAllText("error.log", $"SignalR setup error: {ex}\n");
+        }
+    }
+    
+    private async Task _connectSignalR()
+    {
+        try
+        {
+            if (_backerAgentConnection != null)
+            {
+                await _backerAgentConnection.StartAsync();
+                
+                // Request initial state
+                await _backerAgentConnection.InvokeAsync("RequestCurrentState");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Connection failed, fallback to polling
+            File.AppendAllText("error.log", $"SignalR connection error: {ex}\n");
+        }
+    }
+    
+    private void _updateUIWithState(RCloneServiceState status)
+    {
+        _formsContext.Post(_ =>
+        {
+            _statusItem.Text = status.StateString;
+            switch (status.State)
+            {
+                case RCloneServiceState.ServiceState.CheckRCloneProcess:
+                case RCloneServiceState.ServiceState.StartRCloneProcess:
+                case RCloneServiceState.ServiceState.WaitStop:
+                case RCloneServiceState.ServiceState.Starting:
+                case RCloneServiceState.ServiceState.WaitConfig:
+                case RCloneServiceState.ServiceState.Exiting:
+                case RCloneServiceState.ServiceState.CheckOnline:
+                case RCloneServiceState.ServiceState.BackendsLoggingIn:
+                case RCloneServiceState.ServiceState.RestartingForReauth:
+                    _startStopItem.Text = "";
+                    _startStopItem.Enabled = false;
+                    break;
+                
+                case RCloneServiceState.ServiceState.WaitStart:
+                    _startStopItem.Text = "Start Service";
+                    _startStopItem.Enabled = true;
+                    break;
+                    
+                case RCloneServiceState.ServiceState.Running:
+                    _startStopItem.Text = "Stop Service";
+                    _startStopItem.Enabled = true;
+                    break;
+            }
+        }, null);
     }
 }
