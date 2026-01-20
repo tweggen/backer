@@ -1,3 +1,4 @@
 [submodule "external/OAuth2"]
 	path = external/OAuth2
 	url = https://github.com/TimosForks/OAuth2.git
+	branch = master
