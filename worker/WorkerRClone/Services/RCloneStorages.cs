@@ -1,349 +1,123 @@
-using System.Net.Http.Headers;
-using System.Text.Json;
-using Hannibal;
-using Hannibal.Client;
 using Hannibal.Configuration;
 using Hannibal.Models;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using WorkerRClone.Client;
 using WorkerRClone.Configuration;
-using WorkerRClone.Services;
-using EndpointState = WorkerRClone.Services.EndpointState;
+using WorkerRClone.Services.Providers;
 
-namespace WorkerRClone;
+namespace WorkerRClone.Services;
 
-/**
- * Service to maintain a list of storages.
- */
+/// <summary>
+/// Service to maintain a list of storage states and manage storage providers.
+/// </summary>
 public class RCloneStorages
 {
-    private OAuthOptions _oauthOptions;
     private readonly ILogger<RCloneStorages> _logger;
-    private IServiceScopeFactory _serviceScopeFactory;
+    private readonly IStorageProviderFactory _providerFactory;
+    
+    private readonly SortedDictionary<string, StorageState> _mapStorageStates = new();
 
-    private readonly OAuth2ClientFactory _oauth2ClientFactory;
-    
-    private SortedDictionary<string, StorageState> _mapStorageStates = new();
-    
     public RCloneStorages(
         ILogger<RCloneStorages> logger,
-        IOptionsMonitor<RCloneServiceOptions> optionsMonitor,
-        IServiceScopeFactory serviceScopeFactory)
+        IStorageProviderFactory providerFactory,
+        IOptionsMonitor<RCloneServiceOptions> optionsMonitor)
     {
         _logger = logger;
-        _serviceScopeFactory = serviceScopeFactory;
-        _oauthOptions = optionsMonitor.CurrentValue.OAuth2 ?? new OAuthOptions();
-        _oauth2ClientFactory = new OAuth2ClientFactory(_oauthOptions);
+        _providerFactory = providerFactory;
 
-        optionsMonitor.OnChange(async updated =>
+        optionsMonitor.OnChange(updated =>
         {
-            _logger.LogInformation($"RCloneStorages: Options changed to {updated}.");
-            if (updated?.OAuth2 != null)
-            {
-                _onUpdateOptions(updated.OAuth2);
-            }
+            _logger.LogInformation("RCloneStorages: Options changed, clearing storage states.");
+            ClearStorageStates();
         });
     }
 
-
-    private void _onUpdateOptions(OAuthOptions? oAuthOptions)
-    {
-        if (null == oAuthOptions) return;
-        _oauthOptions = oAuthOptions;
-        _oauth2ClientFactory.OnUpdateOptions(oAuthOptions);
-    }
-
-
-    private async Task _getLatestToken(StorageState ss, CancellationToken cancellationToken)
-    {
-        var storage = ss.Storage;
-
-        if (String.IsNullOrWhiteSpace(ss.Storage.AccessToken) 
-            && String.IsNullOrWhiteSpace(ss.Storage.RefreshToken))
-        {
-            _logger.LogInformation("BackerAgent: Skipping token refresh, no login happened yet.");
-            return;
-        }
-        
-        /*
-         * Make sure we have a current accesstoken.
-         */
-        var oldAccessToken = ss.Storage.AccessToken;
-        var oldRefreshToken = ss.Storage.RefreshToken;
-        
-        var newAccessToken = await ss.OAuthClient.GetCurrentTokenAsync(
-            ss.Storage.RefreshToken, false, cancellationToken);
-        
-        if (string.IsNullOrEmpty(newAccessToken))
-        {
-            throw new UnauthorizedAccessException("No access token found for onedrive.");
-        }
-        
-        var newRefreshToken = ss.OAuthClient.RefreshToken;
-        var newExpiresAt = ss.OAuthClient.ExpiresAt;
-
-        bool tokensChanged = false;
-        
-        if (oldAccessToken != newAccessToken)
-        {
-            _logger.LogInformation($"Access token refreshed for storage {storage.UriSchema}");
-            storage.AccessToken = newAccessToken;
-            tokensChanged = true;
-        }
-        
-        if (!string.IsNullOrEmpty(newRefreshToken) && oldRefreshToken != newRefreshToken)
-        {
-            _logger.LogInformation($"Refresh token updated for storage {storage.UriSchema}");
-            storage.RefreshToken = newRefreshToken;
-            tokensChanged = true;
-        }
-    
-        if (newExpiresAt != default && storage.ExpiresAt != newExpiresAt)
-        {
-            storage.ExpiresAt = newExpiresAt;
-            tokensChanged = true;
-        }
-        
-        if (tokensChanged)
-        {
-            await _updateStorageInDatabase(storage, cancellationToken);
-        }
-    }
-    
-    
-    public async Task _fillDropboxFromStorageAsync(
-        StorageState ss, CancellationToken cancellationToken)
-    {
-        var storage = ss.Storage;
-        
-        /*
-         * We do not need an http client of our own.
-         */
-        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
-            new Guid(), "dropbox");
-
-        await _getLatestToken(ss, cancellationToken);
-        
-        
-        /*
-         * Only compute parameters if we have a token.
-         */
-        if (!String.IsNullOrWhiteSpace(ss.Storage.AccessToken))
-        {
-            /*
-             * Generate a suitable dropbox token object.
-             */
-            var tokenObject = new
-            {
-                access_token = storage.AccessToken,
-                refresh_token = storage.RefreshToken,
-                token_type = "bearer",
-                expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
-            };
-            string tokenJson = JsonSerializer.Serialize(tokenObject);
-
-            ss.RCloneParameters = new()
-            {
-                { "type", "dropbox" },
-                { "client_id", storage.ClientId },
-                { "client_secret", storage.ClientSecret },
-                { "token", tokenJson }
-            };
-        }
-
-    }
-
-
-    /**
-     * Return the drive id and drive type for a consumer onedrive.
-     */
-    private async Task<(string DriveId, string DriveType)> _getOneDriveInfoAsync(
-        WorkerRClone.Services.StorageState ss, 
-        string accessToken,
-        CancellationToken cancellationToken)
-    {
-        var client = ss.HttpClient;
-        if (null == client)
-        {
-            throw new InvalidOperationException("No http client available, should have been setup earlier.");
-        }
-
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", accessToken);
-
-        var response = await client.GetAsync(
-            "https://graph.microsoft.com/v1.0/me/drive",
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        using var doc = JsonDocument.Parse(json);
-        string driveId = doc.RootElement.GetProperty("id").GetString()!;
-        string driveType = doc.RootElement.GetProperty("driveType").GetString()!;
-
-        return (driveId, driveType);
-    }
-
-    
-    public async Task _fillOnedriveFromStorageAsync(
-        WorkerRClone.Services.StorageState ss, CancellationToken cancellationToken)
-    {
-        var storage = ss.Storage;
-        
-        /*
-         * We need an http client for a couple of operations.
-         */
-        // TXWTODO: This client leaks. Use using 
-        ss.HttpClient = new HttpClient()
-        {
-            BaseAddress = new Uri("https://graph.microsoft.com/")
-        };
-
-        ss.OAuthClient = _oauth2ClientFactory.CreateOAuth2Client(
-            new Guid(), "onedrive");
-
-
-        await _getLatestToken(ss, cancellationToken);
-
-        /*
-         * Only compute parameters if we have a token.
-         */
-        if (!String.IsNullOrWhiteSpace(ss.Storage.AccessToken))
-        {
-            var (driveId, driveType) = await _getOneDriveInfoAsync(
-                ss, storage.AccessToken, cancellationToken);
-
-            var tokenObject = new
-            {
-                access_token = storage.AccessToken,
-                refresh_token = storage.RefreshToken,
-                token_type = "bearer",
-                expiry = storage.ExpiresAt.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'")
-            };
-            string tokenJson = JsonSerializer.Serialize(tokenObject);
-
-            ss.RCloneParameters = new()
-            {
-                { "type", "onedrive" },
-                { "client_id", storage.ClientId },
-                { "client_secret", storage.ClientSecret },
-                { "drive_id", driveId }, { "drive_type", driveType },
-                { "token", tokenJson }
-            };
-        }
-
-        ss.HttpClient.Dispose();
-        ss.HttpClient = null;
-    }
-    
-    
-    private async Task _updateStorageInDatabase(Storage storage, CancellationToken cancellationToken)
-    {
-        try
-        {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
-        
-            await hannibalService.UpdateStorageAsync(storage.Id, storage, cancellationToken);
-        
-            _logger.LogInformation($"Updated storage {storage.UriSchema} tokens in database");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Failed to update storage in database: {ex}");
-        }
-    }
-    
-
-    /**
-     * Fill the storagestate with everything that is specific to one
-     * provider.
-     */
-    private async Task _fillProviderSpecific(
-        WorkerRClone.Services.StorageState ss, CancellationToken cancellationToken)
-    {
-        var provider = ss.Storage.Technology;
-        
-        switch (provider)
-        {
-            case "dropbox":
-                await _fillDropboxFromStorageAsync(ss, cancellationToken);
-                break;
-            
-            case "onedrive":
-                await _fillOnedriveFromStorageAsync(ss, cancellationToken);
-                break;
-            
-            default:
-                /*
-                 * Not supported or no config required.
-                 */
-                ss.RCloneParameters = new();
-                break;
-        }
-
-    }
-
-
-    private async Task<StorageState> _createStorageState(Storage storage, CancellationToken cancellationToken)
-    {
-        StorageState ss = new()
-        {
-            Storage = storage,
-        };
-
-        /*
-         * Now fill everything that is specific for one particular provider. 
-         */
-        try
-        {
-            await _fillProviderSpecific(ss, cancellationToken);
-        }
-        catch (Exception e)
-        {
-            _logger.LogError($"Error filling out provider specific for {storage.Technology}: {e}");
-        }
-
-        return ss;
-    }
-
-    
+    /// <summary>
+    /// Find or create a storage state for the given storage.
+    /// </summary>
     public async Task<StorageState> FindStorageState(
-        Storage storage, 
+        Storage storage,
         CancellationToken cancellationToken,
         bool forceRefresh = false)
     {
-        // TXWTODO: We know that we would require locking for the map. However, we create it at the very beginning.
-        StorageState ss;
-        
         if (forceRefresh)
         {
-            // Remove from cache if exists, force re-fetch
             _mapStorageStates.Remove(storage.Technology);
         }
-        
-        if (_mapStorageStates.TryGetValue(storage.Technology, out ss))
+
+        if (_mapStorageStates.TryGetValue(storage.Technology, out var existing))
         {
-        }
-        else
-        {
-            ss = await _createStorageState(storage, cancellationToken);
-            _mapStorageStates[storage.Technology] = ss;
+            return existing;
         }
 
-        return ss;
+        var state = await CreateStorageStateAsync(storage, cancellationToken);
+        _mapStorageStates[storage.Technology] = state;
+        return state;
     }
-    
+
     /// <summary>
-    /// Clear all storage states, forcing them to be recreated with fresh tokens
+    /// Create a new storage state using the appropriate provider.
+    /// </summary>
+    private async Task<StorageState> CreateStorageStateAsync(
+        Storage storage, CancellationToken cancellationToken)
+    {
+        var state = new StorageState { Storage = storage };
+
+        try
+        {
+            if (!_providerFactory.IsSupported(storage.Technology))
+            {
+                _logger.LogWarning($"Storage technology '{storage.Technology}' is not supported. " +
+                    $"Supported: {string.Join(", ", _providerFactory.GetSupportedTechnologies())}");
+                state.RCloneParameters = new SortedDictionary<string, string>();
+                return state;
+            }
+
+            var provider = _providerFactory.GetProvider(storage.Technology);
+            
+            // Validate storage configuration
+            var validation = provider.Validate(storage);
+            if (!validation.IsValid)
+            {
+                _logger.LogWarning($"Storage validation failed for {storage.Technology}: {validation.ErrorMessage}");
+                state.RCloneParameters = new SortedDictionary<string, string>();
+                return state;
+            }
+
+            // Initialize the provider (sets up OAuth client, refreshes tokens, etc.)
+            await provider.InitializeAsync(state, cancellationToken);
+            
+            // Build rclone parameters
+            var parameters = await provider.BuildRCloneParametersAsync(state, cancellationToken);
+            state.RCloneParameters = new SortedDictionary<string, string>(parameters);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, $"Error initializing provider for {storage.Technology}");
+            state.RCloneParameters = new SortedDictionary<string, string>();
+        }
+
+        return state;
+    }
+
+    /// <summary>
+    /// Clear all storage states, forcing them to be recreated with fresh tokens.
     /// </summary>
     public void ClearStorageStates()
     {
         _mapStorageStates.Clear();
         _logger.LogInformation("RCloneStorages: Cleared all storage states for reauth");
     }
+
+    /// <summary>
+    /// Get all supported storage technologies.
+    /// </summary>
+    public IEnumerable<string> GetSupportedTechnologies() => 
+        _providerFactory.GetSupportedTechnologies();
+
+    /// <summary>
+    /// Check if a technology is supported.
+    /// </summary>
+    public bool IsSupported(string technology) => 
+        _providerFactory.IsSupported(technology);
 }

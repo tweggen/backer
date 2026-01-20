@@ -10,11 +10,19 @@ public class Storage
 
     public string OAuth2Email { get; set; }
 
+    // OAuth-based authentication (for Dropbox, OneDrive, Google Drive, etc.)
     public string ClientId { get; set; }
     public string ClientSecret { get; set; }
     public string AccessToken { get; set; }
     public string RefreshToken { get; set; }
     public DateTime ExpiresAt { get; set; }
+
+    // Credential-based authentication (for SMB, FTP, SFTP, etc.)
+    public string Username { get; set; }
+    public string Password { get; set; }
+    public string Host { get; set; }
+    public int? Port { get; set; }
+    public string Domain { get; set; }
 
     private DateTime _createdAt;
 
@@ -44,11 +52,21 @@ public class Storage
         UriSchema = "";
         Networks = "";
         OAuth2Email = "";
+        
+        // OAuth fields
         ClientId = "";
         ClientSecret = "";
         AccessToken = "";
         RefreshToken = "";
         ExpiresAt = DateTime.UtcNow;
+        
+        // Credential fields
+        Username = "";
+        Password = "";
+        Host = "";
+        Port = null;
+        Domain = "";
+        
         IsActive = true;
 
         // Initialize timestamps
@@ -72,11 +90,19 @@ public class Storage
 
         OAuth2Email = other.OAuth2Email;
 
+        // OAuth fields
         ClientId = other.ClientId;
         ClientSecret = other.ClientSecret;
         AccessToken = other.AccessToken;
         RefreshToken = other.RefreshToken;
         ExpiresAt = other.ExpiresAt;
+
+        // Credential fields
+        Username = other.Username;
+        Password = other.Password;
+        Host = other.Host;
+        Port = other.Port;
+        Domain = other.Domain;
 
         CreatedAt = other.CreatedAt;
         UpdatedAt = other.UpdatedAt;

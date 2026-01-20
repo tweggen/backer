@@ -6,6 +6,7 @@ public class Technologies
     {
         "onedrive",
         "dropbox",
+        "googledrive",
         "smb",
         "local"
     };

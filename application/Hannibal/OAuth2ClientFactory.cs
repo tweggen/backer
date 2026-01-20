@@ -66,6 +66,34 @@ public class OAuth2ClientFactory
     }
 
 
+    private OAuth2.Client.Impl.GoogleClient _createGoogleOAuthClient(
+        Guid stateId)
+    {
+        // Support both "google" and "googledrive" as provider keys
+        if (!_oauthOptions.Providers.TryGetValue("googledrive", out var provider) &&
+            !_oauthOptions.Providers.TryGetValue("google", out provider))
+        {
+            throw new KeyNotFoundException("provider googledrive/google not found");
+        }
+
+        var oauth2Client = new OAuth2.Client.Impl.GoogleClient(
+            stateId,
+            new OAuth2.Infrastructure.RequestFactory(),
+            new OAuth2.Configuration.ClientConfiguration
+            {
+                ClientId = provider.ClientId.Trim(),
+                ClientSecret = provider.ClientSecret.Trim(),
+                RedirectUri = "http://localhost:53682/",
+                // Google Drive scopes - adjust based on access level needed
+                // https://www.googleapis.com/auth/drive - Full access
+                // https://www.googleapis.com/auth/drive.file - Per-file access
+                Scope = "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email",
+                IsOfflineToken = true
+            });
+        return oauth2Client;
+    }
+
+
     public OAuth2Client CreateOAuth2Client(
         Guid stateId, string provider)
     {
@@ -78,8 +106,12 @@ public class OAuth2ClientFactory
             case "dropbox":
                 oauth2Client = _createDropboxOAuthClient(stateId);
                 break;
+            case "google":
+            case "googledrive":
+                oauth2Client = _createGoogleOAuthClient(stateId);
+                break;
             default:
-                throw new KeyNotFoundException("provider not found.");
+                throw new KeyNotFoundException($"OAuth2 provider '{provider}' not found.");
         }
 
         return oauth2Client;
