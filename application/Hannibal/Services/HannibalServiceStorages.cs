@@ -89,25 +89,48 @@ public partial class HannibalService
             tokensChanged = true;
         }
 
+        // Track if credentials changed for notification
+        bool credentialsChanged = tokensChanged;
+        
+        // Check credential-based fields for changes
+        if (storage.Host != updatedStorage.Host ||
+            storage.Username != updatedStorage.Username ||
+            storage.Password != updatedStorage.Password ||
+            storage.Domain != updatedStorage.Domain ||
+            storage.Port != updatedStorage.Port)
+        {
+            credentialsChanged = true;
+        }
+
+        // Update common fields
         storage.Technology = updatedStorage.Technology;
         storage.UriSchema = updatedStorage.UriSchema;
         storage.Networks = updatedStorage.Networks;
+        
+        // Update OAuth fields
         storage.OAuth2Email = updatedStorage.OAuth2Email;
         storage.ClientId = updatedStorage.ClientId;
         storage.ClientSecret = updatedStorage.ClientSecret;
         storage.AccessToken = updatedStorage.AccessToken;
         storage.RefreshToken = updatedStorage.RefreshToken;
         storage.ExpiresAt = updatedStorage.ExpiresAt.ToUniversalTime();
+        
+        // Update credential-based fields (SMB, FTP, etc.)
+        storage.Host = updatedStorage.Host;
+        storage.Username = updatedStorage.Username;
+        storage.Password = updatedStorage.Password;
+        storage.Domain = updatedStorage.Domain;
+        storage.Port = updatedStorage.Port;
 
         await _context.SaveChangesAsync(cancellationToken);
         
         /*
          * At this point we must inform the local instances that the storage
-         * config has changed - but only if tokens actually changed
+         * config has changed - if tokens or credentials actually changed
          */
-        if (tokensChanged)
+        if (credentialsChanged)
         {
-            _logger.LogInformation($"Storage {storage.UriSchema} tokens updated, notifying agents");
+            _logger.LogInformation($"Storage {storage.Id} ({storage.Technology}) credentials updated, notifying agents");
             await _hannibalHub.Clients.All.SendAsync(
                 "StorageReauthenticated", 
                 storage.UriSchema, 

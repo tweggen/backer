@@ -23,9 +23,10 @@ else
         <tr>
             <th>&nbsp;</th>
             <th>Technology</th>
-            <th>UriScheme</th>
+            <th>Host / URI</th>
             <th>Account</th>
             <th>Networks</th>
+            <th>Status</th>
             <th>&nbsp;</th>
         </tr>
         </thead>
@@ -34,36 +35,101 @@ else
         {
             @if (_editingStorageId == sto.Id)
             {
-                    <tr>
-                        <td>&nbsp;</td>
-                        <td><InputText id="technology" class="form-control" @bind-Value="_editingStorage.Technology" /></td>
+                @* === EDIT MODE === *@
+                <tr>
+                    <td>&nbsp;</td>
+                    <td>@sto.Technology</td>
+                    @if (IsCredentialBased(sto.Technology))
+                    {
+                        <td><InputText id="host" @bind-Value="_editingStorage.Host" class="form-control" placeholder="hostname or IP"/></td>
+                        <td><InputText id="username" @bind-Value="_editingStorage.Username" class="form-control" placeholder="username"/></td>
+                    }
+                    else
+                    {
                         <td><InputText id="urischeme" @bind-Value="_editingStorage.UriSchema" class="form-control"/></td>
                         <td><InputText id="useremail" @bind-Value="_editingStorage.OAuth2Email" class="form-control"/></td>
-                        <td><InputText id="networks" @bind-Value="_editingStorage.Networks" class="form-control"/></td>
+                    }
+                    <td><InputText id="networks" @bind-Value="_editingStorage.Networks" class="form-control"/></td>
+                    <td>&nbsp;</td>
+                    <td>
+                        <button @onclick="_onEditStorageSubmit" id="submiteditstorage" class="close">✔</button>
+                        <button @onclick="_onEditStorageCancel" class="close" aria-label="cancel">❌️</button>
+                    </td>
+                </tr>
+                @if (IsCredentialBased(sto.Technology))
+                {
+                    <tr>
+                        <td colspan="2">&nbsp;</td>
                         <td>
-                            <button @onclick="_onEditStorageSubmit" id="submiteditstorage" class="close">✔</button>
-                            <button @onclick="_onEditStorageCancel" class="close" aria-label="delete">❌️</button>
+                            <InputText id="edit-password" type="password" @bind-Value="_editingStorage.Password" 
+                                       class="form-control" placeholder="password (leave empty to keep current)"/>
                         </td>
+                        <td>
+                            <InputText id="edit-domain" @bind-Value="_editingStorage.Domain" 
+                                       class="form-control" placeholder="domain (optional)"/>
+                        </td>
+                        <td>
+                            <InputNumber id="edit-port" @bind-Value="_editingStorage.Port" 
+                                         class="form-control" placeholder="port"/>
+                        </td>
+                        <td colspan="2">&nbsp;</td>
                     </tr>
-                
-            } else
+                }
+            }
+            else
             {
+                @* === VIEW MODE === *@
                 <tr>
                     <td><button id="starteditstorage" @onclick="() => _onEdit(sto)" aria-label="edit">✏</button></td>
                     <td>@sto.Technology</td>
-                    <td>@sto.UriSchema</td>
-                    <td>@sto.OAuth2Email</td>
+                    @if (IsCredentialBased(sto.Technology))
+                    {
+                        <td>@sto.Host@(sto.Port.HasValue ? $":{sto.Port}" : "")</td>
+                        <td>@(string.IsNullOrWhiteSpace(sto.Domain) ? sto.Username : $"{sto.Domain}\\{sto.Username}")</td>
+                    }
+                    else
+                    {
+                        <td>@sto.UriSchema</td>
+                        <td>@sto.OAuth2Email</td>
+                    }
                     <td>@sto.Networks</td>
                     <td>
-                        @if (String.IsNullOrWhiteSpace(sto.AccessToken))
+                        @if (IsCredentialBased(sto.Technology))
                         {
-                            <button @onclick="() => _onOAuthConnect(sto)">Authenticate...</button>
+                            @if (!string.IsNullOrWhiteSpace(sto.Host) && !string.IsNullOrWhiteSpace(sto.Username))
+                            {
+                                <span class="badge bg-success">Configured</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning">Incomplete</span>
+                            }
                         }
                         else
                         {
-                            <button @onclick="() => _onOAuthDisconnect(sto)">Disconnect...</button>
+                            @if (!string.IsNullOrWhiteSpace(sto.AccessToken))
+                            {
+                                <span class="badge bg-success">Connected</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning">Not authenticated</span>
+                            }
                         }
-                        <button @onclick="() => _onDelete(sto)" class="close" aria-label="delete">🗑️</button>
+                    </td>
+                    <td>
+                        @if (RequiresOAuth(sto.Technology))
+                        {
+                            @if (string.IsNullOrWhiteSpace(sto.AccessToken))
+                            {
+                                <button @onclick="() => _onOAuthConnect(sto)" class="btn btn-sm btn-primary">Authenticate...</button>
+                            }
+                            else
+                            {
+                                <button @onclick="() => _onOAuthDisconnect(sto)" class="btn btn-sm btn-outline-secondary">Disconnect</button>
+                            }
+                        }
+                        <button @onclick="() => _onDelete(sto)" class="btn btn-sm btn-outline-danger" aria-label="delete">🗑️</button>
                     </td>
                 </tr>
             }
@@ -73,7 +139,7 @@ else
 
     <h2>Create new storage</h2>
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <EditForm method="post"  
                       OnValidSubmit="_addStorage"
                       FormName="create" Enhance
@@ -81,46 +147,140 @@ else
                 <DataAnnotationsValidator/>
                 <CustomValidator @ref="_customValidator"/>
                 <ValidationSummary class="text-danger"/>
+                
+                @* Technology Selection *@
                 <div class="mb-3">
-                    <label for="name" class="form-label">Technology:</label>
+                    <label for="technology" class="form-label">Technology:</label>
                     <InputSelect id="technology"
-                                 placeholder="Technology"
                                  class="form-control"
-                                 @bind-Value="_newStorage.Technology">
-                        @foreach (var tech in Hannibal.Models.Technologies.GetTechnologies())
+                                 @bind-Value="_newStorage.Technology"
+                                 @bind-Value:after="_onTechnologyChanged">
+                        @foreach (var tech in Technologies.GetTechnologies())
                         {
-                            <option value="@tech">@tech</option>
+                            <option value="@tech">@GetTechnologyDisplayName(tech)</option>
                         }
                     </InputSelect>
-                    
                     <ValidationMessage For="() => _newStorage.Technology" class="text-danger"/>
                 </div>
-                <p>Selected: @_newStorage.Technology</p>
+
+                @if (IsCredentialBased(_newStorage.Technology))
+                {
+                    @* === CREDENTIAL-BASED STORAGE (SMB, Local, etc.) === *@
+                    <div class="alert alert-info" role="alert">
+                        <strong>@GetTechnologyDisplayName(_newStorage.Technology)</strong> uses username/password authentication.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="host" class="form-label">Host: <span class="text-danger">*</span></label>
+                        <InputText id="host"
+                                   placeholder="server.local or 192.168.1.100"
+                                   class="form-control"
+                                   @bind-Value="_newStorage.Host"/>
+                        <small class="form-text text-muted">Server hostname or IP address</small>
+                        <ValidationMessage For="() => _newStorage.Host" class="text-danger"/>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username: <span class="text-danger">*</span></label>
+                        <InputText id="username"
+                                   placeholder="username"
+                                   class="form-control"
+                                   @bind-Value="_newStorage.Username"/>
+                        <ValidationMessage For="() => _newStorage.Username" class="text-danger"/>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password:</label>
+                        <InputText id="password"
+                                   type="password"
+                                   placeholder="password"
+                                   class="form-control"
+                                   @bind-Value="_newStorage.Password"/>
+                        <ValidationMessage For="() => _newStorage.Password" class="text-danger"/>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="domain" class="form-label">Domain (optional):</label>
+                        <InputText id="domain"
+                                   placeholder="WORKGROUP or domain name"
+                                   class="form-control"
+                                   @bind-Value="_newStorage.Domain"/>
+                        <small class="form-text text-muted">Windows domain for Active Directory authentication</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="port" class="form-label">Port (optional):</label>
+                        <InputNumber id="port"
+                                     class="form-control"
+                                     @bind-Value="_newStorage.Port"/>
+                        <small class="form-text text-muted">Leave empty for default (445 for SMB)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="urischema" class="form-label">Share Path (optional):</label>
+                        <InputText id="urischema"
+                                   placeholder="sharename"
+                                   class="form-control"
+                                   @bind-Value="_newStorage.UriSchema"/>
+                        <small class="form-text text-muted">Default share name (can also be specified per endpoint)</small>
+                    </div>
+                }
+                else if (_newStorage.Technology == "local")
+                {
+                    @* === LOCAL STORAGE === *@
+                    <div class="alert alert-info" role="alert">
+                        <strong>Local Storage</strong> accesses files on the backup agent's machine.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="urischema" class="form-label">Base Path:</label>
+                        <InputText id="urischema"
+                                   placeholder="/path/to/folder or C:\path\to\folder"
+                                   class="form-control"
+                                   @bind-Value="_newStorage.UriSchema"/>
+                        <small class="form-text text-muted">Base path for local storage</small>
+                        <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
+                    </div>
+                }
+                else
+                {
+                    @* === OAUTH-BASED STORAGE (OneDrive, Dropbox, Google Drive) === *@
+                    <div class="alert alert-info" role="alert">
+                        <strong>@GetTechnologyDisplayName(_newStorage.Technology)</strong> uses OAuth authentication. 
+                        After creating, click "Authenticate" to connect your account.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="urischema" class="form-label">URI Schema:</label>
+                        <InputText id="urischema"
+                                   placeholder="Path"
+                                   class="form-control"
+                                   @bind-Value="_newStorage.UriSchema"/>
+                        <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="useremail" class="form-label">Account Email: <span class="text-danger">*</span></label>
+                        <InputText id="useremail"
+                                   placeholder="your-email@example.com"
+                                   class="form-control"
+                                   @bind-Value="_newStorage.OAuth2Email"/>
+                        <small class="form-text text-muted">The email associated with your @GetTechnologyDisplayName(_newStorage.Technology) account</small>
+                        <ValidationMessage For="() => _newStorage.OAuth2Email" class="text-danger"/>
+                    </div>
+                }
+                
+                @* Common fields *@
                 <div class="mb-3">
-                    <label for="path" class="form-label">UriSchema:</label>
-                    <InputText id="path"
-                               placeholder="Path"
+                    <label for="networks" class="form-label">Networks (optional):</label>
+                    <InputText id="networks"
+                               placeholder="home, office"
                                class="form-control"
-                               @bind-Value="_newStorage.UriSchema"/>
-                    <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
+                               @bind-Value="_newStorage.Networks"/>
+                    <small class="form-text text-muted">Comma-separated list of networks where this storage is available</small>
                 </div>
-                <div class="mb-3">
-                    <label for="useremail" class="form-label">Account Mail:</label>
-                    <InputText id="useremail"
-                               placeholder="Account eMail"
-                               class="form-control"
-                               @bind-Value="_newStorage.OAuth2Email" />
-                    <ValidationMessage For="() => _newStorage.OAuth2Email" class="text-danger"/>
-                </div>
-                <div class="mb-3">
-                    <label for="comment" class="form-label">Networks:</label>
-                    <InputText id="comment"
-                               placeholder="Comment"
-                               class="form-control"
-                               @bind-Value="_newStorage.Networks" />
-                    <ValidationMessage For="() => _newStorage.Networks" class="text-danger"/>
-                </div>
-                <button type="submit" class="btn btn-primary">Create</button>
+                
+                <button type="submit" class="btn btn-primary">Create Storage</button>
             </EditForm>
         </div>
     </div>
@@ -132,27 +292,107 @@ else
     private CustomValidator _customValidator;
     private EditContext _editContext;
 
-    private List<Hannibal.Models.Storage>? _listStorages = null;
+    private List<Storage>? _listStorages = null;
     private IdentityUser? _user = null;
 
     private int _editingStorageId { get; set; } = -1;
 
-    [SupplyParameterFromForm] private Hannibal.Models.Storage? _editingStorage { get; set; } = new() { Id = -1 };
+    [SupplyParameterFromForm] private Storage? _editingStorage { get; set; } = new() { Id = -1 };
 
-    [SupplyParameterFromForm] private Hannibal.Models.Storage? _newStorage { get; set; } = null;
+    [SupplyParameterFromForm] private Storage? _newStorage { get; set; } = null;
+
+    /// <summary>
+    /// Technologies that use OAuth authentication
+    /// </summary>
+    private static readonly HashSet<string> OAuthTechnologies = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "onedrive",
+        "dropbox", 
+        "googledrive"
+    };
+
+    /// <summary>
+    /// Technologies that use credential-based authentication (username/password)
+    /// </summary>
+    private static readonly HashSet<string> CredentialTechnologies = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "smb"
+    };
+
+    /// <summary>
+    /// Check if a technology requires OAuth authentication
+    /// </summary>
+    private static bool RequiresOAuth(string? technology)
+    {
+        return !string.IsNullOrWhiteSpace(technology) && OAuthTechnologies.Contains(technology);
+    }
+
+    /// <summary>
+    /// Check if a technology uses credential-based authentication
+    /// </summary>
+    private static bool IsCredentialBased(string? technology)
+    {
+        return !string.IsNullOrWhiteSpace(technology) && CredentialTechnologies.Contains(technology);
+    }
+
+    /// <summary>
+    /// Get a user-friendly display name for a technology
+    /// </summary>
+    private static string GetTechnologyDisplayName(string? technology)
+    {
+        return technology?.ToLowerInvariant() switch
+        {
+            "onedrive" => "OneDrive",
+            "dropbox" => "Dropbox",
+            "googledrive" => "Google Drive",
+            "smb" => "SMB/CIFS Network Share",
+            "local" => "Local Filesystem",
+            _ => technology ?? "Unknown"
+        };
+    }
+
+    /// <summary>
+    /// Called when technology selection changes to reset irrelevant fields
+    /// </summary>
+    private void _onTechnologyChanged()
+    {
+        if (_newStorage == null) return;
+        
+        // Clear fields that don't apply to the new technology
+        if (IsCredentialBased(_newStorage.Technology))
+        {
+            // Clear OAuth fields
+            _newStorage.OAuth2Email = "";
+            _newStorage.AccessToken = "";
+            _newStorage.RefreshToken = "";
+            _newStorage.ClientId = "";
+            _newStorage.ClientSecret = "";
+        }
+        else
+        {
+            // Clear credential fields
+            _newStorage.Host = "";
+            _newStorage.Username = "";
+            _newStorage.Password = "";
+            _newStorage.Domain = "";
+            _newStorage.Port = null;
+        }
+    }
 
 
     public void Dispose()
     {
-        // Dispose logic if needed
+        if (_editContext != null)
+        {
+            _editContext.OnValidationRequested -= _onValidateNewStorage;
+        }
     }
 
 
-    private async Task _onOAuthConnect(Hannibal.Models.Storage? sto)
+    private async Task _onOAuthConnect(Storage? sto)
     {
         if (null == sto)
         {
-            // TXWTODO: Ignore call or display error.
             return;
         }
         try
@@ -169,24 +409,19 @@ else
         }
         catch (Exception e)
         {
-            /*
-             * Wasn't able to fulfile request.
-             */
-            // TXWTODO: Display error.
+            Console.WriteLine($"OAuth connect error: {e}");
         }
     }
 
     
-    private async Task _onOAuthDisconnect(Hannibal.Models.Storage? sto)
+    private async Task _onOAuthDisconnect(Storage? sto)
     {
         if (null == sto)
         {
-            // TXWTODO: Ignore call or display error.
             return;
         }
         try
         {
-            //var newsto = new Storage(sto);
             sto.AccessToken = "";
             sto.RefreshToken = "";
             await HigginsServiceClient.UpdateStorageAsync(sto.Id, sto, CancellationToken.None);
@@ -194,20 +429,23 @@ else
         }
         catch (Exception e)
         {
-            /*
-             * Wasn't able to fulfile request.
-             */
-            // TXWTODO: Display error.
+            Console.WriteLine($"OAuth disconnect error: {e}");
         }
     }
 
     
-    private async Task _onEdit(Hannibal.Models.Storage? sto)
+    private async Task _onEdit(Storage? sto)
     {
         if (sto != null)
         {
             _editingStorageId = sto.Id;
-            _editingStorage = sto;
+            // Create a copy to avoid modifying the original until submit
+            _editingStorage = new Storage(sto);
+            // Clear password so user has to re-enter if they want to change it
+            if (IsCredentialBased(sto.Technology))
+            {
+                _editingStorage.Password = "";
+            }
         }
         else
         {
@@ -219,10 +457,10 @@ else
     }
 
 
-    private async Task _onDelete(Hannibal.Models.Storage sto)
+    private async Task _onDelete(Storage sto)
     {
         await HigginsServiceClient.DeleteStorageAsync(sto.Id, CancellationToken.None);
-        _listStorages = new List<Hannibal.Models.Storage>(
+        _listStorages = new List<Storage>(
             await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
         );
         await InvokeAsync(StateHasChanged);      
@@ -232,16 +470,32 @@ else
     private async Task _onEditStorageCancel()
     {
         _editingStorageId = -1;
-        _editingStorage = new() { Id = -1};
+        _editingStorage = new() { Id = -1 };
         await InvokeAsync(StateHasChanged);      
     }
 
 
     private async Task _onEditStorageSubmit()
     {
-        if (_editingStorage != null)
+        if (_editingStorage != null && _editingStorageId > 0)
         {
+            // Find the original storage to preserve password if not changed
+            var originalStorage = _listStorages?.FirstOrDefault(s => s.Id == _editingStorageId);
+            if (originalStorage != null && IsCredentialBased(_editingStorage.Technology))
+            {
+                // If password field is empty, preserve the original password
+                if (string.IsNullOrWhiteSpace(_editingStorage.Password))
+                {
+                    _editingStorage.Password = originalStorage.Password;
+                }
+            }
+            
             await HigginsServiceClient.UpdateStorageAsync(_editingStorage.Id, _editingStorage, CancellationToken.None);
+            
+            // Refresh the list
+            _listStorages = new List<Storage>(
+                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
+            );
         }
 
         _editingStorageId = -1;
@@ -261,31 +515,75 @@ else
                 return;
             }
 
-            if (null == _newStorage.Technology)
+            if (string.IsNullOrWhiteSpace(_newStorage.Technology))
             {
                 _customValidator.AddError(nameof(_newStorage.Technology), "Please select a technology");
+                return;
             }
 
-            if (string.IsNullOrWhiteSpace(_newStorage.UriSchema))
+            if (IsCredentialBased(_newStorage.Technology))
             {
-                _customValidator.AddError(nameof(_newStorage.UriSchema), "Please add a uri schema");
-            }
-
-            if (string.IsNullOrWhiteSpace(_newStorage.OAuth2Email))
-            {
-                _customValidator.AddError(nameof(_newStorage.OAuth2Email), "Please specify a login email for the service.");
-            }
-
-            if (_listStorages != null)
-            {
-                if (_listStorages.Any(s => s.Technology == _newStorage.Technology.Trim() && s.OAuth2Email == _newStorage.OAuth2Email.Trim()))
+                // Validate credential-based storage (SMB)
+                if (string.IsNullOrWhiteSpace(_newStorage.Host))
                 {
-                    _customValidator.AddError(nameof(_newStorage.Technology), "Already have a storage with this login and technology");
+                    _customValidator.AddError(nameof(_newStorage.Host), "Host is required for SMB storage");
+                }
+                
+                if (string.IsNullOrWhiteSpace(_newStorage.Username))
+                {
+                    _customValidator.AddError(nameof(_newStorage.Username), "Username is required for SMB storage");
+                }
+                
+                // Check for duplicate: same technology + host + username
+                if (_listStorages != null && !string.IsNullOrWhiteSpace(_newStorage.Host))
+                {
+                    var duplicate = _listStorages.FirstOrDefault(s => 
+                        s.Technology.Equals(_newStorage.Technology, StringComparison.OrdinalIgnoreCase) &&
+                        s.Host.Equals(_newStorage.Host.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                        s.Username.Equals(_newStorage.Username?.Trim() ?? "", StringComparison.OrdinalIgnoreCase));
+                    
+                    if (duplicate != null)
+                    {
+                        _customValidator.AddError(nameof(_newStorage.Host), 
+                            "A storage with this host and username already exists");
+                    }
                 }
             }
-        } catch (Exception e)
+            else if (_newStorage.Technology == "local")
+            {
+                // Validate local storage
+                if (string.IsNullOrWhiteSpace(_newStorage.UriSchema))
+                {
+                    _customValidator.AddError(nameof(_newStorage.UriSchema), "Base path is required for local storage");
+                }
+            }
+            else if (RequiresOAuth(_newStorage.Technology))
+            {
+                // Validate OAuth-based storage
+                if (string.IsNullOrWhiteSpace(_newStorage.OAuth2Email))
+                {
+                    _customValidator.AddError(nameof(_newStorage.OAuth2Email), 
+                        "Please specify an account email for OAuth authentication");
+                }
+
+                // Check for duplicate: same technology + email
+                if (_listStorages != null && !string.IsNullOrWhiteSpace(_newStorage.OAuth2Email))
+                {
+                    var duplicate = _listStorages.FirstOrDefault(s => 
+                        s.Technology.Equals(_newStorage.Technology, StringComparison.OrdinalIgnoreCase) &&
+                        s.OAuth2Email.Equals(_newStorage.OAuth2Email.Trim(), StringComparison.OrdinalIgnoreCase));
+                    
+                    if (duplicate != null)
+                    {
+                        _customValidator.AddError(nameof(_newStorage.OAuth2Email), 
+                            "A storage with this email and technology already exists");
+                    }
+                }
+            }
+        }
+        catch (Exception e)
         {
-            Console.WriteLine(e.ToString());
+            Console.WriteLine($"Validation error: {e}");
         }
     }
 
@@ -293,7 +591,7 @@ else
     private async Task _addStorage()
     {
         await HigginsServiceClient.CreateStorageAsync(_newStorage, CancellationToken.None);
-        _listStorages = new List<Hannibal.Models.Storage>(
+        _listStorages = new List<Storage>(
             await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
         );
         _newStorage = Storage.Default();
@@ -324,20 +622,18 @@ else
                 Navigation.NavigateTo($"{BasePath.Value}/login");
             }
 
-            _listStorages = new List<Hannibal.Models.Storage>(
+            _listStorages = new List<Storage>(
                 await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
             );
 
             _newStorage = Storage.Default();
 
             _editContext = new EditContext(_newStorage);
-
-            // Attach custom validation to the EditContext pipeline
             _editContext.OnValidationRequested += _onValidateNewStorage;
         }
         catch (Exception e)
         {
-            // TXWTODO: Catch 401 ?            
+            Console.WriteLine($"Init error: {e}");
         }
     }
 
