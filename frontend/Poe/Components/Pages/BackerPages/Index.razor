@@ -12,7 +12,36 @@
 
 @rendermode InteractiveServer
 
-<h3>Backer</h3>
+<h3>Backer Dashboard</h3>
+
+<div class="alert alert-info mb-4" role="alert">
+    <h5 class="alert-heading"><span class="me-2">ℹ️</span>Welcome to Backer</h5>
+    <p class="mb-2">
+        Backer is your personal backup management system. Use the navigation menu to configure and monitor your backups.
+    </p>
+    <hr>
+    <p class="mb-0"><strong>Getting Started:</strong></p>
+    <ol class="mb-0 mt-2">
+        <li><strong>Storages</strong> — First, connect your cloud storage accounts (OneDrive, Dropbox, Google Drive) or configure network shares (SMB).</li>
+        <li><strong>Endpoints</strong> — Define specific folders within your storages that you want to back up from or to.</li>
+        <li><strong>Rules</strong> — Create backup rules that specify what to copy from where to where, and how often.</li>
+        <li><strong>Jobs</strong> — Monitor the status of your backup jobs as they run.</li>
+    </ol>
+</div>
+
+@if (!string.IsNullOrEmpty(Username))
+{
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Logged in as</h5>
+            <p class="card-text"><strong>@Username</strong></p>
+            @if (!string.IsNullOrEmpty(Email))
+            {
+                <p class="card-text text-muted">@Email</p>
+            }
+        </div>
+    </div>
+}
 
 @code {
     private string Username = "";

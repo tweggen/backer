@@ -14,7 +14,25 @@
 @attribute [Authorize]
 
 
-<h3>Rules</h3>
+<h3>Backup Rules</h3>
+
+<div class="alert alert-info mb-4" role="alert">
+    <h5 class="alert-heading"><span class="me-2">⏰</span>Backup Rules</h5>
+    <p class="mb-2">
+        Rules define your backup schedules. Each rule specifies what to backup (source), where to backup (destination), and when to run.
+    </p>
+    <hr>
+    <p class="mb-0"><strong>How rules work:</strong></p>
+    <ul class="mb-0 mt-2">
+        <li><strong>Source Endpoint</strong> — The folder you want to backup (where your files are).</li>
+        <li><strong>Destination Endpoint</strong> — Where the backup should be stored.</li>
+        <li><strong>Operation</strong> — <em>Copy</em> adds new/changed files; <em>Sync</em> also removes files deleted from source.</li>
+        <li><strong>Max Destination Age</strong> — How old the backup can get before a new backup is triggered (in seconds).</li>
+        <li><strong>Min Retry Time</strong> — Minimum wait time between retry attempts if a backup fails (in seconds).</li>
+        <li><strong>Daily Trigger Time</strong> — Preferred time of day to run backups (seconds from midnight, e.g., 7200 = 2:00 AM).</li>
+    </ul>
+    <p class="mt-2 mb-0"><em>Tip: Set Max Destination Age to 86400 (24 hours) for daily backups, or 3600 (1 hour) for hourly backups.</em></p>
+</div>
 
 @if (_listRules == null)
 {
@@ -26,14 +44,15 @@ else
         <thead>
         <tr>
             <th>&nbsp;</th>
-            <th>Name</th>
-            <th>You're working in</th>
-            <th>Operation</th>
-            <th>backup in</th>
-            <th>Max dest. age</th>
-            <th>Min retry time</th>
-            <th>Daily trigger time</th>
-            <th>Comment</th>
+            <th title="Rule name for identification">Name</th>
+            <th title="Source endpoint - where files are backed up FROM">Source (from)</th>
+            <th title="Copy = add/update only; Sync = mirror exactly">Operation</th>
+            <th title="Destination endpoint - where files are backed up TO">Destination (to)</th>
+            <th title="Maximum age of backup before a new one is triggered (seconds)">Max Age (s)</th>
+            <th title="Minimum time between retry attempts (seconds)">Retry (s)</th>
+            <th title="Preferred time of day to run (seconds from midnight)">Daily Time (s)</th>
+            <th title="Current rule status">Status</th>
+            <th title="Optional notes">Comment</th>
             <th>&nbsp;</th>
         </tr>
         </thead>
@@ -44,11 +63,12 @@ else
             {
                 <tr>
                     <td>&nbsp;</td>
-                    <td><InputText id="name" class="form-control" @bind-Value="_editRule.Name" /></td>
+                    <td><InputText id="name" class="form-control" @bind-Value="_editRule.Name" title="A descriptive name for this backup rule"/></td>
                     <td>
                         <InputSelect id="source" 
                                      placeholder="Source Endpoint"
                                      class="form-control"
+                                     title="The endpoint to backup files FROM (your source of truth)"
                                      @bind-Value="_editSourceEndpointId"
                                      @bind-Value:after="_onEditSourceEndpointChanged">
                             @foreach (var ep in _listEndpoints)
@@ -61,6 +81,7 @@ else
                         <InputSelect id="operation"
                                      placeholder="Operation"
                                      class="form-control"
+                                     title="Copy = add/update only; Sync = mirror exactly (deletes files removed from source)">
                                      @bind-Value="_editRule.Operation">
                             @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
                             {
@@ -72,6 +93,7 @@ else
                         <InputSelect id="destination"
                                      placeholder="Destination Endpoint"
                                      class="form-control"
+                                     title="The endpoint where backups will be stored"
                                      @bind-Value="_editDestinationEndpointId"
                                      @bind-Value:after="_onEditDestinationEndpointChanged">
                             @foreach (var ep in _listEndpoints)
@@ -83,29 +105,32 @@ else
                     <td>
                         <InputNumber id="maxDestAge"
                                      @bind-Value="_editMaxDestAge"
-                                     class="form-control"/>
+                                     class="form-control"
+                                     title="Maximum age of backup before triggering a new one (in seconds). 86400 = daily, 3600 = hourly"/>
                     </td>
                     <td>
                         <InputNumber id="minRetryTime"
                                      @bind-Value="_editMinRetryTime"
-                                     class="form-control"/>
+                                     class="form-control"
+                                     title="Minimum wait time between retry attempts if a backup fails (in seconds)"/>
                     </td>
                     <td>
                         <InputNumber id="dailyTriggerTime"
                                      @bind-Value="_editDailyTriggerTime"
-                                     class="form-control"/>
+                                     class="form-control"
+                                     title="Preferred time of day to run backups (seconds from midnight). 0 = midnight, 7200 = 2 AM"/>
                     </td>
-                    <td><InputText id="comment" @bind-Value="_editRule.Comment" class="form-control"/></td>
+                    <td><InputText id="comment" @bind-Value="_editRule.Comment" class="form-control" title="Optional notes about this rule"/></td>
                     <td>
-                        <button @onclick="_onEditRuleSubmit" id="submiteditrule" class="close">✔</button>
-                        <button @onclick="_onEditRuleCancel" class="close" aria-label="delete">❌️</button>
+                        <button @onclick="_onEditRuleSubmit" id="submiteditrule" class="close" title="Save changes">✔</button>
+                        <button @onclick="_onEditRuleCancel" class="close" aria-label="delete" title="Cancel editing">❌️</button>
                     </td>
                 </tr>
                 
             } else
             {
                 <tr>
-                    <td><button id="starteditrule" @onclick="() => _onEdit(ru)" aria-label="edit">✏</button></td>
+                    <td><button id="starteditrule" @onclick="() => _onEdit(ru)" aria-label="edit" title="Edit this rule">✏</button></td>
                     <td>@ru.Name</td>
                     <td>@ru.SourceEndpoint.Name</td>
                     <td>@ru.Operation.ToString()</td>
@@ -113,10 +138,18 @@ else
                     <td>@ru.MaxDestinationAge.TotalSeconds</td>
                     <td>@ru.MinRetryTime.TotalSeconds</td>
                     <td>@ru.DailyTriggerTime.TotalSeconds</td>
-                    <td>@( _ruleStates.TryGetValue(ru.Id, out var rs) ? (rs.ExpiredAfter > DateTime.UtcNow ? "Active" : "Expired") : "" )</td>
+                    <td>
+                        @{
+                            var status = _ruleStates.TryGetValue(ru.Id, out var rs) 
+                                ? (rs.ExpiredAfter > DateTime.UtcNow ? "Active" : "Expired") 
+                                : "Unknown";
+                            var badgeClass = status == "Active" ? "bg-success" : (status == "Expired" ? "bg-warning" : "bg-secondary");
+                        }
+                        <span class="badge @badgeClass" title="@(status == "Active" ? "Rule is active and will trigger backups" : (status == "Expired" ? "Backup is due" : "Status unknown"))">@status</span>
+                    </td>
                     <td>@ru.Comment</td>
                     <td>
-                        <button @onclick="() => _onDelete(ru)" class="close" aria-label="delete">🗑️</button>
+                        <button @onclick="() => _onDelete(ru)" class="close" aria-label="delete" title="Delete this rule">🗑️</button>
                     </td>
                 </tr>
             }
@@ -124,7 +157,7 @@ else
         </tbody>
     </table>
     
-    <button @onclick="() => _onFlush()">Flush</button>
+    <button @onclick="() => _onFlush()" class="btn btn-outline-warning btn-sm" title="Force the backup agent to re-evaluate all rules immediately. Use this after making changes to trigger backups sooner.">🔄 Re-evaluate Rules</button>
 }
 
 @if (_listEndpoints == null)
@@ -138,23 +171,26 @@ else
 {
     <h2>Create new rule</h2>
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <EditForm method="post" Model="_newRule" OnValidSubmit="_onNewRuleSubmit" FormName="create" Enhance>
                 <DataAnnotationsValidator/>
                 <ValidationSummary class="text-danger"/>
                 <div class="mb-3">
-                    <label for="name" class="form-label">Name:</label>
+                    <label for="name" class="form-label">Rule Name: <span class="text-danger">*</span></label>
                     <InputText id="name"
-                               placeholder="Name"
+                               placeholder="Daily Documents Backup"
                                class="form-control"
+                               title="A descriptive name for this backup rule. Examples: 'Daily Documents Backup', 'Hourly Photos Sync'"
                                @bind-Value="_newRule.Name" />
+                    <small class="form-text text-muted">A friendly name to identify this backup rule</small>
                     <ValidationMessage For="() => _newRule.Name" class="text-danger"/>
                 </div>
                 <div class="mb-3">
-                    <label for="sourceEndpoint" class="form-label">Source endpoint:</label>
+                    <label for="sourceEndpoint" class="form-label">Source Endpoint (backup from): <span class="text-danger">*</span></label>
                     <InputSelect id="sourceEndpoint"
                                  placeholder="Source"
                                  class="form-control"
+                                 title="Select the endpoint containing the files you want to backup. This is your 'source of truth' - where your original files live."
                                  @bind-Value="_newSourceEndpointId" 
                                  @bind-Value:after="_onNewSourceEndpointChanged" 
                                  >
@@ -163,24 +199,28 @@ else
                             <option value="@ep.Id">@ep.Name</option>
                         }
                     </InputSelect>
+                    <small class="form-text text-muted">Where your original files are (the folder to backup)</small>
                 </div>
                 <div class="mb-3">
-                    <label for="operation" class="form-label">Op:</label>
+                    <label for="operation" class="form-label">Operation: <span class="text-danger">*</span></label>
                     <InputSelect id="operation"
                                  placeholder="Operation"
                                  class="form-control"
+                                 title="Copy: Only adds new or changed files to destination. Sync: Makes destination match source exactly (deletes files removed from source)."
                                  @bind-Value="_newRule.Operation">
                         @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
                         {
                             <option value="@op">@op</option>
                         }
                     </InputSelect>
+                    <small class="form-text text-muted"><strong>Copy</strong> = add/update only; <strong>Sync</strong> = mirror exactly (may delete files)</small>
                 </div>
                 <div class="mb-3">
-                    <label for="destinationEndpoint" class="form-label">Destination endpoint:</label>
+                    <label for="destinationEndpoint" class="form-label">Destination Endpoint (backup to): <span class="text-danger">*</span></label>
                     <InputSelect id="destinationEndpoint"
                                  placeholder="Dest"
                                  class="form-control"
+                                 title="Select where backups should be stored. This should be different from the source - typically a cloud storage or separate drive."
                                  @bind-Value="_newDestinationEndpointId"
                                  @bind-Value:after="_onNewDestinationEndpointChanged"
                     >
@@ -189,40 +229,59 @@ else
                             <option value="@ep.Id">@ep.Name</option>
                         }
                     </InputSelect>
+                    <small class="form-text text-muted">Where backups will be stored (must differ from source)</small>
                 </div>
+                
+                <h5 class="mt-4 mb-3">Scheduling Options</h5>
+                <div class="alert alert-secondary py-2">
+                    <small>
+                        <strong>Time values are in seconds.</strong><br/>
+                        <strong>Intervals:</strong> 3600 = 1 hour, 86400 = 24 hours, 604800 = 1 week<br/>
+                        <strong>Times of day:</strong> 0 = midnight, 7200 = 2 AM, 21600 = 6 AM, 28800 = 8 AM, 43200 = noon, 64800 = 6 PM
+                    </small>
+                </div>
+                
                 <div class="mb-3">
-                    <label for="maxDestAge" class="form-label">max dest age:</label>
+                    <label for="maxDestAge" class="form-label">Max Destination Age (seconds):</label>
                     <InputNumber id="maxDestAge"
-                               placeholder="max dest age (sec)"
+                               placeholder="86400"
                                class="form-control"
+                               title="How old the most recent backup can be before a new backup is triggered. Set to 86400 for daily backups, 3600 for hourly, 604800 for weekly."
                                @bind-Value="_newMaxDestAge"/>
+                    <small class="form-text text-muted">Maximum time since last backup before triggering a new one (default: 129600 = 36 hours)</small>
                     <ValidationMessage For="() => _newRule.MaxDestinationAge" class="text-danger"/>
                 </div>
                 <div class="mb-3">
-                    <label for="minRetryTime" class="form-label">min retry time:</label>
+                    <label for="minRetryTime" class="form-label">Min Retry Time (seconds):</label>
                     <InputNumber id="minRetryTime"
-                                 placeholder="min retry time (sec)"
+                                 placeholder="60"
                                  class="form-control"
+                                 title="If a backup fails, how long to wait before trying again. Prevents rapid retry loops."
                                  @bind-Value="_newMinRetryTime"/>
+                    <small class="form-text text-muted">Minimum wait between retry attempts after a failure (default: 60 seconds)</small>
                     <ValidationMessage For="() => _newRule.MinRetryTime" class="text-danger"/>
                 </div>
                 <div class="mb-3">
-                    <label for="dailyTriggerTime" class="form-label">daily trigger time:</label>
+                    <label for="dailyTriggerTime" class="form-label">Preferred Daily Time (seconds from midnight):</label>
                     <InputNumber id="dailyTriggerTime"
-                                 placeholder="daily trigger time (sec)"
+                                 placeholder="7200"
                                  class="form-control"
+                                 title="The preferred time of day to run backups, as seconds from midnight. Examples: 0 = midnight, 7200 = 2:00 AM, 28800 = 8:00 AM, 43200 = noon"
                                  @bind-Value="_newDailyTriggerTime"/>
+                    <small class="form-text text-muted">Preferred backup time: 0 = midnight, 7200 = 2 AM, 28800 = 8 AM (default: 7200)</small>
                     <ValidationMessage For="() => _newRule.DailyTriggerTime" class="text-danger"/>
                 </div>
                 <div class="mb-3">
-                    <label for="comment" class="form-label">Comment:</label>
+                    <label for="comment" class="form-label">Comment (optional):</label>
                     <InputText id="comment"
-                               placeholder="Comment"
+                               placeholder="Optional notes about this rule"
                                class="form-control"
+                               title="Add any notes or reminders about this backup rule."
                                @bind-Value="_newRule.Comment" />
+                    <small class="form-text text-muted">Optional notes for your reference</small>
                     <ValidationMessage For="() => _newRule.Comment" class="text-danger"/>
                 </div>
-                <button type="submit" class="btn btn-primary">Create</button>
+                <button type="submit" class="btn btn-primary">Create Rule</button>
             </EditForm>
         </div>
     </div>

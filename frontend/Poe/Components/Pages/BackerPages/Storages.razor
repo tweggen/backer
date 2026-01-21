@@ -12,6 +12,21 @@
 
 <h3>Storages</h3>
 
+<div class="alert alert-info mb-4" role="alert">
+    <h5 class="alert-heading"><span class="me-2">💾</span>Storage Connections</h5>
+    <p class="mb-2">
+        Storages represent your connected cloud accounts or network locations where backups can be stored or retrieved from.
+    </p>
+    <hr>
+    <p class="mb-0"><strong>How to use:</strong></p>
+    <ul class="mb-0 mt-2">
+        <li><strong>Cloud Storage</strong> (OneDrive, Dropbox, Google Drive) — Create a storage entry with your email, then click "Authenticate" to connect your account via OAuth.</li>
+        <li><strong>Network Shares</strong> (SMB/CIFS) — Enter the server hostname, your credentials, and optionally a default share name.</li>
+        <li><strong>Local Storage</strong> — Access folders directly on the backup agent's machine.</li>
+        <li><strong>Networks</strong> — Optionally specify which networks this storage is available on (useful for SMB shares only accessible from certain locations).</li>
+    </ul>
+</div>
+
 @if (_listStorages == null)
 {
     <p><em>Loading storages...</em></p>
@@ -22,11 +37,11 @@ else
         <thead>
         <tr>
             <th>&nbsp;</th>
-            <th>Technology</th>
-            <th>Host / URI</th>
-            <th>Account</th>
-            <th>Networks</th>
-            <th>Status</th>
+            <th title="Storage provider type (cloud service or protocol)">Technology</th>
+            <th title="Server address for SMB, or root path for cloud storage">Host / Path</th>
+            <th title="Username for SMB, or email for cloud services">Account</th>
+            <th title="Networks where this storage is accessible (empty = all networks)">Networks</th>
+            <th title="Connection status - whether the storage is properly configured and authenticated">Status</th>
             <th>&nbsp;</th>
         </tr>
         </thead>
@@ -41,19 +56,19 @@ else
                     <td>@sto.Technology</td>
                     @if (IsCredentialBased(sto.Technology))
                     {
-                        <td><InputText id="host" @bind-Value="_editingStorage.Host" class="form-control" placeholder="hostname or IP"/></td>
-                        <td><InputText id="username" @bind-Value="_editingStorage.Username" class="form-control" placeholder="username"/></td>
+                        <td><InputText id="host" @bind-Value="_editingStorage.Host" class="form-control" placeholder="hostname or IP" title="Server hostname or IP address (e.g., fileserver.local, 192.168.1.50)"/></td>
+                        <td><InputText id="username" @bind-Value="_editingStorage.Username" class="form-control" placeholder="username" title="Your login username for this server"/></td>
                     }
                     else
                     {
-                        <td><InputText id="urischeme" @bind-Value="_editingStorage.UriSchema" class="form-control"/></td>
-                        <td><InputText id="useremail" @bind-Value="_editingStorage.OAuth2Email" class="form-control"/></td>
+                        <td><InputText id="urischeme" @bind-Value="_editingStorage.UriSchema" class="form-control" title="Root path within your cloud storage (leave empty for root)"/></td>
+                        <td><InputText id="useremail" @bind-Value="_editingStorage.OAuth2Email" class="form-control" title="Email address associated with your cloud account"/></td>
                     }
-                    <td><InputText id="networks" @bind-Value="_editingStorage.Networks" class="form-control"/></td>
+                    <td><InputText id="networks" @bind-Value="_editingStorage.Networks" class="form-control" title="Comma-separated network names where this storage is accessible (empty = all networks)"/></td>
                     <td>&nbsp;</td>
                     <td>
-                        <button @onclick="_onEditStorageSubmit" id="submiteditstorage" class="close">✔</button>
-                        <button @onclick="_onEditStorageCancel" class="close" aria-label="cancel">❌️</button>
+                        <button @onclick="_onEditStorageSubmit" id="submiteditstorage" class="close" title="Save changes">✔</button>
+                        <button @onclick="_onEditStorageCancel" class="close" aria-label="cancel" title="Cancel editing">❌️</button>
                     </td>
                 </tr>
                 @if (IsCredentialBased(sto.Technology))
@@ -62,15 +77,18 @@ else
                         <td colspan="2">&nbsp;</td>
                         <td>
                             <InputText id="edit-password" type="password" @bind-Value="_editingStorage.Password" 
-                                       class="form-control" placeholder="password (leave empty to keep current)"/>
+                                       class="form-control" placeholder="password (leave empty to keep current)"
+                                       title="Enter new password or leave empty to keep current password"/>
                         </td>
                         <td>
                             <InputText id="edit-domain" @bind-Value="_editingStorage.Domain" 
-                                       class="form-control" placeholder="domain (optional)"/>
+                                       class="form-control" placeholder="domain (optional)"
+                                       title="Windows domain for Active Directory authentication (e.g., CORP, MYDOMAIN)"/>
                         </td>
                         <td>
                             <InputNumber id="edit-port" @bind-Value="_editingStorage.Port" 
-                                         class="form-control" placeholder="port"/>
+                                         class="form-control" placeholder="port"
+                                         title="Custom port number (leave empty for default: 445 for SMB)"/>
                         </td>
                         <td colspan="2">&nbsp;</td>
                     </tr>
@@ -80,7 +98,7 @@ else
             {
                 @* === VIEW MODE === *@
                 <tr>
-                    <td><button id="starteditstorage" @onclick="() => _onEdit(sto)" aria-label="edit">✏</button></td>
+                    <td><button id="starteditstorage" @onclick="() => _onEdit(sto)" aria-label="edit" title="Edit this storage configuration">✏</button></td>
                     <td>@sto.Technology</td>
                     @if (IsCredentialBased(sto.Technology))
                     {
@@ -98,22 +116,22 @@ else
                         {
                             @if (!string.IsNullOrWhiteSpace(sto.Host) && !string.IsNullOrWhiteSpace(sto.Username))
                             {
-                                <span class="badge bg-success">Configured</span>
+                                <span class="badge bg-success" title="Server and credentials are configured. The backup agent can connect to this storage.">Configured</span>
                             }
                             else
                             {
-                                <span class="badge bg-warning">Incomplete</span>
+                                <span class="badge bg-warning" title="Missing required fields (host or username). Edit this storage to complete the configuration.">Incomplete</span>
                             }
                         }
                         else
                         {
                             @if (!string.IsNullOrWhiteSpace(sto.AccessToken))
                             {
-                                <span class="badge bg-success">Connected</span>
+                                <span class="badge bg-success" title="Successfully authenticated with your cloud account. The backup agent can access your files.">Connected</span>
                             }
                             else
                             {
-                                <span class="badge bg-warning">Not authenticated</span>
+                                <span class="badge bg-warning" title="Click 'Authenticate' to connect your cloud account. You'll be redirected to sign in securely.">Not authenticated</span>
                             }
                         }
                     </td>
@@ -122,14 +140,14 @@ else
                         {
                             @if (string.IsNullOrWhiteSpace(sto.AccessToken))
                             {
-                                <button @onclick="() => _onOAuthConnect(sto)" class="btn btn-sm btn-primary">Authenticate...</button>
+                                <button @onclick="() => _onOAuthConnect(sto)" class="btn btn-sm btn-primary" title="Connect to your cloud account via OAuth - you'll be redirected to sign in">Authenticate...</button>
                             }
                             else
                             {
-                                <button @onclick="() => _onOAuthDisconnect(sto)" class="btn btn-sm btn-outline-secondary">Disconnect</button>
+                                <button @onclick="() => _onOAuthDisconnect(sto)" class="btn btn-sm btn-outline-secondary" title="Remove the connection to your cloud account (you can reconnect later)">Disconnect</button>
                             }
                         }
-                        <button @onclick="() => _onDelete(sto)" class="btn btn-sm btn-outline-danger" aria-label="delete">🗑️</button>
+                        <button @onclick="() => _onDelete(sto)" class="btn btn-sm btn-outline-danger" aria-label="delete" title="Delete this storage and all endpoints using it">🗑️</button>
                     </td>
                 </tr>
             }
@@ -153,6 +171,7 @@ else
                     <label for="technology" class="form-label">Technology:</label>
                     <InputSelect id="technology"
                                  class="form-control"
+                                 title="Select the type of storage you want to connect. Cloud storages use OAuth authentication, while SMB uses username/password."
                                  @bind-Value="_newStorage.Technology"
                                  @bind-Value:after="_onTechnologyChanged">
                         @foreach (var tech in Technologies.GetTechnologies())
@@ -160,6 +179,7 @@ else
                             <option value="@tech">@GetTechnologyDisplayName(tech)</option>
                         }
                     </InputSelect>
+                    <small class="form-text text-muted">Choose the storage provider or protocol</small>
                     <ValidationMessage For="() => _newStorage.Technology" class="text-danger"/>
                 </div>
 
@@ -175,8 +195,9 @@ else
                         <InputText id="host"
                                    placeholder="server.local or 192.168.1.100"
                                    class="form-control"
+                                   title="The hostname or IP address of the file server. Examples: fileserver.local, nas.home, 192.168.1.50"
                                    @bind-Value="_newStorage.Host"/>
-                        <small class="form-text text-muted">Server hostname or IP address</small>
+                        <small class="form-text text-muted">Server hostname or IP address where your shares are located</small>
                         <ValidationMessage For="() => _newStorage.Host" class="text-danger"/>
                     </div>
                     
@@ -185,7 +206,9 @@ else
                         <InputText id="username"
                                    placeholder="username"
                                    class="form-control"
+                                   title="Your login username for the file server. For domain accounts, enter just the username (domain goes in the Domain field)."
                                    @bind-Value="_newStorage.Username"/>
+                        <small class="form-text text-muted">Your account username for this server</small>
                         <ValidationMessage For="() => _newStorage.Username" class="text-danger"/>
                     </div>
                     
@@ -195,7 +218,9 @@ else
                                    type="password"
                                    placeholder="password"
                                    class="form-control"
+                                   title="Your account password. This is stored securely and used by the backup agent to connect."
                                    @bind-Value="_newStorage.Password"/>
+                        <small class="form-text text-muted">Password for authentication (stored securely)</small>
                         <ValidationMessage For="() => _newStorage.Password" class="text-danger"/>
                     </div>
                     
@@ -204,16 +229,18 @@ else
                         <InputText id="domain"
                                    placeholder="WORKGROUP or domain name"
                                    class="form-control"
+                                   title="For Active Directory environments, enter your Windows domain name. Leave empty for workgroup-based authentication."
                                    @bind-Value="_newStorage.Domain"/>
-                        <small class="form-text text-muted">Windows domain for Active Directory authentication</small>
+                        <small class="form-text text-muted">Windows domain for Active Directory authentication (e.g., CORP, MYDOMAIN)</small>
                     </div>
                     
                     <div class="mb-3">
                         <label for="port" class="form-label">Port (optional):</label>
                         <InputNumber id="port"
                                      class="form-control"
+                                     title="Custom port number if your server uses a non-standard port. SMB typically uses port 445."
                                      @bind-Value="_newStorage.Port"/>
-                        <small class="form-text text-muted">Leave empty for default (445 for SMB)</small>
+                        <small class="form-text text-muted">Leave empty for default (445 for SMB). Only change if your server uses a custom port.</small>
                     </div>
                     
                     <div class="mb-3">
@@ -221,6 +248,7 @@ else
                         <InputText id="urischema"
                                    placeholder="sharename"
                                    class="form-control"
+                                   title="The default share name on this server. You can also specify paths per-endpoint later. Example: 'backup' for \\\\server\\backup"
                                    @bind-Value="_newStorage.UriSchema"/>
                         <small class="form-text text-muted">Default share name (can also be specified per endpoint)</small>
                     </div>
@@ -229,7 +257,7 @@ else
                 {
                     @* === LOCAL STORAGE === *@
                     <div class="alert alert-info" role="alert">
-                        <strong>Local Storage</strong> accesses files on the backup agent's machine.
+                        <strong>Local Storage</strong> accesses files directly on the backup agent's machine. Use this for local drives or mounted volumes.
                     </div>
                     
                     <div class="mb-3">
@@ -237,8 +265,9 @@ else
                         <InputText id="urischema"
                                    placeholder="/path/to/folder or C:\path\to\folder"
                                    class="form-control"
+                                   title="The root folder path on the backup agent's filesystem. Use forward slashes for Linux/Mac, backslashes for Windows."
                                    @bind-Value="_newStorage.UriSchema"/>
-                        <small class="form-text text-muted">Base path for local storage</small>
+                        <small class="form-text text-muted">Base folder path on the agent machine (e.g., /home/user/documents or D:\Backups)</small>
                         <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
                     </div>
                 }
@@ -247,15 +276,17 @@ else
                     @* === OAUTH-BASED STORAGE (OneDrive, Dropbox, Google Drive) === *@
                     <div class="alert alert-info" role="alert">
                         <strong>@GetTechnologyDisplayName(_newStorage.Technology)</strong> uses OAuth authentication. 
-                        After creating, click "Authenticate" to connect your account.
+                        After creating, click "Authenticate" to securely connect your cloud account without sharing your password.
                     </div>
                     
                     <div class="mb-3">
-                        <label for="urischema" class="form-label">URI Schema:</label>
+                        <label for="urischema" class="form-label">Root Path (optional):</label>
                         <InputText id="urischema"
-                                   placeholder="Path"
+                                   placeholder="/Backups"
                                    class="form-control"
+                                   title="Optional: Specify a default folder path within your cloud storage. Leave empty to start from the root."
                                    @bind-Value="_newStorage.UriSchema"/>
+                        <small class="form-text text-muted">Default folder path in your cloud storage (leave empty for root)</small>
                         <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
                     </div>
                     
@@ -264,6 +295,7 @@ else
                         <InputText id="useremail"
                                    placeholder="your-email@example.com"
                                    class="form-control"
+                                   title="The email address of your cloud storage account. This helps identify which account to authenticate."
                                    @bind-Value="_newStorage.OAuth2Email"/>
                         <small class="form-text text-muted">The email associated with your @GetTechnologyDisplayName(_newStorage.Technology) account</small>
                         <ValidationMessage For="() => _newStorage.OAuth2Email" class="text-danger"/>
@@ -276,8 +308,9 @@ else
                     <InputText id="networks"
                                placeholder="home, office"
                                class="form-control"
+                               title="Restrict this storage to specific networks. The backup agent will only use this storage when connected to one of these networks. Leave empty to allow access from any network."
                                @bind-Value="_newStorage.Networks"/>
-                    <small class="form-text text-muted">Comma-separated list of networks where this storage is available</small>
+                    <small class="form-text text-muted">Comma-separated network names (e.g., "home, office"). Leave empty to allow access from anywhere.</small>
                 </div>
                 
                 <button type="submit" class="btn btn-primary">Create Storage</button>

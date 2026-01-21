@@ -12,6 +12,21 @@
 
 <h3>Endpoints</h3>
 
+<div class="alert alert-info mb-4" role="alert">
+    <h5 class="alert-heading"><span class="me-2">📁</span>Backup Endpoints</h5>
+    <p class="mb-2">
+        Endpoints define specific folder locations within your storages. Each endpoint points to a folder that can be used as a source (where to backup from) or destination (where to backup to) in your backup rules.
+    </p>
+    <hr>
+    <p class="mb-0"><strong>How to use:</strong></p>
+    <ul class="mb-0 mt-2">
+        <li><strong>Name</strong> — Give your endpoint a descriptive name (e.g., "My Documents", "Cloud Backup Folder", "Photos Archive").</li>
+        <li><strong>Storage</strong> — Select which storage connection this endpoint belongs to.</li>
+        <li><strong>Path</strong> — Specify the folder path relative to the storage root (e.g., "Documents/Work" or "Backups/Daily").</li>
+    </ul>
+    <p class="mt-2 mb-0"><em>Tip: Create separate endpoints for different folders you want to backup, even within the same storage.</em></p>
+</div>
+
 @if (_listEndpoints == null)
 {
     <p><em>Loading endpoints...</em></p>
@@ -22,10 +37,10 @@ else
         <thead>
         <tr>
             <th>&nbsp;</th>
-            <th>Name</th>
-            <th>Storage</th>
-            <th>Path</th>
-            <th>Comment</th>
+            <th title="Friendly name for this endpoint">Name</th>
+            <th title="The storage connection this endpoint uses">Storage</th>
+            <th title="Folder path within the storage">Path</th>
+            <th title="Optional notes">Comment</th>
             <th>&nbsp;</th>
         </tr>
         </thead>
@@ -36,11 +51,12 @@ else
             {
                     <tr>
                         <td>&nbsp;</td>
-                        <td><InputText id="name" class="form-control" @bind-Value="_editingEndpoint.Name" /></td>
+                        <td><InputText id="name" class="form-control" @bind-Value="_editingEndpoint.Name" title="A descriptive name for this endpoint"/></td>
                         <td>
                             <InputSelect id="storage"
                                          placeholder="Storage"
                                          class="form-control"
+                                         title="The storage connection this endpoint belongs to"
                                          @bind-Value="_editingEndpointStorageId"
                                          @bind-Value:after="_handleEditStorageChanged">
                                 @foreach (var st in _listStorages)
@@ -49,24 +65,24 @@ else
                                 }
                             </InputSelect>
                         </td>
-                        <td><InputText id="path" @bind-Value="_editingEndpoint.Path" class="form-control"/></td>
-                        <td><InputText id="comment" @bind-Value="_editingEndpoint.Comment" class="form-control"/></td>
+                        <td><InputText id="path" @bind-Value="_editingEndpoint.Path" class="form-control" title="Folder path relative to the storage root"/></td>
+                        <td><InputText id="comment" @bind-Value="_editingEndpoint.Comment" class="form-control" title="Optional notes for your reference"/></td>
                         <td>
-                            <button @onclick="_onEditEndpointSubmit" id="submiteditendpoint" class="close">✔</button>
-                            <button @onclick="_onEditEndpointCancel" class="close" aria-label="delete">❌️</button>
+                            <button @onclick="_onEditEndpointSubmit" id="submiteditendpoint" class="close" title="Save changes">✔</button>
+                            <button @onclick="_onEditEndpointCancel" class="close" aria-label="cancel" title="Cancel editing">❌️</button>
                         </td>
                     </tr>
                 
             } else
             {
                 <tr>
-                    <td><button id="starteditendpoint" @onclick="() => _onEdit(ep)" aria-label="edit">✏</button></td>
+                    <td><button id="starteditendpoint" @onclick="() => _onEdit(ep)" aria-label="edit" title="Edit this endpoint">✏</button></td>
                     <td>@ep.Name</td>
                     <td>@ep.Storage.Technology</td>
                     <td>@ep.Path</td>
                     <td>@ep.Comment</td>
                     <td>
-                        <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete">🗑️</button>
+                        <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete" title="Delete this endpoint">🗑️</button>
                     </td>
                 </tr>
             }
@@ -86,23 +102,26 @@ else
 {
     <h2>Create new endpoint</h2>
     <div class="row">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <EditForm method="post" Model="_newEndpoint" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
                 <DataAnnotationsValidator/>
                 <ValidationSummary class="text-danger"/>
                 <div class="mb-3">
-                    <label for="name" class="form-label">Name:</label>
+                    <label for="name" class="form-label">Name: <span class="text-danger">*</span></label>
                     <InputText id="name"
-                               placeholder="Name"
+                               placeholder="My Documents Backup"
                                class="form-control"
+                               title="A friendly name to identify this endpoint. Use something descriptive like 'Work Documents' or 'Photos Backup'."
                                @bind-Value="_newEndpoint.Name" />
+                    <small class="form-text text-muted">A descriptive name to identify this folder location</small>
                     <ValidationMessage For="() => _newEndpoint.Name" class="text-danger"/>
                 </div>
                 <div class="mb-3">
-                    <label for="storage" class="form-label">Storage:</label>
+                    <label for="storage" class="form-label">Storage: <span class="text-danger">*</span></label>
                     <InputSelect id="storage"
                                  placeholder="Storage"
                                  class="form-control"
+                                 title="Select the storage connection where this folder is located. You must create a storage first before creating endpoints."
                                  @bind-Value="_newEndpointStorageId" 
                                  @bind-Value:after="handleNewStorageChanged" 
                                  >
@@ -111,24 +130,29 @@ else
                             <option value="@storage.Id">@storage.Technology</option>
                         }
                     </InputSelect>
+                    <small class="form-text text-muted">The storage connection this endpoint belongs to</small>
                 </div>
                 <div class="mb-3">
-                    <label for="path" class="form-label">Path:</label>
+                    <label for="path" class="form-label">Path: <span class="text-danger">*</span></label>
                     <InputText id="path"
-                               placeholder="Path"
+                               placeholder="Documents/Work or Backups/Daily"
                                class="form-control"
+                               title="The folder path relative to the storage root. For cloud storage, this is the path within your cloud drive. For SMB, this is the path within the share."
                                @bind-Value="_newEndpoint.Path"/>
+                    <small class="form-text text-muted">Folder path relative to the storage root (e.g., "Documents" or "Backups/2024")</small>
                     <ValidationMessage For="() => _newEndpoint.Path" class="text-danger"/>
                 </div>
                 <div class="mb-3">
-                    <label for="comment" class="form-label">Comment:</label>
+                    <label for="comment" class="form-label">Comment (optional):</label>
                     <InputText id="comment"
-                               placeholder="Comment"
+                               placeholder="Optional notes about this endpoint"
                                class="form-control"
+                               title="Add any notes or reminders about this endpoint for your own reference."
                                @bind-Value="_newEndpoint.Comment" />
+                    <small class="form-text text-muted">Optional notes for your own reference</small>
                     <ValidationMessage For="() => _newEndpoint.Comment" class="text-danger"/>
                 </div>
-                <button type="submit" class="btn btn-primary">Create</button>
+                <button type="submit" class="btn btn-primary">Create Endpoint</button>
             </EditForm>
         </div>
     </div>
