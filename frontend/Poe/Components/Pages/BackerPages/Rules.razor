@@ -78,10 +78,11 @@ else
                         </InputSelect>
                     </td>
                     <td>
-                        <InputSelect id="operation"
+                        <InputSelect TValue="Rule.RuleOperation"
+                                     id="operation"
                                      placeholder="Operation"
                                      class="form-control"
-                                     title="Copy = add/update only; Sync = mirror exactly (deletes files removed from source)">
+                                     title="Copy = add/update only; Sync = mirror exactly (deletes files removed from source)."
                                      @bind-Value="_editRule.Operation">
                             @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
                             {
@@ -203,7 +204,8 @@ else
                 </div>
                 <div class="mb-3">
                     <label for="operation" class="form-label">Operation: <span class="text-danger">*</span></label>
-                    <InputSelect id="operation"
+                    <InputSelect TValue="Rule.RuleOperation"
+                                 id="operation"
                                  placeholder="Operation"
                                  class="form-control"
                                  title="Copy: Only adds new or changed files to destination. Sync: Makes destination match source exactly (deletes files removed from source)."

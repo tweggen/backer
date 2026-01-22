@@ -139,21 +139,20 @@ builder.Services
     .AddProcessManager()
         // ClientHannibalServiceClient
     .AddBackgroundHannibalServiceClient(builder.Configuration)
-        // Workers
-    // .AddRCloneService(builder.Configuration)
+        // Workers - this registers OAuth2ClientFactory, storage providers, and RCloneStorages
+    .AddRCloneService(builder.Configuration)
     ;
 
 
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
-// Register storage providers and factory (required by RCloneStorages)
-builder.Services.AddStorageProviders();
-
-builder.Services.AddSingleton<RCloneStorages>();
-builder.Services.AddSingleton<RCloneService>(sp =>
+// Enhance RCloneService registration with BackerControl callbacks
+builder.Services.AddSingleton(sp =>
 {
-    // Create RCloneService
-    var rcloneService = ActivatorUtilities.CreateInstance<RCloneService>(sp);
+    // Get the already-registered RCloneService
+    var rcloneService = sp.GetServices<IHostedService>()
+        .OfType<RCloneService>()
+        .First();
     
     // Wire up callbacks for BackerControl notifications
     var hubContext = sp.GetRequiredService<IHubContext<BackerAgent.Hubs.BackerControlHub>>();
@@ -172,7 +171,6 @@ builder.Services.AddSingleton<RCloneService>(sp =>
     
     return rcloneService;
 });
-builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<RCloneService>());
 builder.Services.AddSingleton<HubConnectionFactory>();
 builder.Services.AddSingleton(provider =>
 {
