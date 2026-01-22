@@ -28,10 +28,10 @@
     <p class="mb-0"><strong>Job States:</strong></p>
     <ul class="mb-0 mt-2">
         <li><span class="badge bg-info me-1">Preparing</span> — Job is being set up and will start soon.</li>
-        <li><span class="badge bg-primary me-1">Running</span> — Backup is currently in progress.</li>
+        <li><span class="badge bg-secondary me-1">Ready</span> — Job is ready to be picked up by the agent.</li>
+        <li><span class="badge bg-primary me-1">Executing</span> — Backup is currently in progress.</li>
         <li><span class="badge bg-success me-1">DoneSuccess</span> — Backup completed successfully.</li>
-        <li><span class="badge bg-danger me-1">DoneFailed</span> — Backup failed (check logs for details).</li>
-        <li><span class="badge bg-secondary me-1">Cancelled</span> — Backup was stopped before completion.</li>
+        <li><span class="badge bg-danger me-1">DoneFailure</span> — Backup failed (check logs for details).</li>
     </ul>
     <p class="mt-2 mb-0"><em>This page auto-refreshes when jobs are updated. Use "Clear" to remove completed jobs from the list.</em></p>
 </div>
@@ -64,19 +64,19 @@ else
                         var jobBadgeClass = job.State switch
                         {
                             Job.JobState.Preparing => "bg-info",
-                            Job.JobState.Running => "bg-primary",
+                            Job.JobState.Ready => "bg-secondary",
+                            Job.JobState.Executing => "bg-primary",
                             Job.JobState.DoneSuccess => "bg-success",
-                            Job.JobState.DoneFailed => "bg-danger",
-                            Job.JobState.Cancelled => "bg-secondary",
+                            Job.JobState.DoneFailure => "bg-danger",
                             _ => "bg-secondary"
                         };
                         var jobStateTooltip = job.State switch
                         {
                             Job.JobState.Preparing => "Job is being set up",
-                            Job.JobState.Running => "Backup in progress",
+                            Job.JobState.Ready => "Ready for agent pickup",
+                            Job.JobState.Executing => "Backup in progress",
                             Job.JobState.DoneSuccess => "Completed successfully",
-                            Job.JobState.DoneFailed => "Backup failed - check logs",
-                            Job.JobState.Cancelled => "Job was cancelled",
+                            Job.JobState.DoneFailure => "Backup failed - check logs",
                             _ => "Unknown state"
                         };
                     }
