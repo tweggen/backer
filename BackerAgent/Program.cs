@@ -146,6 +146,9 @@ builder.Services
 
 builder.Services.AddSingleton<HttpBaseUrlAccessor>();
 
+// Register storage providers and factory (required by RCloneStorages)
+builder.Services.AddStorageProviders();
+
 builder.Services.AddSingleton<RCloneStorages>();
 builder.Services.AddSingleton<RCloneService>(sp =>
 {
