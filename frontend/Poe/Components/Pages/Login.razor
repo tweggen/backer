@@ -1,4 +1,5 @@
 @page "/Login"
+@layout Poe.Components.Layout.PublicLayout
 @using System.Security.Claims
 @using Hannibal.Client
 @using Microsoft.AspNetCore.Authentication
@@ -7,27 +8,44 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Http.HttpResults
 @using Microsoft.AspNetCore.Identity.Data
-@using Microsoft.EntityFrameworkCore.Metadata.Internal
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IIdentityApiService IdentityApiService
 @inject NavigationManager Navigation
 @inject Tools.AppBasePath BasePath
 
-<h3>Login</h3>
+<PageTitle>Login - Backer</PageTitle>
 
-@if (!string.IsNullOrEmpty(ErrorMessage))
-{
-    <p style="color:red">@ErrorMessage</p>
-}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h1 class="login-title">
+                <span>☁️</span> Backer
+            </h1>
+            <p class="login-subtitle">Sign in to your account</p>
+        </div>
 
-<EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" FormName="LoginForm">
-    <InputText @bind-Value="loginModel.Username" placeholder="Username" />
-    <InputText @bind-Value="loginModel.Password" placeholder="Password" type="password" />
-    <button type="submit">Log in</button>
-</EditForm>
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger">@ErrorMessage</div>
+        }
 
-<br/>
-Or <a href="@($"{BasePath.Value}/signup")">register</a> if you don't have an account.
+        <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" FormName="LoginForm" class="login-form">
+            <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                <InputText id="email" @bind-Value="loginModel.Username" class="form-control" placeholder="you@example.com" />
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <InputText id="password" @bind-Value="loginModel.Password" class="form-control" type="password" placeholder="••••••••" />
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Sign In</button>
+        </EditForm>
+
+        <div class="login-footer">
+            Don't have an account? <a href="@($"{BasePath.Value}/signup")">Register</a>
+        </div>
+    </div>
+</div>
 
 @code {
     private string? ErrorMessage;
@@ -80,7 +98,7 @@ Or <a href="@($"{BasePath.Value}/signup")">register</a> if you don't have an acc
             return;
         }
 
-        Navigation.NavigateTo($"{BasePath.Value}/");
+        Navigation.NavigateTo($"{BasePath.Value}/backer/", forceLoad: true);
     }
 
     public class LoginModel

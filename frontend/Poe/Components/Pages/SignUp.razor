@@ -1,37 +1,66 @@
 @page "/SignUp"
+@layout Poe.Components.Layout.PublicLayout
 @using System.Security.Claims
 @using Hannibal.Client
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Http.HttpResults
 @using Microsoft.AspNetCore.Identity.Data
-@using Tools
 @inject IIdentityApiService IdentityApiService
 @inject NavigationManager Navigation
 @inject Tools.AppBasePath BasePath
 
-<h3>Sign Up</h3>
+<PageTitle>Sign Up - Backer</PageTitle>
 
+<div class="signup-container">
+    <div class="signup-card">
+        <div class="signup-header">
+            <h1 class="signup-title">
+                <span>☁️</span> Backer
+            </h1>
+            <p class="signup-subtitle">Create your account</p>
+        </div>
 
-@if (!string.IsNullOrEmpty(ErrorMessage))
-{
-    <p style="color:red">@ErrorMessage</p>
-}
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger">@ErrorMessage</div>
+        }
 
+        @if (!string.IsNullOrEmpty(SuccessMessage))
+        {
+            <div class="alert alert-success">@SuccessMessage</div>
+        }
 
-<EditForm Model="@signupModel" OnValidSubmit="@HandleSignup" FormName="SignupForm">
-    <InputText @bind-Value="signupModel.Username" placeholder="Username" />
-    <InputText @bind-Value="signupModel.Password" placeholder="Password" type="password" />
-    <button type="submit">Sign up!</button>
-</EditForm>
+        <EditForm Model="@signupModel" OnValidSubmit="@HandleSignup" FormName="SignupForm" class="signup-form">
+            <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                <InputText id="email" @bind-Value="signupModel.Username" class="form-control" placeholder="you@example.com" />
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <InputText id="password" @bind-Value="signupModel.Password" class="form-control" type="password" placeholder="••••••••" />
+                <small class="form-text text-muted">At least 6 characters with uppercase, lowercase, and a number.</small>
+            </div>
+            <button type="submit" class="btn btn-success w-100">Create Account</button>
+        </EditForm>
+
+        <div class="signup-footer">
+            Already have an account? <a href="@($"{BasePath.Value}/login")">Sign in</a>
+        </div>
+    </div>
+</div>
 
 @code {
     private string? ErrorMessage;
+    private string? SuccessMessage;
     
     [SupplyParameterFromForm(FormName = "SignupForm")]
     private SignupModel signupModel { get; set; } = new();
 
     private async Task HandleSignup()
     {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
         var registerRequest = new RegisterRequest()
         {
             Email = signupModel.Username, Password = signupModel.Password
@@ -41,14 +70,22 @@
             registerRequest, CancellationToken.None);
         if (result.Result is Ok okResult)
         {
+            SuccessMessage = "Account created successfully! Redirecting to login...";
+            await Task.Delay(1500);
             Navigation.NavigateTo($"{BasePath.Value}/login");
             return;
         } 
         else if (result.Result is ValidationProblem validationProblem)
         {
-            ErrorMessage = $"{validationProblem.ProblemDetails.Title}\n"
-                + $"{string.Join(", ", validationProblem.ProblemDetails.Errors.Select(kvp => $"{kvp.Key}: [{string.Join("; ", kvp.Value)}]"))}";
+            var errors = validationProblem.ProblemDetails.Errors
+                .SelectMany(kvp => kvp.Value)
+                .ToList();
+            ErrorMessage = string.Join(" ", errors);
             return;
+        }
+        else
+        {
+            ErrorMessage = "Registration failed. Please try again.";
         }
     }
     

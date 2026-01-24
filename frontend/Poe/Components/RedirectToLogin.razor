@@ -1,0 +1,9 @@
+@inject NavigationManager Navigation
+@inject Tools.AppBasePath BasePath
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo($"{BasePath.Value}/", forceLoad: true);
+    }
+}

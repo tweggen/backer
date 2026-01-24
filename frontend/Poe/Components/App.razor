@@ -1,4 +1,4 @@
-﻿@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @inject Tools.AppBasePath BasePath
 
 <!DOCTYPE html>
@@ -7,6 +7,14 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Automated backup management with rclone - backup your files to cloud storage and network shares" />
+    <meta name="theme-color" content="#0d6efd" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Backer" />
+    
     @{
         var basePath = BasePath.Value;
         var a = Assets;
@@ -19,7 +27,15 @@
     <link rel="stylesheet" href="@($"{basePath}/{Assets["Poe.styles.css"]}")" />
 
     <ImportMap />
-    <link rel="icon" type="image/png" href="favicon.png" />
+    
+    <!-- Favicon and Icons -->
+    <link rel="icon" type="image/png" href="@($"{basePath}/favicon.png")" />
+    <link rel="icon" type="image/svg+xml" href="@($"{basePath}/icons/icon.svg")" />
+    <link rel="apple-touch-icon" href="@($"{basePath}/icons/icon.svg")" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="@($"{basePath}/manifest.webmanifest")" />
+    
     <HeadOutlet />
     <base href="@basePath/" />
 </head>
@@ -28,6 +44,21 @@
     <Routes />
     <script src="@($"{basePath}/_framework/blazor.web.js")"></script>
     <script src="@($"{basePath}/js/site.js")"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('@($"{basePath}/service-worker.js")')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registered with scope:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
 </body>
 
 </html>

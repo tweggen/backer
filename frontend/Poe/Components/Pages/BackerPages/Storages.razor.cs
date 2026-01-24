@@ -6,25 +6,29 @@ namespace Poe.Components.Pages.BackerPages;
 
 public class CustomValidator : ComponentBase
 {
-    [CascadingParameter] private EditContext CurrentEditContext { get; set; }
-    private ValidationMessageStore _messageStore;
+    [CascadingParameter] private EditContext? CurrentEditContext { get; set; }
+    private ValidationMessageStore? _messageStore;
 
 
     public void Clear()
     {
-        _messageStore.Clear();
-        CurrentEditContext.NotifyValidationStateChanged();
+        _messageStore?.Clear();
+        CurrentEditContext?.NotifyValidationStateChanged();
     }
 
     protected override void OnInitialized()
     {
-        _messageStore = new ValidationMessageStore(CurrentEditContext);
-        // CurrentEditContext.OnValidationRequested += (s, e) => _messageStore.Clear();
-        //CurrentEditContext.OnFieldChanged += (s, e) => _messageStore.Clear(e.FieldIdentifier);
+        if (CurrentEditContext != null)
+        {
+            _messageStore = new ValidationMessageStore(CurrentEditContext);
+        }
     }
 
     public void AddError(string fieldName, string message)
     {
+        if (CurrentEditContext == null || _messageStore == null)
+            return;
+            
         var fieldIdentifier = new FieldIdentifier(CurrentEditContext.Model, fieldName);
         _messageStore.Add(fieldIdentifier, message);
         CurrentEditContext.NotifyValidationStateChanged();

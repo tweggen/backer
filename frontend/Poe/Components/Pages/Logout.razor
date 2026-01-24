@@ -1,15 +1,30 @@
 @page "/Logout"
+@layout Poe.Components.Layout.PublicLayout
 @using Microsoft.AspNetCore.Authentication
 @inject IHttpContextAccessor HttpContextAccessor
 @inject NavigationManager Navigation
 @inject Tools.AppBasePath BasePath
 
-<h3>Logging out...</h3>
+<PageTitle>Logging out - Backer</PageTitle>
+
+<div class="logout-container">
+    <div class="logout-card">
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h3>Logging out...</h3>
+        <p class="text-muted">You will be redirected shortly.</p>
+    </div>
+</div>
 
 @code {
     protected override async Task OnInitializedAsync()
     {
         await HttpContextAccessor.HttpContext!.SignOutAsync("Cookies");
-        Navigation.NavigateTo($"{BasePath.Value}/login", forceLoad: true);
+        
+        // Clear the access token cookie
+        HttpContextAccessor.HttpContext!.Response.Cookies.Delete("access_token");
+        
+        Navigation.NavigateTo($"{BasePath.Value}/", forceLoad: true);
     }
 }
