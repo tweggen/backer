@@ -22,7 +22,13 @@
     <ul class="mb-0 mt-2">
         <li><strong>Name</strong> — Give your endpoint a descriptive name (e.g., "My Documents", "Cloud Backup Folder", "Photos Archive").</li>
         <li><strong>Storage</strong> — Select which storage connection this endpoint belongs to.</li>
-        <li><strong>Path</strong> — Specify the folder path relative to the storage root (e.g., "Documents/Work" or "Backups/Daily").</li>
+        <li><strong>Path</strong> — Specify the folder path:
+            <ul>
+                <li><em>For SMB/Network shares:</em> Include the <strong>share name</strong> followed by the folder path (e.g., <code>DATA/Documents</code> or <code>Backup/Photos/2024</code>)</li>
+                <li><em>For Cloud storage:</em> Folder path within your cloud drive (e.g., <code>Documents/Work</code>)</li>
+                <li><em>For Local storage:</em> Folder path relative to the storage base path</li>
+            </ul>
+        </li>
     </ul>
     <p class="mt-2 mb-0"><em>Tip: Create separate endpoints for different folders you want to backup, even within the same storage.</em></p>
 </div>
@@ -61,7 +67,7 @@ else
                                          @bind-Value:after="_handleEditStorageChanged">
                                 @foreach (var st in _listStorages)
                                 {
-                                    <option value="@st.Id">@st.Technology</option>
+                                    <option value="@st.Id">@st.UriSchema (@st.Technology)</option>
                                 }
                             </InputSelect>
                         </td>
@@ -78,7 +84,7 @@ else
                 <tr>
                     <td><button id="starteditendpoint" @onclick="() => _onEdit(ep)" aria-label="edit" title="Edit this endpoint">✏</button></td>
                     <td>@ep.Name</td>
-                    <td>@ep.Storage.Technology</td>
+                    <td>@ep.Storage.UriSchema (@ep.Storage.Technology)</td>
                     <td>@ep.Path</td>
                     <td>@ep.Comment</td>
                     <td>
@@ -127,7 +133,7 @@ else
                                  >
                         @foreach (var storage in _listStorages)
                         {
-                            <option value="@storage.Id">@storage.Technology</option>
+                            <option value="@storage.Id">@storage.UriSchema (@storage.Technology)</option>
                         }
                     </InputSelect>
                     <small class="form-text text-muted">The storage connection this endpoint belongs to</small>
@@ -135,11 +141,11 @@ else
                 <div class="mb-3">
                     <label for="path" class="form-label">Path: <span class="text-danger">*</span></label>
                     <InputText id="path"
-                               placeholder="Documents/Work or Backups/Daily"
+                               placeholder="@GetPathPlaceholder()"
                                class="form-control"
-                               title="The folder path relative to the storage root. For cloud storage, this is the path within your cloud drive. For SMB, this is the path within the share."
+                               title="@GetPathTooltip()"
                                @bind-Value="_newEndpoint.Path"/>
-                    <small class="form-text text-muted">Folder path relative to the storage root (e.g., "Documents" or "Backups/2024")</small>
+                    <small class="form-text text-muted">@GetPathHelpText()</small>
                     <ValidationMessage For="() => _newEndpoint.Path" class="text-danger"/>
                 </div>
                 <div class="mb-3">
@@ -173,6 +179,54 @@ else
     [SupplyParameterFromForm] private Hannibal.Models.Endpoint? _newEndpoint { get; set; } = null;
 
     private Hannibal.Models.Storage? _selectedStorage = null;
+
+    /// <summary>
+    /// Get placeholder text for the Path field based on selected storage type
+    /// </summary>
+    private string GetPathPlaceholder()
+    {
+        if (_selectedStorage == null) return "Select a storage first";
+        
+        return _selectedStorage.Technology?.ToLowerInvariant() switch
+        {
+            "smb" => "ShareName/Folder/Subfolder (e.g., DATA/Documents)",
+            "local" => "Folder/Subfolder (e.g., Documents/Work)",
+            "onedrive" or "dropbox" or "googledrive" => "Folder/Subfolder (e.g., Backups/Daily)",
+            _ => "Folder path"
+        };
+    }
+
+    /// <summary>
+    /// Get tooltip text for the Path field based on selected storage type
+    /// </summary>
+    private string GetPathTooltip()
+    {
+        if (_selectedStorage == null) return "Select a storage first to see path format";
+        
+        return _selectedStorage.Technology?.ToLowerInvariant() switch
+        {
+            "smb" => "For SMB: Start with the SHARE NAME, then add the folder path. Example: 'DATA/Documents/Work' accesses \\\\server\\DATA\\Documents\\Work",
+            "local" => "Folder path relative to the storage base path on the agent machine.",
+            "onedrive" or "dropbox" or "googledrive" => "Folder path within your cloud storage. Leave empty for root.",
+            _ => "Folder path within this storage"
+        };
+    }
+
+    /// <summary>
+    /// Get help text for the Path field based on selected storage type
+    /// </summary>
+    private string GetPathHelpText()
+    {
+        if (_selectedStorage == null) return "Select a storage to see path format guidance";
+        
+        return _selectedStorage.Technology?.ToLowerInvariant() switch
+        {
+            "smb" => $"Format: ShareName/Path — e.g., 'DATA/Documents' connects to \\\\{_selectedStorage.Host}\\DATA\\Documents",
+            "local" => "Folder path relative to the storage base path",
+            "onedrive" or "dropbox" or "googledrive" => "Folder path in your cloud drive (e.g., 'Backups/Daily')",
+            _ => "Folder path within this storage"
+        };
+    }
 
 
     public void Dispose()

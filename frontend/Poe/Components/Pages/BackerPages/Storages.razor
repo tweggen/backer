@@ -15,16 +15,18 @@
 <div class="alert alert-info mb-4" role="alert">
     <h5 class="alert-heading"><span class="me-2">💾</span>Storage Connections</h5>
     <p class="mb-2">
-        Storages represent your connected cloud accounts or network locations where backups can be stored or retrieved from.
+        Storages represent your connected cloud accounts or network server credentials. Each Storage defines <strong>how to connect</strong> to a server or cloud account.
     </p>
     <hr>
     <p class="mb-0"><strong>How to use:</strong></p>
     <ul class="mb-0 mt-2">
         <li><strong>Cloud Storage</strong> (OneDrive, Dropbox, Google Drive) — Create a storage entry with your email, then click "Authenticate" to connect your account via OAuth.</li>
-        <li><strong>Network Shares</strong> (SMB/CIFS) — Enter the server hostname, your credentials, and optionally a default share name.</li>
+        <li><strong>Network Shares</strong> (SMB/CIFS) — Create one Storage entry per server + username combination. The actual share names and folder paths are specified later when creating Endpoints.</li>
         <li><strong>Local Storage</strong> — Access folders directly on the backup agent's machine.</li>
         <li><strong>Networks</strong> — Optionally specify which networks this storage is available on (useful for SMB shares only accessible from certain locations).</li>
     </ul>
+    <hr>
+    <p class="mb-0"><small><strong>💡 Tip for SMB:</strong> If you have multiple shares on the same server that require <em>different</em> login credentials, create a separate Storage entry for each username/password combination. The share name (e.g., "DATA", "Backup") and path (e.g., "Documents/Photos") are configured in <strong>Endpoints</strong>, not here.</small></p>
 </div>
 
 @if (_listStorages == null)
@@ -38,6 +40,7 @@ else
         <tr>
             <th>&nbsp;</th>
             <th title="Storage provider type (cloud service or protocol)">Technology</th>
+            <th title="Unique identifier for this storage connection">Name</th>
             <th title="Server address for SMB, or root path for cloud storage">Host / Path</th>
             <th title="Username for SMB, or email for cloud services">Account</th>
             <th title="Networks where this storage is accessible (empty = all networks)">Networks</th>
@@ -56,12 +59,14 @@ else
                     <td>@sto.Technology</td>
                     @if (IsCredentialBased(sto.Technology))
                     {
+                        <td><InputText id="urischema" @bind-Value="_editingStorage.UriSchema" class="form-control" placeholder="e.g., nas_admin" title="Unique identifier for this storage connection (cannot be changed after endpoints are created)"/></td>
                         <td><InputText id="host" @bind-Value="_editingStorage.Host" class="form-control" placeholder="hostname or IP" title="Server hostname or IP address (e.g., fileserver.local, 192.168.1.50)"/></td>
                         <td><InputText id="username" @bind-Value="_editingStorage.Username" class="form-control" placeholder="username" title="Your login username for this server"/></td>
                     }
                     else
                     {
                         <td><InputText id="urischeme" @bind-Value="_editingStorage.UriSchema" class="form-control" title="Root path within your cloud storage (leave empty for root)"/></td>
+                        <td>—</td>
                         <td><InputText id="useremail" @bind-Value="_editingStorage.OAuth2Email" class="form-control" title="Email address associated with your cloud account"/></td>
                     }
                     <td><InputText id="networks" @bind-Value="_editingStorage.Networks" class="form-control" title="Comma-separated network names where this storage is accessible (empty = all networks)"/></td>
@@ -102,12 +107,14 @@ else
                     <td>@sto.Technology</td>
                     @if (IsCredentialBased(sto.Technology))
                     {
+                        <td><strong>@sto.UriSchema</strong></td>
                         <td>@sto.Host@(sto.Port.HasValue ? $":{sto.Port}" : "")</td>
                         <td>@(string.IsNullOrWhiteSpace(sto.Domain) ? sto.Username : $"{sto.Domain}\\{sto.Username}")</td>
                     }
                     else
                     {
-                        <td>@sto.UriSchema</td>
+                        <td><strong>@sto.UriSchema</strong></td>
+                        <td>—</td>
                         <td>@sto.OAuth2Email</td>
                     }
                     <td>@sto.Networks</td>
@@ -188,6 +195,7 @@ else
                     @* === CREDENTIAL-BASED STORAGE (SMB, Local, etc.) === *@
                     <div class="alert alert-info" role="alert">
                         <strong>@GetTechnologyDisplayName(_newStorage.Technology)</strong> uses username/password authentication.
+                        <br/><small>Create one Storage per server + login combination. Share names and folder paths are configured in Endpoints.</small>
                     </div>
                     
                     <div class="mb-3">
@@ -244,13 +252,14 @@ else
                     </div>
                     
                     <div class="mb-3">
-                        <label for="urischema" class="form-label">Share Path (optional):</label>
+                        <label for="urischema" class="form-label">Storage Name: <span class="text-danger">*</span></label>
                         <InputText id="urischema"
-                                   placeholder="sharename"
+                                   placeholder="e.g., nas_admin, fileserver_backup"
                                    class="form-control"
-                                   title="The default share name on this server. You can also specify paths per-endpoint later. Example: 'backup' for \\\\server\\backup"
+                                   title="A unique name to identify this storage connection. Use something descriptive like 'nas_admin' or 'server_guest'. This is NOT the share name."
                                    @bind-Value="_newStorage.UriSchema"/>
-                        <small class="form-text text-muted">Default share name (can also be specified per endpoint)</small>
+                        <small class="form-text text-muted">A unique identifier for this connection (e.g., "nas_admin", "fileserver_backup"). <strong>Not</strong> the share name — that goes in Endpoints.</small>
+                        <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
                     </div>
                 }
                 else if (_newStorage.Technology == "local")
@@ -565,6 +574,24 @@ else
                 if (string.IsNullOrWhiteSpace(_newStorage.Username))
                 {
                     _customValidator.AddError(nameof(_newStorage.Username), "Username is required for SMB storage");
+                }
+                
+                if (string.IsNullOrWhiteSpace(_newStorage.UriSchema))
+                {
+                    _customValidator.AddError(nameof(_newStorage.UriSchema), "Storage Name is required - use a unique identifier like 'nas_admin' or 'server_backup'");
+                }
+                
+                // Check for duplicate: same storage name
+                if (_listStorages != null && !string.IsNullOrWhiteSpace(_newStorage.UriSchema))
+                {
+                    var duplicateName = _listStorages.FirstOrDefault(s => 
+                        s.UriSchema.Equals(_newStorage.UriSchema.Trim(), StringComparison.OrdinalIgnoreCase));
+                    
+                    if (duplicateName != null)
+                    {
+                        _customValidator.AddError(nameof(_newStorage.UriSchema), 
+                            "A storage with this name already exists. Please choose a unique name.");
+                    }
                 }
                 
                 // Check for duplicate: same technology + host + username

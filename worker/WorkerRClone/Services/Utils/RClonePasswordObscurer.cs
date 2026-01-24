@@ -11,7 +11,9 @@ namespace WorkerRClone.Services.Utils;
 /// secure encryption - it just prevents casual observation of passwords in
 /// config files.
 /// 
-/// Format: base64(nonce + aes_ctr_encrypt(password, key, nonce))
+/// Format: base64url_no_padding(nonce + aes_ctr_encrypt(password, key, nonce))
+/// 
+/// Note: rclone uses URL-safe base64 (RFC 4648) WITHOUT padding.
 /// </summary>
 public static class RClonePasswordObscurer
 {
@@ -56,7 +58,7 @@ public static class RClonePasswordObscurer
         Buffer.BlockCopy(nonce, 0, result, 0, nonce.Length);
         Buffer.BlockCopy(ciphertext, 0, result, nonce.Length, ciphertext.Length);
         
-        return Convert.ToBase64String(result);
+        return ToBase64UrlNoPadding(result);
     }
 
     /// <summary>
@@ -71,7 +73,7 @@ public static class RClonePasswordObscurer
             return string.Empty;
         }
 
-        byte[] data = Convert.FromBase64String(obscured);
+        byte[] data = FromBase64UrlNoPadding(obscured);
         
         if (data.Length < NonceSize)
         {
@@ -87,6 +89,42 @@ public static class RClonePasswordObscurer
         byte[] plaintext = AesCtrDecrypt(ciphertext, ObscureKey, nonce);
         
         return Encoding.UTF8.GetString(plaintext);
+    }
+
+    /// <summary>
+    /// Convert bytes to URL-safe base64 without padding (RFC 4648).
+    /// This is the format rclone uses.
+    /// </summary>
+    private static string ToBase64UrlNoPadding(byte[] data)
+    {
+        string base64 = Convert.ToBase64String(data);
+        
+        // Convert to URL-safe: replace + with -, / with _
+        // Remove padding =
+        return base64
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
+    }
+
+    /// <summary>
+    /// Convert URL-safe base64 without padding back to bytes.
+    /// </summary>
+    private static byte[] FromBase64UrlNoPadding(string base64Url)
+    {
+        // Convert from URL-safe: replace - with +, _ with /
+        string base64 = base64Url
+            .Replace('-', '+')
+            .Replace('_', '/');
+        
+        // Add padding if necessary
+        switch (base64.Length % 4)
+        {
+            case 2: base64 += "=="; break;
+            case 3: base64 += "="; break;
+        }
+        
+        return Convert.FromBase64String(base64);
     }
 
     /// <summary>
