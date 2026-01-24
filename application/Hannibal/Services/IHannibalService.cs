@@ -154,11 +154,12 @@ public interface IHannibalService
      * Config
      */
     
-    public Task<ConfigExport> ExportConfig(
+    public Task<ConfigExport> ExportConfigAsync(
+        bool includePasswords,
         bool includeInactive, 
         CancellationToken cancellationToken);
 
-    public Task<ImportResult> ImportConfig(
+    public Task<ImportResult> ImportConfigAsync(
         string configJson,
         MergeStrategy mergeStrategy,
         CancellationToken cancellationToken);

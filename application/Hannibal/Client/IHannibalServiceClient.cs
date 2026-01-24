@@ -81,5 +81,11 @@ public interface IHannibalServiceClient
     #region Lifecycle
     public Task<ShutdownResult> ShutdownAsync(CancellationToken cancellationToken);
     #endregion
+    
+    #region Config
+    public Task<ConfigExport> ExportConfigAsync(bool includePasswords, bool includeInactive, CancellationToken cancellationToken);
+    public Task<ImportResult> ImportConfigAsync(string configJson, MergeStrategy mergeStrategy, CancellationToken cancellationToken);
+    #endregion
+    
     public Task<List<RuleState>> GetRuleStatesAsync(CancellationToken cancellationToken);
 }

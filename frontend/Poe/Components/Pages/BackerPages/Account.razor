@@ -1,10 +1,12 @@
 @page "/backer/account"
 @using Hannibal.Client
+@using Hannibal.Services
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore.Metadata.Internal
 @using Poe.Services
+@using System.Text.Json
 @inject IHttpContextAccessor HttpContextAccessor
 @inject IJSRuntime JsRuntime
 @inject IIdentityApiService IdentityApiService
@@ -56,6 +58,136 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">💾 Configuration Backup & Restore</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-3">Export your complete configuration (storages, endpoints, rules) to a JSON file for backup or transfer to another installation.</p>
+        
+        @* Export Section *@
+        <div class="mb-4">
+            <h6>Export Configuration</h6>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="includePasswords" @bind="_exportIncludePasswords">
+                <label class="form-check-label" for="includePasswords">
+                    Include passwords (SMB credentials will be included in plain text)
+                </label>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="includeInactive" @bind="_exportIncludeInactive">
+                <label class="form-check-label" for="includeInactive">
+                    Include inactive/disabled items
+                </label>
+            </div>
+            <button @onclick="_onExportConfig" 
+                    class="btn btn-primary" 
+                    disabled="@_isExporting"
+                    title="Download your configuration as a JSON file">
+                @if (_isExporting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                Export Configuration
+            </button>
+        </div>
+        
+        <hr />
+        
+        @* Import Section *@
+        <div>
+            <h6>Import Configuration</h6>
+            <p class="text-muted small mb-2">Upload a previously exported configuration file to restore your settings.</p>
+            
+            <div class="mb-3">
+                <label for="importFile" class="form-label">Configuration File:</label>
+                <InputFile id="importFile" OnChange="_onFileSelected" class="form-control" accept=".json" />
+                @if (!string.IsNullOrEmpty(_selectedFileName))
+                {
+                    <small class="text-muted">Selected: @_selectedFileName</small>
+                }
+            </div>
+            
+            <div class="mb-3">
+                <label for="mergeStrategy" class="form-label">Import Strategy:</label>
+                <select id="mergeStrategy" class="form-select" @bind="_importStrategy">
+                    <option value="@MergeStrategy.SkipExisting">Skip existing items (safe - only add new items)</option>
+                    <option value="@MergeStrategy.UpdateExisting">Update existing items (merge changes)</option>
+                    <option value="@MergeStrategy.ReplaceAll">Replace all (delete everything and import fresh)</option>
+                </select>
+                <small class="form-text text-muted">
+                    @switch (_importStrategy)
+                    {
+                        case MergeStrategy.SkipExisting:
+                            <span>Items with the same name will be kept as-is. Only new items will be added.</span>
+                            break;
+                        case MergeStrategy.UpdateExisting:
+                            <span>Existing items will be updated with imported values. New items will be added.</span>
+                            break;
+                        case MergeStrategy.ReplaceAll:
+                            <span class="text-danger"><strong>Warning:</strong> All existing data will be deleted before import!</span>
+                            break;
+                    }
+                </small>
+            </div>
+            
+            <button @onclick="_onImportConfig" 
+                    class="btn btn-warning" 
+                    disabled="@(_isImporting || string.IsNullOrEmpty(_importFileContent))"
+                    title="Import configuration from the selected file">
+                @if (_isImporting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                Import Configuration
+            </button>
+            
+            @if (_importResult != null)
+            {
+                <div class="mt-3 alert @(_importResult.Success ? "alert-success" : "alert-danger")">
+                    <h6>@(_importResult.Success ? "Import Successful" : "Import Completed with Issues")</h6>
+                    <ul class="mb-0">
+                        @if (_importResult.StoragesCreated > 0 || _importResult.StoragesUpdated > 0 || _importResult.StoragesSkipped > 0)
+                        {
+                            <li>Storages: @_importResult.StoragesCreated created, @_importResult.StoragesUpdated updated, @_importResult.StoragesSkipped skipped</li>
+                        }
+                        @if (_importResult.EndpointsCreated > 0 || _importResult.EndpointsUpdated > 0 || _importResult.EndpointsSkipped > 0)
+                        {
+                            <li>Endpoints: @_importResult.EndpointsCreated created, @_importResult.EndpointsUpdated updated, @_importResult.EndpointsSkipped skipped</li>
+                        }
+                        @if (_importResult.RulesCreated > 0 || _importResult.RulesUpdated > 0 || _importResult.RulesSkipped > 0)
+                        {
+                            <li>Rules: @_importResult.RulesCreated created, @_importResult.RulesUpdated updated, @_importResult.RulesSkipped skipped</li>
+                        }
+                    </ul>
+                    @if (_importResult.Warnings.Any())
+                    {
+                        <hr />
+                        <strong>Warnings:</strong>
+                        <ul class="mb-0">
+                            @foreach (var warning in _importResult.Warnings)
+                            {
+                                <li class="text-warning">@warning</li>
+                            }
+                        </ul>
+                    }
+                    @if (_importResult.Errors.Any())
+                    {
+                        <hr />
+                        <strong>Errors:</strong>
+                        <ul class="mb-0">
+                            @foreach (var error in _importResult.Errors)
+                            {
+                                <li class="text-danger">@error</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
 <div class="card border-danger">
     <div class="card-header bg-danger text-white">
         <h5 class="mb-0">⚠️ Danger Zone</h5>
@@ -71,6 +203,115 @@
 
 @code {
     private IdentityUser? _user = null;
+    
+    // Export state
+    private bool _exportIncludePasswords = false;
+    private bool _exportIncludeInactive = false;
+    private bool _isExporting = false;
+    
+    // Import state
+    private string? _selectedFileName = null;
+    private string? _importFileContent = null;
+    private MergeStrategy _importStrategy = MergeStrategy.SkipExisting;
+    private bool _isImporting = false;
+    private ImportResult? _importResult = null;
+
+    private async Task _onExportConfig()
+    {
+        _isExporting = true;
+        await InvokeAsync(StateHasChanged);
+        
+        try
+        {
+            var export = await HannibalServiceClient.ExportConfigAsync(
+                _exportIncludePasswords, 
+                _exportIncludeInactive, 
+                CancellationToken.None);
+            
+            var jsonOptions = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            var json = JsonSerializer.Serialize(export, jsonOptions);
+            
+            // Generate filename with timestamp
+            var filename = $"backer-config-{DateTime.Now:yyyy-MM-dd-HHmmss}.json";
+            
+            // Trigger download via JS interop
+            await JsRuntime.InvokeVoidAsync("downloadFile", filename, json);
+        }
+        catch (Exception ex)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"Export failed: {ex.Message}");
+        }
+        finally
+        {
+            _isExporting = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    
+    private async Task _onFileSelected(InputFileChangeEventArgs e)
+    {
+        _importResult = null;
+        
+        var file = e.File;
+        if (file == null)
+        {
+            _selectedFileName = null;
+            _importFileContent = null;
+            return;
+        }
+        
+        _selectedFileName = file.Name;
+        
+        // Read file content (limit to 10MB)
+        using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        using var reader = new StreamReader(stream);
+        _importFileContent = await reader.ReadToEndAsync();
+        
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private async Task _onImportConfig()
+    {
+        if (string.IsNullOrEmpty(_importFileContent))
+            return;
+        
+        // Confirm if using ReplaceAll strategy
+        if (_importStrategy == MergeStrategy.ReplaceAll)
+        {
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", 
+                "WARNING: This will DELETE ALL your existing configuration before importing. Are you sure?");
+            if (!confirmed)
+                return;
+        }
+        
+        _isImporting = true;
+        _importResult = null;
+        await InvokeAsync(StateHasChanged);
+        
+        try
+        {
+            _importResult = await HannibalServiceClient.ImportConfigAsync(
+                _importFileContent, 
+                _importStrategy, 
+                CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _importResult = new ImportResult
+            {
+                Errors = { $"Import failed: {ex.Message}" }
+            };
+        }
+        finally
+        {
+            _isImporting = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
 
     private async void _onDeleteAccount()
     {

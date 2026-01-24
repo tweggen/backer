@@ -1,24 +1,27 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 using Hannibal.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Hannibal.Services;
 
+/// <summary>
+/// Strategy for handling conflicts during import
+/// </summary>
 public enum MergeStrategy
 {
-    SkipExisting,      // Skip items that already exist
-    UpdateExisting,    // Update existing items with new data
-    ReplaceExisting,   // Delete existing and create new
-    CreateNew          // Always create new (with modified names if needed)
+    /// <summary>Skip items that already exist (match by unique name)</summary>
+    SkipExisting,
+    /// <summary>Update existing items with imported data</summary>
+    UpdateExisting,
+    /// <summary>Delete all existing data and import fresh</summary>
+    ReplaceAll
 }
 
-
+/// <summary>
+/// Result of an import operation
+/// </summary>
 public class ImportResult
 {
     public int StoragesCreated { get; set; }
@@ -27,380 +30,602 @@ public class ImportResult
     public int EndpointsCreated { get; set; }
     public int EndpointsUpdated { get; set; }
     public int EndpointsSkipped { get; set; }
-    
-    public int TotalProcessed => StoragesCreated + StoragesUpdated + StoragesSkipped + 
-                                 EndpointsCreated + EndpointsUpdated + EndpointsSkipped;
+    public int RulesCreated { get; set; }
+    public int RulesUpdated { get; set; }
+    public int RulesSkipped { get; set; }
+    public List<string> Warnings { get; set; } = new();
+    public List<string> Errors { get; set; } = new();
+
+    public bool Success => Errors.Count == 0;
 }
 
+#region Export DTOs
 
-// Assuming these are your entity models - adjust as needed
+/// <summary>
+/// Root export object containing all configuration data
+/// </summary>
 public class ConfigExport
 {
-    public string ExportedAt { get; set; }
-    public string ExportedBy { get; set; }
-    public string Version { get; set; }
+    public string Version { get; set; } = "2.0";
+    public DateTime ExportedAt { get; set; }
+    public string? ExportedBy { get; set; }
     public List<StorageExport> Storages { get; set; } = new();
     public List<EndpointExport> Endpoints { get; set; } = new();
+    public List<RuleExport> Rules { get; set; } = new();
 }
 
-
+/// <summary>
+/// Storage export DTO - includes all fields needed to recreate a storage
+/// </summary>
 public class StorageExport
 {
-    public int Id { get; set; }
-    public string UserId { get; set; }
-    public string Technology { get; set; }
-    public string UriSchema { get; set; }
-    public string Networks { get; set; }
+    // Identity
+    public string UriSchema { get; set; } = "";  // Unique identifier (e.g., "nas_admin")
+    public string Technology { get; set; } = ""; // smb, onedrive, dropbox, googledrive, local
+    
+    // Common
+    public string Networks { get; set; } = "";
+    public bool IsActive { get; set; } = true;
+    
+    // OAuth-based storage (OneDrive, Dropbox, Google Drive)
+    public string? OAuth2Email { get; set; }
+    // Note: AccessToken/RefreshToken are NOT exported - user must re-authenticate
+    
+    // Credential-based storage (SMB, FTP, etc.)
+    public string? Host { get; set; }
+    public int? Port { get; set; }
+    public string? Username { get; set; }
+    public string? Password { get; set; }  // Optional - can be included or omitted
+    public string? Domain { get; set; }
+    
+    // Metadata
     public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
-    public bool IsActive { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
-
+/// <summary>
+/// Endpoint export DTO
+/// </summary>
 public class EndpointExport
 {
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public string UserId { get; set; }
-    public int? StorageId { get; set; }
-    public string Path { get; set; }
-    public string Comment { get; set; }
+    public string Name { get; set; } = "";        // Unique identifier for this endpoint
+    public string StorageRef { get; set; } = "";  // Reference to Storage.UriSchema
+    public string Path { get; set; } = "";
+    public string? Comment { get; set; }
+    public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
-    public bool IsActive { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
+/// <summary>
+/// Rule export DTO
+/// </summary>
+public class RuleExport
+{
+    public string Name { get; set; } = "";
+    public string? Comment { get; set; }
+    public string SourceEndpointRef { get; set; } = "";      // Reference to Endpoint.Name
+    public string DestinationEndpointRef { get; set; } = ""; // Reference to Endpoint.Name
+    public string Operation { get; set; } = "Copy";          // Nop, Copy, Sync
+    
+    // Timing configuration (stored as readable strings)
+    public string MaxDestinationAge { get; set; } = "1.00:00:00";           // TimeSpan as string
+    public string MinRetryTime { get; set; } = "00:15:00";                  // TimeSpan as string
+    public string MaxTimeAfterSourceModification { get; set; } = "00:30:00";// TimeSpan as string
+    public string DailyTriggerTime { get; set; } = "03:00:00";              // TimeSpan as string
+}
+
+#endregion
 
 public partial class HannibalService
 {
+    private static readonly JsonSerializerOptions ExportJsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     /// <summary>
-    /// Exports configuration data (Storages and Endpoints) for the specified user or current user
+    /// Exports all configuration data for the current user
     /// </summary>
-    /// <param name="userId">User ID to export data for. If null, exports for current user.</param>
-    /// <param name="includeInactive">Whether to include inactive/deleted items</param>
-    /// <returns>JSON string containing the exported configuration</returns>
-    public async Task<ConfigExport> ExportConfig(bool includeInactive, CancellationToken cancellationToken)
+    /// <param name="includePasswords">Whether to include passwords in the export</param>
+    /// <param name="includeInactive">Whether to include inactive items</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>ConfigExport object containing all data</returns>
+    public async Task<ConfigExport> ExportConfigAsync(
+        bool includePasswords = false,
+        bool includeInactive = false,
+        CancellationToken cancellationToken = default)
     {
         await _obtainUser();
-        
-        try
+
+        _logger?.LogInformation("Starting config export for user {UserId}, includePasswords={IncludePasswords}, includeInactive={IncludeInactive}",
+            _currentUser.Id, includePasswords, includeInactive);
+
+        var export = new ConfigExport
         {
-            _logger?.LogInformation("Starting config export for user {UserId}", _currentUser.Id);
+            ExportedAt = DateTime.UtcNow,
+            ExportedBy = _currentUser.UserName ?? _currentUser.Id
+        };
 
-            // Query storages for the user
-            var storagesQuery = _context.Storages.Where(s => s.UserId == _currentUser.Id);
-            if (!includeInactive)
-            {
-                storagesQuery = storagesQuery.Where(s => s.IsActive);
-            }
-            
-            var storages = await storagesQuery
-                .Select(s => new StorageExport
-                {
-                    Id = s.Id,
-                    Technology = s.Technology,
-                    UriSchema = s.UriSchema,
-                    Networks = s.Networks,
-                    UserId = s.UserId,
-                    CreatedAt = s.CreatedAt,
-                    UpdatedAt = s.UpdatedAt,
-                    IsActive = s.IsActive
-                })
-                .ToListAsync();
+        // Export Storages
+        var storagesQuery = _context.Storages.Where(s => s.UserId == _currentUser.Id);
+        if (!includeInactive)
+            storagesQuery = storagesQuery.Where(s => s.IsActive);
 
-            // Query endpoints for the user
-            var endpointsQuery = _context.Endpoints.Where(e => e.UserId == _currentUser.Id);
-            if (!includeInactive)
-            {
-                endpointsQuery = endpointsQuery.Where(e => e.IsActive);
-            }
-
-            var endpoints = await endpointsQuery
-                .Select(e => new EndpointExport
-                {
-                    Id = e.Id,
-                    Name = e.Name,
-                    UserId = e.UserId,
-                    StorageId = e.StorageId,
-                    Path = e.Path,
-                    Comment = e.Comment,
-                    CreatedAt = e.CreatedAt,
-                    UpdatedAt = e.UpdatedAt,
-                    IsActive = e.IsActive
-                })
-                .ToListAsync();
-
-            var export = new ConfigExport
-            {
-                ExportedAt = DateTime.UtcNow.ToString("O"),
-                ExportedBy = _currentUser.Id,
-                Version = "1.0", // You might want to track versions
-                Storages = storages,
-                Endpoints = endpoints
-            };
-
-            #if false
-            var jsonOptions = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-
-            var json = JsonSerializer.Serialize(export, jsonOptions);
-            
-            _logger?.LogInformation("Config export completed for user {Username}. Exported {StorageCount} storages and {EndpointCount} endpoints", 
-                user.Username, storages.Count, endpoints.Count);
-
-            return json;
-            #else
-            return export;
-            #endif
-        }
-        catch (Exception ex)
+        var storages = await storagesQuery.ToListAsync(cancellationToken);
+        foreach (var s in storages)
         {
-            _logger?.LogError(ex, "Error during config export for user {Username}", "timo");
-            throw;
+            export.Storages.Add(new StorageExport
+            {
+                UriSchema = s.UriSchema,
+                Technology = s.Technology,
+                Networks = s.Networks,
+                IsActive = s.IsActive,
+                OAuth2Email = s.OAuth2Email,
+                Host = s.Host,
+                Port = s.Port,
+                Username = s.Username,
+                Password = includePasswords ? s.Password : null,
+                Domain = s.Domain,
+                CreatedAt = s.CreatedAt,
+                UpdatedAt = s.UpdatedAt
+            });
         }
+
+        // Export Endpoints
+        var endpointsQuery = _context.Endpoints
+            .Include(e => e.Storage)
+            .Where(e => e.UserId == _currentUser.Id);
+        if (!includeInactive)
+            endpointsQuery = endpointsQuery.Where(e => e.IsActive);
+
+        var endpoints = await endpointsQuery.ToListAsync(cancellationToken);
+        foreach (var e in endpoints)
+        {
+            export.Endpoints.Add(new EndpointExport
+            {
+                Name = e.Name,
+                StorageRef = e.Storage?.UriSchema ?? "",
+                Path = e.Path,
+                Comment = e.Comment,
+                IsActive = e.IsActive,
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt
+            });
+        }
+
+        // Export Rules
+        var rulesQuery = _context.Rules
+            .Include(r => r.SourceEndpoint)
+            .Include(r => r.DestinationEndpoint)
+            .Where(r => r.UserId == _currentUser.Id);
+
+        var rules = await rulesQuery.ToListAsync(cancellationToken);
+        foreach (var r in rules)
+        {
+            export.Rules.Add(new RuleExport
+            {
+                Name = r.Name,
+                Comment = r.Comment,
+                SourceEndpointRef = r.SourceEndpoint?.Name ?? "",
+                DestinationEndpointRef = r.DestinationEndpoint?.Name ?? "",
+                Operation = r.Operation.ToString(),
+                MaxDestinationAge = r.MaxDestinationAge.ToString(),
+                MinRetryTime = r.MinRetryTime.ToString(),
+                MaxTimeAfterSourceModification = r.MaxTimeAfterSourceModification.ToString(),
+                DailyTriggerTime = r.DailyTriggerTime.ToString()
+            });
+        }
+
+        _logger?.LogInformation("Config export completed: {StorageCount} storages, {EndpointCount} endpoints, {RuleCount} rules",
+            export.Storages.Count, export.Endpoints.Count, export.Rules.Count);
+
+        return export;
     }
 
     /// <summary>
-    /// Imports configuration data from a previous export, merging it with existing data
+    /// Exports configuration to JSON string
     /// </summary>
-    /// <param name="configJson">JSON string from a previous export</param>
-    /// <param name="mergeStrategy">Strategy for handling conflicts</param>
-    /// <param name="targetUserId">Target user ID for import. If null, uses current user.</param>
-    /// <returns>Import result summary</returns>
-    public async Task<ImportResult> ImportConfig(string configJson, MergeStrategy mergeStrategy, CancellationToken cancellationToken)
+    public async Task<string> ExportConfigToJsonAsync(
+        bool includePasswords = false,
+        bool includeInactive = false,
+        CancellationToken cancellationToken = default)
     {
+        var export = await ExportConfigAsync(includePasswords, includeInactive, cancellationToken);
+        return JsonSerializer.Serialize(export, ExportJsonOptions);
+    }
+
+    /// <summary>
+    /// Imports configuration from JSON string
+    /// </summary>
+    /// <param name="json">JSON string from previous export</param>
+    /// <param name="strategy">How to handle existing items</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Import result with statistics and any warnings/errors</returns>
+    public async Task<ImportResult> ImportConfigAsync(
+        string json,
+        MergeStrategy strategy = MergeStrategy.SkipExisting,
+        CancellationToken cancellationToken = default)
+    {
+        await _obtainUser();
+
+        var result = new ImportResult();
+
+        ConfigExport? import;
         try
         {
-            _logger?.LogInformation("Starting config import for user {UserId}", _currentUser.Id);
-
-            var import = JsonSerializer.Deserialize<ConfigExport>(configJson, new JsonSerializerOptions
+            import = JsonSerializer.Deserialize<ConfigExport>(json, new JsonSerializerOptions
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                PropertyNameCaseInsensitive = true
             });
+        }
+        catch (JsonException ex)
+        {
+            result.Errors.Add($"Invalid JSON format: {ex.Message}");
+            return result;
+        }
 
-            if (import == null)
+        if (import == null)
+        {
+            result.Errors.Add("Failed to parse configuration - empty or invalid");
+            return result;
+        }
+
+        _logger?.LogInformation("Starting config import for user {UserId}, strategy={Strategy}, version={Version}",
+            _currentUser.Id, strategy, import.Version);
+
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            // If ReplaceAll, delete everything first
+            if (strategy == MergeStrategy.ReplaceAll)
             {
-                throw new ArgumentException("Invalid configuration JSON");
+                await DeleteAllUserDataAsync(cancellationToken);
             }
 
-            var result = new ImportResult();
+            // Import in order: Storages -> Endpoints -> Rules (due to dependencies)
+            var storageIdMap = await ImportStoragesAsync(import.Storages, strategy, result, cancellationToken);
+            var endpointIdMap = await ImportEndpointsAsync(import.Endpoints, storageIdMap, strategy, result, cancellationToken);
+            await ImportRulesAsync(import.Rules, endpointIdMap, strategy, result, cancellationToken);
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            
-            try
-            {
-                // Import Storages
-                await ImportStorages(import.Storages, _currentUser.Id, mergeStrategy, result);
-                
-                // Import Endpoints (after storages to handle dependencies)
-                await ImportEndpoints(import.Endpoints, _currentUser.Id, mergeStrategy, result);
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                _logger?.LogInformation("Config import completed for user {UserId}. Results: {Results}", 
-                    _currentUser.Id, JsonSerializer.Serialize(result));
-
-                return result;
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+            _logger?.LogInformation("Config import completed successfully: {Result}", 
+                JsonSerializer.Serialize(result, ExportJsonOptions));
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error during config import for user {Username}", "timo");
-            throw;
+            await transaction.RollbackAsync(cancellationToken);
+            result.Errors.Add($"Import failed: {ex.Message}");
+            _logger?.LogError(ex, "Config import failed for user {UserId}", _currentUser.Id);
         }
+
+        return result;
     }
 
-    
-    private async Task ImportStorages(List<StorageExport> storages, string userId, MergeStrategy mergeStrategy, ImportResult result)
+    /// <summary>
+    /// Deletes all configuration data for the current user
+    /// </summary>
+    private async Task DeleteAllUserDataAsync(CancellationToken cancellationToken)
     {
-        foreach (var storageExport in storages)
+        // Delete in reverse dependency order: Rules -> Endpoints -> Storages
+        var rules = await _context.Rules.Where(r => r.UserId == _currentUser.Id).ToListAsync(cancellationToken);
+        _context.Rules.RemoveRange(rules);
+
+        var endpoints = await _context.Endpoints.Where(e => e.UserId == _currentUser.Id).ToListAsync(cancellationToken);
+        _context.Endpoints.RemoveRange(endpoints);
+
+        var storages = await _context.Storages.Where(s => s.UserId == _currentUser.Id).ToListAsync(cancellationToken);
+        _context.Storages.RemoveRange(storages);
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Import storages and return a mapping of UriSchema -> new Storage ID
+    /// </summary>
+    private async Task<Dictionary<string, int>> ImportStoragesAsync(
+        List<StorageExport> storages,
+        MergeStrategy strategy,
+        ImportResult result,
+        CancellationToken cancellationToken)
+    {
+        var idMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var exp in storages)
         {
-            // Check if storage already exists (by name and user)
+            if (string.IsNullOrWhiteSpace(exp.UriSchema))
+            {
+                result.Warnings.Add($"Skipping storage with empty UriSchema");
+                continue;
+            }
+
             var existing = await _context.Storages
-                .FirstOrDefaultAsync(s => s.Technology == storageExport.Technology && s.UserId == userId);
+                .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id && s.UriSchema == exp.UriSchema, cancellationToken);
 
             if (existing != null)
             {
-                switch (mergeStrategy)
+                idMap[exp.UriSchema] = existing.Id;
+
+                if (strategy == MergeStrategy.SkipExisting)
                 {
-                    case MergeStrategy.SkipExisting:
-                        result.StoragesSkipped++;
-                        continue;
-                        
-                    case MergeStrategy.UpdateExisting:
-                        existing.UriSchema = storageExport.UriSchema;
-                        existing.Networks = storageExport.Networks;
-                        existing.Technology = storageExport.Technology;
-                        existing.UpdatedAt = DateTime.UtcNow;
-                        existing.IsActive = storageExport.IsActive;
-                        result.StoragesUpdated++;
-                        break;
-                        
-                    case MergeStrategy.ReplaceExisting:
-                        _context.Storages.Remove(existing);
-                        goto case MergeStrategy.CreateNew;
-                        
-                    case MergeStrategy.CreateNew:
-                        var newStorage = new Storage // Adjust to your actual entity type
-                        {
-                            Technology = storageExport.Technology,
-                            UriSchema = storageExport.UriSchema,
-                            Networks = storageExport.Networks,
-                            CreatedAt = DateTime.UtcNow,
-                            IsActive = storageExport.IsActive
-                        };
-                        _context.Storages.Add(newStorage);
-                        result.StoragesCreated++;
-                        break;
+                    result.StoragesSkipped++;
+                    continue;
                 }
+
+                // Update existing
+                UpdateStorageFromExport(existing, exp);
+                existing.UpdatedAt = DateTime.UtcNow;
+                result.StoragesUpdated++;
             }
             else
             {
-                // Create new storage
-                var newStorage = new Storage // Adjust to your actual entity type
+                // Create new
+                var storage = new Storage
                 {
-                    UserId = userId,
-                    Technology = storageExport.Technology,
-                    UriSchema = storageExport.UriSchema,
-                    Networks = storageExport.Networks,
+                    UserId = _currentUser.Id,
+                    UriSchema = exp.UriSchema,
+                    Technology = exp.Technology,
+                    Networks = exp.Networks ?? "",
+                    IsActive = exp.IsActive,
+                    OAuth2Email = exp.OAuth2Email ?? "",
+                    Host = exp.Host ?? "",
+                    Port = exp.Port,
+                    Username = exp.Username ?? "",
+                    Password = exp.Password ?? "",
+                    Domain = exp.Domain ?? "",
                     CreatedAt = DateTime.UtcNow,
-                    IsActive = storageExport.IsActive
+                    UpdatedAt = DateTime.UtcNow
                 };
-                _context.Storages.Add(newStorage);
+
+                _context.Storages.Add(storage);
+                await _context.SaveChangesAsync(cancellationToken); // Save to get ID
+                idMap[exp.UriSchema] = storage.Id;
                 result.StoragesCreated++;
             }
         }
+
+        return idMap;
     }
 
-    
-    private async Task ImportEndpoints(List<EndpointExport> endpoints, string userId, MergeStrategy mergeStrategy, ImportResult result)
+    private void UpdateStorageFromExport(Storage storage, StorageExport exp)
     {
-        foreach (var endpointExport in endpoints)
+        storage.Technology = exp.Technology;
+        storage.Networks = exp.Networks ?? "";
+        storage.IsActive = exp.IsActive;
+        storage.OAuth2Email = exp.OAuth2Email ?? "";
+        storage.Host = exp.Host ?? "";
+        storage.Port = exp.Port;
+        storage.Username = exp.Username ?? "";
+        storage.Domain = exp.Domain ?? "";
+        
+        // Only update password if provided in export
+        if (!string.IsNullOrEmpty(exp.Password))
         {
-            // Check if endpoint already exists (by name and user)
-            var existing = await _context.Endpoints
-                .FirstOrDefaultAsync(e => e.Name == endpointExport.Name && e.UserId == userId);
+            storage.Password = exp.Password;
+        }
+    }
 
-            // Resolve storage reference if present
-            int? storageId = null;
-            if (endpointExport.StorageId.HasValue)
+    /// <summary>
+    /// Import endpoints and return a mapping of Name -> new Endpoint ID
+    /// </summary>
+    private async Task<Dictionary<string, int>> ImportEndpointsAsync(
+        List<EndpointExport> endpoints,
+        Dictionary<string, int> storageIdMap,
+        MergeStrategy strategy,
+        ImportResult result,
+        CancellationToken cancellationToken)
+    {
+        var idMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var exp in endpoints)
+        {
+            if (string.IsNullOrWhiteSpace(exp.Name))
             {
-                // Try to find storage by original ID first, then by Technology
-                var storage = await _context.Storages
-                    .FirstOrDefaultAsync(s => s.UserId == userId && 
-                        (s.Id == endpointExport.StorageId.Value || 
-                         _context.Storages.Any(orig => orig.Id == endpointExport.StorageId.Value && orig.Technology == s.Technology)));
-                storageId = storage?.Id;
+                result.Warnings.Add("Skipping endpoint with empty Name");
+                continue;
             }
+
+            // Resolve storage reference
+            if (!storageIdMap.TryGetValue(exp.StorageRef, out var storageId))
+            {
+                // Try to find existing storage by UriSchema
+                var existingStorage = await _context.Storages
+                    .FirstOrDefaultAsync(s => s.UserId == _currentUser.Id && s.UriSchema == exp.StorageRef, cancellationToken);
+                
+                if (existingStorage != null)
+                {
+                    storageId = existingStorage.Id;
+                }
+                else
+                {
+                    result.Warnings.Add($"Endpoint '{exp.Name}' references unknown storage '{exp.StorageRef}' - skipped");
+                    continue;
+                }
+            }
+
+            var existing = await _context.Endpoints
+                .FirstOrDefaultAsync(e => e.UserId == _currentUser.Id && e.Name == exp.Name, cancellationToken);
 
             if (existing != null)
             {
-                switch (mergeStrategy)
+                idMap[exp.Name] = existing.Id;
+
+                if (strategy == MergeStrategy.SkipExisting)
                 {
-                    case MergeStrategy.SkipExisting:
-                        result.EndpointsSkipped++;
-                        continue;
-                        
-                    case MergeStrategy.UpdateExisting:
-                        existing.StorageId = storageId.Value;
-                        existing.Path = endpointExport.Path;
-                        existing.Comment = endpointExport.Comment;
-                        existing.UpdatedAt = DateTime.UtcNow;
-                        existing.IsActive = endpointExport.IsActive;
-                        result.EndpointsUpdated++;
-                        break;
-                        
-                    case MergeStrategy.ReplaceExisting:
-                        _context.Endpoints.Remove(existing);
-                        goto case MergeStrategy.CreateNew;
-                        
-                    case MergeStrategy.CreateNew:
-                        var newEndpoint = new Endpoint // Adjust to your actual entity type
-                        {
-                            Name = GetUniqueEndpointName(endpointExport.Name, userId),
-                            UserId = userId,
-                            StorageId = storageId.Value,
-                            Path = endpointExport.Path,
-                            Comment = endpointExport.Comment,
-                            CreatedAt = DateTime.UtcNow,
-                            IsActive = endpointExport.IsActive
-                        };
-                        _context.Endpoints.Add(newEndpoint);
-                        result.EndpointsCreated++;
-                        break;
+                    result.EndpointsSkipped++;
+                    continue;
                 }
+
+                // Update existing
+                existing.StorageId = storageId;
+                existing.Path = exp.Path;
+                existing.Comment = exp.Comment ?? "";
+                existing.IsActive = exp.IsActive;
+                existing.UpdatedAt = DateTime.UtcNow;
+                result.EndpointsUpdated++;
             }
             else
             {
-                // Create new endpoint
-                var newEndpoint = new Endpoint // Adjust to your actual entity type
+                // Create new
+                var endpoint = new Endpoint
                 {
-                    Name = endpointExport.Name,
-                    UserId = userId,
-                    StorageId = storageId.Value,
-                    Path = endpointExport.Path,
-                    Comment = endpointExport.Comment,
+                    UserId = _currentUser.Id,
+                    Name = exp.Name,
+                    StorageId = storageId,
+                    Path = exp.Path,
+                    Comment = exp.Comment ?? "",
+                    IsActive = exp.IsActive,
                     CreatedAt = DateTime.UtcNow,
-                    IsActive = endpointExport.IsActive
+                    UpdatedAt = DateTime.UtcNow
                 };
-                _context.Endpoints.Add(newEndpoint);
+
+                _context.Endpoints.Add(endpoint);
+                await _context.SaveChangesAsync(cancellationToken); // Save to get ID
+                idMap[exp.Name] = endpoint.Id;
                 result.EndpointsCreated++;
+            }
+        }
+
+        return idMap;
+    }
+
+    /// <summary>
+    /// Import rules using endpoint name mapping
+    /// </summary>
+    private async Task ImportRulesAsync(
+        List<RuleExport> rules,
+        Dictionary<string, int> endpointIdMap,
+        MergeStrategy strategy,
+        ImportResult result,
+        CancellationToken cancellationToken)
+    {
+        foreach (var exp in rules)
+        {
+            if (string.IsNullOrWhiteSpace(exp.Name))
+            {
+                result.Warnings.Add("Skipping rule with empty Name");
+                continue;
+            }
+
+            // Resolve endpoint references
+            int? sourceEndpointId = await ResolveEndpointIdAsync(exp.SourceEndpointRef, endpointIdMap, cancellationToken);
+            int? destEndpointId = await ResolveEndpointIdAsync(exp.DestinationEndpointRef, endpointIdMap, cancellationToken);
+
+            if (sourceEndpointId == null)
+            {
+                result.Warnings.Add($"Rule '{exp.Name}' references unknown source endpoint '{exp.SourceEndpointRef}' - skipped");
+                continue;
+            }
+            if (destEndpointId == null)
+            {
+                result.Warnings.Add($"Rule '{exp.Name}' references unknown destination endpoint '{exp.DestinationEndpointRef}' - skipped");
+                continue;
+            }
+
+            // Parse operation
+            if (!Enum.TryParse<Rule.RuleOperation>(exp.Operation, true, out var operation))
+            {
+                result.Warnings.Add($"Rule '{exp.Name}' has invalid operation '{exp.Operation}', defaulting to Copy");
+                operation = Rule.RuleOperation.Copy;
+            }
+
+            // Parse TimeSpans
+            TimeSpan.TryParse(exp.MaxDestinationAge, out var maxDestAge);
+            TimeSpan.TryParse(exp.MinRetryTime, out var minRetry);
+            TimeSpan.TryParse(exp.MaxTimeAfterSourceModification, out var maxTimeAfterMod);
+            TimeSpan.TryParse(exp.DailyTriggerTime, out var dailyTrigger);
+
+            var existing = await _context.Rules
+                .FirstOrDefaultAsync(r => r.UserId == _currentUser.Id && r.Name == exp.Name, cancellationToken);
+
+            if (existing != null)
+            {
+                if (strategy == MergeStrategy.SkipExisting)
+                {
+                    result.RulesSkipped++;
+                    continue;
+                }
+
+                // Update existing
+                existing.Comment = exp.Comment ?? "";
+                existing.SourceEndpointId = sourceEndpointId.Value;
+                existing.DestinationEndpointId = destEndpointId.Value;
+                existing.Operation = operation;
+                existing.MaxDestinationAge = maxDestAge;
+                existing.MinRetryTime = minRetry;
+                existing.MaxTimeAfterSourceModification = maxTimeAfterMod;
+                existing.DailyTriggerTime = dailyTrigger;
+                result.RulesUpdated++;
+            }
+            else
+            {
+                // Create new
+                var rule = new Rule
+                {
+                    UserId = _currentUser.Id,
+                    Name = exp.Name,
+                    Comment = exp.Comment ?? "",
+                    SourceEndpointId = sourceEndpointId.Value,
+                    DestinationEndpointId = destEndpointId.Value,
+                    Operation = operation,
+                    MaxDestinationAge = maxDestAge,
+                    MinRetryTime = minRetry,
+                    MaxTimeAfterSourceModification = maxTimeAfterMod,
+                    DailyTriggerTime = dailyTrigger
+                };
+
+                _context.Rules.Add(rule);
+                result.RulesCreated++;
             }
         }
     }
 
-
-    private string GetUniqueEndpointName(string baseName, string userId)
+    private async Task<int?> ResolveEndpointIdAsync(
+        string endpointRef,
+        Dictionary<string, int> idMap,
+        CancellationToken cancellationToken)
     {
-        var counter = 1;
-        var name = baseName;
-        
-        while (_context.Endpoints.Any(e => e.Name == name && e.UserId == userId))
-        {
-            name = $"{baseName} ({counter})";
-            counter++;
-        }
-        
-        return name;
+        if (string.IsNullOrWhiteSpace(endpointRef))
+            return null;
+
+        if (idMap.TryGetValue(endpointRef, out var id))
+            return id;
+
+        // Try to find existing endpoint by name
+        var existing = await _context.Endpoints
+            .FirstOrDefaultAsync(e => e.UserId == _currentUser.Id && e.Name == endpointRef, cancellationToken);
+
+        return existing?.Id;
     }
 
-    
     /// <summary>
-    /// Exports configuration to a file
+    /// Export configuration to a file
     /// </summary>
-    public async Task<string> ExportConfigToFile(string filePath, bool includeInactive = false)
+    public async Task ExportConfigToFileAsync(
+        string filePath,
+        bool includePasswords = false,
+        bool includeInactive = false,
+        CancellationToken cancellationToken = default)
     {
-        var export = await ExportConfig(includeInactive, CancellationToken.None);
-        
-        var jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
-        var jsonExport = JsonSerializer.Serialize(export, jsonOptions);
-
-        await File.WriteAllTextAsync(filePath, jsonExport);
-        return filePath;
+        var json = await ExportConfigToJsonAsync(includePasswords, includeInactive, cancellationToken);
+        await File.WriteAllTextAsync(filePath, json, cancellationToken);
     }
 
-    
     /// <summary>
-    /// Imports configuration from a file
+    /// Import configuration from a file
     /// </summary>
-    public async Task<ImportResult> ImportConfigFromFile(string filePath, MergeStrategy mergeStrategy = MergeStrategy.SkipExisting)
+    public async Task<ImportResult> ImportConfigFromFileAsync(
+        string filePath,
+        MergeStrategy strategy = MergeStrategy.SkipExisting,
+        CancellationToken cancellationToken = default)
     {
-        var config = await File.ReadAllTextAsync(filePath);
-        return await ImportConfig(config, mergeStrategy, CancellationToken.None);
+        var json = await File.ReadAllTextAsync(filePath, cancellationToken);
+        return await ImportConfigAsync(json, strategy, cancellationToken);
     }
 }
-

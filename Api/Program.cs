@@ -729,12 +729,13 @@ app.MapDelete("/api/hannibal/v1/endpoints/{id}", async (
  * Config
  */
 
-app.MapGet("/api/hannibal/v1/dump", async (
-        IHannibalService higginsService,
+app.MapGet("/api/hannibal/v1/config/export", async (
+        IHannibalService hannibalService,
+        [FromQuery] bool includePasswords,
         [FromQuery] bool includeInactive,
         CancellationToken cancellationToken) =>
     {
-        var result = await higginsService.ExportConfig(includeInactive, cancellationToken);
+        var result = await hannibalService.ExportConfigAsync(includePasswords, includeInactive, cancellationToken);
         return Results.Ok(result);
     })
     .RequireAuthorization()
@@ -742,13 +743,12 @@ app.MapGet("/api/hannibal/v1/dump", async (
     .WithOpenApi();
 
     
-app.MapPost("/api/hannibal/v1/dump", async (
-        IHannibalService higginsService,
-        string configJson,
-        MergeStrategy mergeStrategy,
+app.MapPost("/api/hannibal/v1/config/import", async (
+        IHannibalService hannibalService,
+        [FromBody] ConfigImportRequest request,
         CancellationToken cancellationToken) =>
     {
-        var result = await higginsService.ImportConfig(configJson, mergeStrategy, cancellationToken);
+        var result = await hannibalService.ImportConfigAsync(request.ConfigJson, request.MergeStrategy, cancellationToken);
         return Results.Ok(result);
     })
     .RequireAuthorization()
