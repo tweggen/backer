@@ -48,6 +48,7 @@ public abstract class OAuthStorageProviderBase : StorageProviderBase
 
         var oldAccessToken = storage.AccessToken;
         var oldRefreshToken = storage.RefreshToken;
+        var oldExpiresAt = storage.ExpiresAt;
 
         var newAccessToken = await state.OAuthClient!.GetCurrentTokenAsync(
             storage.RefreshToken, false, cancellationToken);
@@ -81,6 +82,8 @@ public abstract class OAuthStorageProviderBase : StorageProviderBase
             tokensChanged = true;
         }
 
+        Logger.LogDebug($"Storage {storage.UriSchema} oldRefreshToken = {oldRefreshToken}, oldExpiresAt = {oldExpiresAt} newRefreshToken = {newRefreshToken}, newExpiresAt = {newExpiresAt}");
+        
         if (tokensChanged)
         {
             await UpdateStorageInDatabaseAsync(storage, cancellationToken);

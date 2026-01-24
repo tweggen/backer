@@ -6,10 +6,9 @@ namespace WorkerRClone.Services.Providers.Local;
 /// <summary>
 /// Storage provider for SMB/CIFS network shares
 /// </summary>
-public class SmbProvider : StorageProviderBase
+public class SmbProvider : CredentialStorageProviderBase
 {
     public override string Technology => "smb";
-    public override bool RequiresOAuth => false;
 
     public SmbProvider(ILogger<SmbProvider> logger) 
         : base(logger) 
@@ -39,10 +38,11 @@ public class SmbProvider : StorageProviderBase
             parameters["user"] = storage.Username;
         }
 
-        // Password for authentication (should be obscured by rclone)
-        if (!string.IsNullOrWhiteSpace(storage.Password))
+        // Password for authentication - must be obscured in rclone's format
+        var obscuredPassword = GetPasswordForRClone(storage);
+        if (!string.IsNullOrEmpty(obscuredPassword))
         {
-            parameters["pass"] = storage.Password;
+            parameters["pass"] = obscuredPassword;
         }
 
         // Domain for Windows domain authentication

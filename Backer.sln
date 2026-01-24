@@ -23,6 +23,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackerControl", "BackerCont
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OAuth2", "external\OAuth2\OAuth2\OAuth2.csproj", "{1E1DF181-1622-4964-990C-D280F1E07C52}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkerRClone.Tests", "tests\WorkerRClone.Tests\WorkerRClone.Tests.csproj", "{B2C3D4E5-F6A7-5B6C-9D0E-1F2A3B4C5D6E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -61,6 +65,10 @@ Global
 		{1E1DF181-1622-4964-990C-D280F1E07C52}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1E1DF181-1622-4964-990C-D280F1E07C52}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1E1DF181-1622-4964-990C-D280F1E07C52}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2C3D4E5-F6A7-5B6C-9D0E-1F2A3B4C5D6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2C3D4E5-F6A7-5B6C-9D0E-1F2A3B4C5D6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2C3D4E5-F6A7-5B6C-9D0E-1F2A3B4C5D6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2C3D4E5-F6A7-5B6C-9D0E-1F2A3B4C5D6E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -68,5 +76,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{D1AEF81A-F693-45E3-AAB1-E7CF20FFA2B2} = {F59EAE49-3A3C-4E00-BDCF-8B1E345BC7E7}
 		{91E01B6D-70E2-4951-ABA2-D4F68F03CC0E} = {3BC788FE-7CEF-4E04-A1C9-511E8ACF6930}
+		{B2C3D4E5-F6A7-5B6C-9D0E-1F2A3B4C5D6E} = {A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}
 	EndGlobalSection
 EndGlobal

@@ -776,6 +776,11 @@ public class RCloneService : BackgroundService
     internal async Task _backendsLoginImpl()
     {
         _logger.LogInformation("RCloneService: Backends logging in.");
+
+        if (null == _configManager)
+        {
+            _logger.LogWarning("RCloneService._backendsLoginImpl(): Warning: _configManager == null.");
+        }
         
         /*
          * We request backend login from our storages system, which in
@@ -788,9 +793,20 @@ public class RCloneService : BackgroundService
             /*
              * Ensure all storage states are created and initialized.
              */
-            await _rcloneStorages.FindStorageState(storage, CancellationToken.None);
+            var ss = await _rcloneStorages.FindStorageState(storage, CancellationToken.None);
+            if (_configManager != null)
+            {
+                _configManager.AddOrUpdateRemote(storage.UriSchema, ss.RCloneParameters);
+            }
+
         }
 
+        if (_configManager != null)
+        {
+            _logger.LogInformation($"Saving rclone config to {_rcloneConfigFile()}");
+            _configManager.SaveToFile(_rcloneConfigFile());
+        }
+        
         await _stateMachine!.TransitionAsync(ServiceEvent.BackendsLoggedIn);
     }
 

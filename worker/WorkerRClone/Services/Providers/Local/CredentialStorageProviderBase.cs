@@ -1,5 +1,6 @@
 using Hannibal.Models;
 using Microsoft.Extensions.Logging;
+using WorkerRClone.Services.Utils;
 
 namespace WorkerRClone.Services.Providers.Local;
 
@@ -41,20 +42,17 @@ public abstract class CredentialStorageProviderBase : StorageProviderBase
 
     /// <summary>
     /// Obscure a password for rclone configuration.
-    /// Rclone expects passwords to be obscured using its own algorithm.
-    /// For now, we pass the password as-is and rely on rclone's --obscure flag
-    /// or assume the password is already obscured in the database.
+    /// Rclone expects passwords in config files to be obscured using its own algorithm.
     /// </summary>
-    /// <remarks>
-    /// In production, you might want to:
-    /// 1. Store already-obscured passwords in the database
-    /// 2. Call rclone obscure command to obscure passwords
-    /// 3. Use rclone's built-in password handling
-    /// </remarks>
+    /// <param name="storage">The storage containing the password</param>
+    /// <returns>The obscured password suitable for rclone config files</returns>
     protected virtual string GetPasswordForRClone(Storage storage)
     {
-        // IMPORTANT: In production, passwords should be obscured using rclone's algorithm
-        // This is a placeholder - implement proper password obscuring
-        return storage.Password;
+        if (string.IsNullOrWhiteSpace(storage.Password))
+        {
+            return string.Empty;
+        }
+        
+        return RClonePasswordObscurer.Obscure(storage.Password);
     }
 }
