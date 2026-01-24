@@ -5,7 +5,6 @@
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Authentication.BearerToken
 @using Microsoft.AspNetCore.Http
-@using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Http.HttpResults
 @using Microsoft.AspNetCore.Identity.Data
 @inject IHttpContextAccessor HttpContextAccessor
@@ -55,50 +54,52 @@
 
     private async Task HandleLogin()
     {
-        var loginRequest = new LoginRequest()
+        try
         {
-            Email = loginModel.Username, Password = loginModel.Password, TwoFactorCode = "false", TwoFactorRecoveryCode = "false"
-        };
-        
-        var result = await IdentityApiService.LoginUserAsync(loginRequest, CancellationToken.None);
-        
-        if (result.Result is Ok<AccessTokenResponse> okResult)
-        {
-            var claims = new List<Claim>
+            var loginRequest = new LoginRequest()
             {
-                new Claim(ClaimTypes.Name, loginModel.Username),
+                Email = loginModel.Username, 
+                Password = loginModel.Password, 
+                TwoFactorCode = "false", 
+                TwoFactorRecoveryCode = "false"
             };
-
-            var identity = new ClaimsIdentity(claims, "Cookies");
-            var principal = new ClaimsPrincipal(identity);
-            await HttpContextAccessor.HttpContext!.SignInAsync("Cookies", principal);
-        } 
-        else
-        {
-            ErrorMessage = "Invalid login credentials";
-            return;
-        }
-
-
-        var tokenResult = await IdentityApiService.TokenAsync(
-                loginRequest, CancellationToken.None);
-        if (tokenResult.Result is Ok<AccessTokenResponse> okTokenResult)
-        {
-            var token = okTokenResult.Value!.AccessToken;
-            HttpContextAccessor.HttpContext!.Response.Cookies.Append("access_token", token, new CookieOptions
+            
+            var result = await IdentityApiService.LoginUserAsync(loginRequest, CancellationToken.None);
+            
+            if (result.Result is Ok<AccessTokenResponse>)
             {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict
-            });
-        }
-        else
-        {
-            ErrorMessage = "Invalid login credentials for token";
-            return;
-        }
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, loginModel.Username),
+                };
 
-        Navigation.NavigateTo($"{BasePath.Value}/backer/", forceLoad: true);
+                var identity = new ClaimsIdentity(claims, "Cookies");
+                var principal = new ClaimsPrincipal(identity);
+                await HttpContextAccessor.HttpContext!.SignInAsync("Cookies", principal);
+
+                var tokenResult = await IdentityApiService.TokenAsync(loginRequest, CancellationToken.None);
+                if (tokenResult.Result is Ok<AccessTokenResponse> okTokenResult)
+                {
+                    var token = okTokenResult.Value!.AccessToken;
+                    HttpContextAccessor.HttpContext!.Response.Cookies.Append("access_token", token, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict
+                    });
+                }
+
+                HttpContextAccessor.HttpContext!.Response.Redirect($"{BasePath.Value}/backer/");
+            }
+            else
+            {
+                ErrorMessage = "Invalid login credentials";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Login failed: {ex.Message}";
+        }
     }
 
     public class LoginModel

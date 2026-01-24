@@ -65,69 +65,66 @@
     background: white;
     border-radius: 16px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    padding: 2rem;
+    padding: 2.5rem;
     width: 100%;
     max-width: 400px;
+    text-align: center;
 }
 
-.auth-tabs {
-    display: flex;
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid #e2e8f0;
+.auth-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1a202c;
+    margin-bottom: 0.5rem;
 }
 
-.auth-tab {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border: none;
-    background: none;
-    font-size: 1rem;
-    font-weight: 500;
+.auth-subtitle {
     color: #64748b;
-    cursor: pointer;
-    transition: all 0.2s;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
+    margin-bottom: 2rem;
 }
 
-.auth-tab:hover {
-    color: #334155;
+.auth-buttons {
+    margin-bottom: 2rem;
 }
 
-.auth-tab.active {
-    color: #0d6efd;
-    border-bottom-color: #0d6efd;
-}
-
-.auth-form {
-    margin-top: 1rem;
-}
-
-.auth-form .form-label {
+.auth-buttons .btn {
+    padding: 0.875rem 1.5rem;
     font-weight: 500;
+    border-radius: 8px;
+}
+
+.auth-buttons .btn-outline-secondary {
+    border-color: #d1d5db;
     color: #374151;
 }
 
-.auth-form .form-control {
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
+.auth-buttons .btn-outline-secondary:hover {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
 }
 
-.auth-form .form-control:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+.auth-features {
+    text-align: left;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 1.5rem;
 }
 
-.auth-form .btn {
-    padding: 0.75rem 1.5rem;
-    font-weight: 500;
-    border-radius: 8px;
-    margin-top: 0.5rem;
+.auth-feature {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #4b5563;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
 }
 
-.auth-form .form-text {
-    font-size: 0.8rem;
+.auth-feature:last-child {
+    margin-bottom: 0;
+}
+
+.auth-feature span:first-child {
+    color: #22c55e;
+    font-weight: 600;
 }
 
 /* Responsive adjustments */

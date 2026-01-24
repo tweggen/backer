@@ -1,11 +1,10 @@
 @page "/SignUp"
 @layout Poe.Components.Layout.PublicLayout
-@using System.Security.Claims
 @using Hannibal.Client
-@using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Http.HttpResults
 @using Microsoft.AspNetCore.Identity.Data
 @inject IIdentityApiService IdentityApiService
+@inject IHttpContextAccessor HttpContextAccessor
 @inject NavigationManager Navigation
 @inject Tools.AppBasePath BasePath
 
@@ -61,31 +60,36 @@
         ErrorMessage = null;
         SuccessMessage = null;
 
-        var registerRequest = new RegisterRequest()
+        try
         {
-            Email = signupModel.Username, Password = signupModel.Password
-        };
+            var registerRequest = new RegisterRequest()
+            {
+                Email = signupModel.Username, 
+                Password = signupModel.Password
+            };
 
-        var result = await IdentityApiService.RegisterUserAsync(
-            registerRequest, CancellationToken.None);
-        if (result.Result is Ok okResult)
-        {
-            SuccessMessage = "Account created successfully! Redirecting to login...";
-            await Task.Delay(1500);
-            Navigation.NavigateTo($"{BasePath.Value}/login");
-            return;
-        } 
-        else if (result.Result is ValidationProblem validationProblem)
-        {
-            var errors = validationProblem.ProblemDetails.Errors
-                .SelectMany(kvp => kvp.Value)
-                .ToList();
-            ErrorMessage = string.Join(" ", errors);
-            return;
+            var result = await IdentityApiService.RegisterUserAsync(registerRequest, CancellationToken.None);
+                
+            if (result.Result is Ok)
+            {
+                SuccessMessage = "Account created successfully! Redirecting to login...";
+                HttpContextAccessor.HttpContext!.Response.Redirect($"{BasePath.Value}/login");
+            } 
+            else if (result.Result is ValidationProblem validationProblem)
+            {
+                var errors = validationProblem.ProblemDetails.Errors
+                    .SelectMany(kvp => kvp.Value)
+                    .ToList();
+                ErrorMessage = string.Join(" ", errors);
+            }
+            else
+            {
+                ErrorMessage = "Registration failed. Please try again.";
+            }
         }
-        else
+        catch (Exception ex)
         {
-            ErrorMessage = "Registration failed. Please try again.";
+            ErrorMessage = $"Registration failed: {ex.Message}";
         }
     }
     
