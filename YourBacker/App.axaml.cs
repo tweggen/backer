@@ -1,12 +1,11 @@
 using System.Net.Http.Json;
-using System.Reflection;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform.Storage;
+using Avalonia.Platform;
 using Avalonia.Threading;
 using Microsoft.AspNetCore.SignalR.Client;
 using WorkerRClone.Models;
@@ -135,24 +134,21 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Creates a simple tray icon programmatically.
-    /// Replace this with a proper icon file later.
+    /// Loads the tray icon from Avalonia resources or falls back to a generated icon.
     /// </summary>
     private WindowIcon? CreateTrayIcon()
     {
         try
         {
-            // Try to load from embedded resource first
-            var assembly = Assembly.GetExecutingAssembly();
-            var resourceName = "YourBacker.Assets.backer-tray.png";
-            using var stream = assembly.GetManifestResourceStream(resourceName);
-            
-            if (stream != null)
+            // Try to load from Avalonia embedded resources
+            var uri = new Uri("avares://YourBacker/Assets/backer-tray.png");
+            if (AssetLoader.Exists(uri))
             {
+                using var stream = AssetLoader.Open(uri);
                 return new WindowIcon(stream);
             }
             
-            // Fallback: try to load from file
+            // Fallback: try to load from file next to executable
             var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "backer-tray.png");
             if (File.Exists(iconPath))
             {
