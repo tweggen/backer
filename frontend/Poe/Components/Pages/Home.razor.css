@@ -127,6 +127,31 @@
     font-weight: 600;
 }
 
+/* PWA Install Button */
+.install-prompt:has(.d-none) {
+    display: none;
+}
+
+.install-prompt {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.install-prompt .btn {
+    padding: 0.875rem 1.5rem;
+    font-weight: 500;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.install-prompt .install-icon {
+    font-size: 1.25rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 576px) {
     .landing-container {

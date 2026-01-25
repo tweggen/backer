@@ -64,6 +64,13 @@
                         <span>✓</span> Automated Scheduling
                     </div>
                 </div>
+                
+                @* PWA Install Button - hidden by default, shown via JS when available *@
+                <div class="install-prompt">
+                    <button id="pwaInstallButton" class="btn btn-success w-100 d-none" onclick="installPwa()">
+                        <span class="install-icon">📱</span> Install App
+                    </button>
+                </div>
             </div>
         </div>
     </NotAuthorized>
