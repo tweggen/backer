@@ -1,8 +1,13 @@
-﻿@inject Tools.AppBasePath BasePath
+@inject Tools.AppBasePath BasePath
+
+<div class="sidebar-brand">
+    <img src="@($"{BasePath.Value}/icons/icon-96x96.png")" alt="Backer" class="brand-icon" />
+    <span class="brand-text">Backer</span>
+</div>
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="@($"{BasePath.Value}/backer/")">Backer</a>
+        <a class="navbar-brand" href="@($"{BasePath.Value}/backer/")">Menu</a>
     </div>
 </div>
 
@@ -12,7 +17,7 @@
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="@($"{BasePath.Value}/backer/")" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Backer
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
 
@@ -44,6 +49,14 @@
             <NavLink class="nav-link" href="@($"{BasePath.Value}/backer/account")">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Account
             </NavLink>
+        </div>
+        
+        <div class="nav-section-divider"></div>
+        
+        <div class="nav-item px-3">
+            <a class="nav-link" href="https://github.com/tweggen/backer/releases" target="_blank" rel="noopener noreferrer">
+                <span class="bi bi-download-nav-menu" aria-hidden="true"></span> Download Client
+            </a>
         </div>
     </nav>
 </div>
