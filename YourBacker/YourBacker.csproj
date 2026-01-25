@@ -10,11 +10,10 @@
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         
-        <!-- Application icon - uncomment when you have an icon file
-        <ApplicationIcon>Assets/backer-icon.ico</ApplicationIcon>
-        -->
+        <!-- Windows icon - uncomment when you have an icon file -->
+        <!-- <ApplicationIcon>Assets/YourBacker.ico</ApplicationIcon> -->
         
-        <!-- macOS specific -->
+        <!-- macOS bundle settings -->
         <CFBundleName>YourBacker</CFBundleName>
         <CFBundleDisplayName>YourBacker</CFBundleDisplayName>
         <CFBundleIdentifier>com.backer.yourbacker</CFBundleIdentifier>
@@ -44,8 +43,26 @@
         <ProjectReference Include="..\worker\WorkerRClone\WorkerRClone.csproj" />
     </ItemGroup>
 
+    <!-- Avalonia resources (embedded) -->
     <ItemGroup>
-        <AvaloniaResource Include="Assets\**" />
+        <AvaloniaResource Include="Assets\**" Exclude="Assets\*.icns;Assets\*.ico" />
+    </ItemGroup>
+    
+    <!-- macOS app bundle resources -->
+    <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+        <Content Include="Info.plist">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="Assets\YourBacker.icns" Condition="Exists('Assets\YourBacker.icns')">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    
+    <!-- Windows icon -->
+    <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <Content Include="Assets\YourBacker.ico" Condition="Exists('Assets\YourBacker.ico')">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
 </Project>
