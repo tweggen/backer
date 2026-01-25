@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        
+        <!-- Application icon - uncomment when you have an icon file
+        <ApplicationIcon>Assets/backer-icon.ico</ApplicationIcon>
+        -->
+        
+        <!-- macOS specific -->
+        <CFBundleName>YourBacker</CFBundleName>
+        <CFBundleDisplayName>YourBacker</CFBundleDisplayName>
+        <CFBundleIdentifier>com.backer.yourbacker</CFBundleIdentifier>
+        <CFBundleVersion>1.0.0</CFBundleVersion>
+        <CFBundleShortVersionString>1.0</CFBundleShortVersionString>
+        <NSHighResolutionCapable>True</NSHighResolutionCapable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="11.2.3" />
+        <PackageReference Include="Avalonia.Desktop" Version="11.2.3" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.3" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+        
+        <!-- Recommended for development: enables hot reload, diagnostics, etc -->
+        <PackageReference Include="Avalonia.Diagnostics" Version="11.2.3" Condition="'$(Configuration)' == 'Debug'" />
+        
+        <!-- SignalR client - same as WPF version -->
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.7" />
+        
+        <!-- CommunityToolkit for better MVVM support -->
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Reference to WorkerRClone for shared models -->
+        <ProjectReference Include="..\worker\WorkerRClone\WorkerRClone.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\**" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,87 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:YourBacker"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="400"
+        x:Class="YourBacker.TransferWindow"
+        x:DataType="local:TransferManager"
+        Title="File Transfers" 
+        Height="400" Width="600"
+        WindowStartupLocation="CenterScreen">
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Heading -->
+        <TextBlock Grid.Row="0"
+                   Text="Active File Transfers"
+                   FontSize="16"
+                   FontWeight="Bold"
+                   Margin="10,10,10,5"/>
+        
+        <!-- Transfer list -->
+        <ScrollViewer Grid.Row="1" 
+                      VerticalScrollBarVisibility="Auto"
+                      Margin="10,0,10,10">
+            <ItemsControl ItemsSource="{Binding Transfers}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:FileTransferViewModel">
+                        <Border Margin="0,2" 
+                                Background="#20808080" 
+                                CornerRadius="4"
+                                Padding="8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                
+                                <!-- File name and progress percentage -->
+                                <Grid Grid.Row="0" Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding SourcePath}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding SourcePath}"/>
+                                    
+                                    <StackPanel Grid.Column="1" 
+                                                Orientation="Horizontal"
+                                                Margin="10,0,0,0">
+                                        <TextBlock Text="{Binding Progress, StringFormat={}{0:F1}%}"/>
+                                        <TextBlock Text=" - " Opacity="0.6"/>
+                                        <TextBlock Text="{Binding SpeedFormatted}" Opacity="0.6"/>
+                                    </StackPanel>
+                                </Grid>
+                                
+                                <!-- Progress bar -->
+                                <ProgressBar Grid.Row="1"
+                                             Minimum="0" 
+                                             Maximum="100"
+                                             Value="{Binding Progress}" 
+                                             Height="8"
+                                             CornerRadius="4"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        
+        <!-- Empty state message -->
+        <TextBlock Grid.Row="1"
+                   Text="No active transfers"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Opacity="0.5"
+                   FontSize="14"
+                   IsVisible="{Binding IsEmpty}"/>
+    </Grid>
+</Window>
