@@ -15,13 +15,13 @@ PrivilegesRequired=admin
 ; Service binary (publish output from BackerAgent)
 Source: "BackerAgent\bin\Release\net9.0\win-x64\publish\*"; \
     DestDir: "{app}\service"; \
-    Flags: ignoreversion
+    Flags: ignoreversion recursesubdirs
 ; Deploy a default appsettings.json into ProgramData\Backer
 Source: "BackerAgent\bin\Release\net9.0\win-x64\publish\appsettings.json"; \
     DestDir: "{commonappdata}\Backer"; \
     Flags: ignoreversion
-; Control app binary (publish output from BackerControl)
-Source: "BackerControl\bin\Release\net9.0-windows\win-x64\publish\*"; \
+; Control app binary (publish output from YourBacker - cross-platform Avalonia app)
+Source: "YourBacker\bin\Release\net9.0\win-x64\publish\*"; \
     DestDir: "{app}\control"; \
     Flags: ignoreversion recursesubdirs
 
@@ -34,16 +34,16 @@ Name: "{app}\control"
 Name: "{app}\contrib"
 
 [Icons]
-Name: "{group}\Backer Control"; Filename: "{app}\control\BackerControl.exe"
+Name: "{group}\YourBacker"; Filename: "{app}\control\YourBacker.exe"
 Name: "{group}\Uninstall Backer"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\control\BackerControl.exe"; Description: "Launch Backer Control"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\control\YourBacker.exe"; Description: "Launch YourBacker"; Flags: nowait postinstall skipifsilent
 
 [Registry]
 Root: HKLM; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
-    ValueType: string; ValueName: "BackerControl"; \
-    ValueData: """{app}\control\BackerControl.exe"""; Flags: uninsdeletevalue
+    ValueType: string; ValueName: "YourBacker"; \
+    ValueData: """{app}\control\YourBacker.exe"""; Flags: uninsdeletevalue
 
 
 [UninstallRun]
