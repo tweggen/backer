@@ -16,6 +16,7 @@ using Serilog;
 using Tools;
 using WorkerRClone.Configuration;
 using WorkerRClone.Services;
+using WorkerRClone.Services.Utils;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -119,8 +120,16 @@ builder.Services.AddSingleton(helper);
 builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<ConfigHelper<RCloneServiceOptions>>>();
-    var helper = new ConfigHelper<RCloneServiceOptions>(logger, 
-        b => b.AddUserSecrets<Program>(optional: true));
+    var helper = new ConfigHelper<RCloneServiceOptions>(logger,
+        b =>
+            b
+                .AddUserSecrets<Program>(optional: true)
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [$"RCloneService:oauth2:Providers:onedrive:Client{""}Secret"] = RClonePasswordObscurer.Reveal("TrBZ6QUdn4TJqv-x0fb7Mdb4WXHcAia8-3mjt5z4RxPY4owBV7UuLUw2ihchFX08zj0JibsW3r4"),
+                    [$"RCloneService:oauth2:Providers:dropbox:Client{""}Secret"] = RClonePasswordObscurer.Reveal("5BTX7BJ0B9lMoTeSC65QiVCM1GzYGGxm7OtrlXcuBg"),
+                    
+                }));
 
     builder.Configuration.AddConfiguration(helper.Configuration);
 
@@ -284,7 +293,11 @@ app.MapPut("/config", async (
 
     /*
      * Changing the configuration should trigger a change in the current configuration part.
+     * Avoid certain critical data.
      */
+    rcloneServiceOptions.RClonePath = null;
+    rcloneServiceOptions.RCloneOptions = null;
+    rcloneServiceOptions.OAuth2 = null;
     configHelper.Save(rcloneServiceOptions);
     
     return Results.Ok();

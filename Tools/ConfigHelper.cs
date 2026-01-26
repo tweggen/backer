@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -91,9 +92,13 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
         };
 
         var json = JsonSerializer.Serialize(wrapper,
-            new JsonSerializerOptions { WriteIndented = true });
+            new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            });
 
-        // Write atomically: temp file + replace
+    // Write atomically: temp file + replace
         var tempFile = _configFilePath + ".tmp";
         File.WriteAllText(tempFile, json);
         File.Move(tempFile, _configFilePath, overwrite: true);
