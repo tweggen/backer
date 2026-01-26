@@ -2,15 +2,19 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="250"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="320"
         x:Class="YourBacker.ConfigWindow"
         Title="Configuration"
-        Height="250" Width="400"
+        Height="320" Width="400"
         WindowStartupLocation="CenterScreen"
         CanResize="False">
     
     <Grid Margin="10">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -29,40 +33,77 @@
                    VerticalAlignment="Center"/>
         <TextBox Grid.Row="0" Grid.Column="1" 
                  Name="CloudUrlTextBox" 
-                 Margin="5"/>
+                 Margin="5,5,5,0"/>
+        <TextBlock Grid.Row="1" Grid.Column="1"
+                   Name="CloudUrlErrorText"
+                   Foreground="Red"
+                   FontSize="11"
+                   Margin="5,0,5,5"
+                   TextWrapping="Wrap"
+                   IsVisible="False"/>
 
         <!-- Email -->
-        <TextBlock Grid.Row="1" Grid.Column="0" 
+        <TextBlock Grid.Row="2" Grid.Column="0" 
                    Text="Email:" 
                    VerticalAlignment="Center"/>
-        <TextBox Grid.Row="1" Grid.Column="1" 
+        <TextBox Grid.Row="2" Grid.Column="1" 
                  Name="EmailTextBox" 
-                 Margin="5"/>
+                 Margin="5,5,5,0"/>
+        <TextBlock Grid.Row="3" Grid.Column="1"
+                   Name="EmailErrorText"
+                   Foreground="Red"
+                   FontSize="11"
+                   Margin="5,0,5,5"
+                   TextWrapping="Wrap"
+                   IsVisible="False"/>
 
         <!-- Password -->
-        <TextBlock Grid.Row="2" Grid.Column="0" 
+        <TextBlock Grid.Row="4" Grid.Column="0" 
                    Text="Password:" 
                    VerticalAlignment="Center"/>
-        <TextBox Grid.Row="2" Grid.Column="1" 
+        <TextBox Grid.Row="4" Grid.Column="1" 
                  Name="PasswordBox" 
                  PasswordChar="•"
-                 Margin="5"/>
+                 Margin="5,5,5,0"/>
+        <TextBlock Grid.Row="5" Grid.Column="1"
+                   Name="PasswordErrorText"
+                   Foreground="Red"
+                   FontSize="11"
+                   Margin="5,0,5,5"
+                   TextWrapping="Wrap"
+                   IsVisible="False"/>
 
         <!-- Autostart -->
-        <TextBlock Grid.Row="3" Grid.Column="0" 
+        <TextBlock Grid.Row="6" Grid.Column="0" 
                    Text="Autostart:" 
                    VerticalAlignment="Center"/>
-        <CheckBox Grid.Row="3" Grid.Column="1" 
+        <CheckBox Grid.Row="6" Grid.Column="1" 
                   Name="AutostartCheckBox" 
                   Content="Enable Autostart" 
                   Margin="5"/>
         
+        <!-- Status message -->
+        <TextBlock Grid.Row="7" Grid.ColumnSpan="2"
+                   Name="StatusText"
+                   Foreground="Green"
+                   FontSize="11"
+                   Margin="5"
+                   TextWrapping="Wrap"
+                   HorizontalAlignment="Center"
+                   IsVisible="False"/>
+        
         <!-- Buttons -->
-        <StackPanel Grid.Row="5" Grid.ColumnSpan="2" 
+        <StackPanel Grid.Row="9" Grid.ColumnSpan="2" 
                     Orientation="Horizontal" 
                     HorizontalAlignment="Right" 
                     Margin="5">
+            <Button Content="Apply" 
+                    Name="ApplyButton"
+                    Width="80" 
+                    Margin="5" 
+                    Click="OnApplyClicked"/>
             <Button Content="Save" 
+                    Name="SaveButton"
                     Width="80" 
                     Margin="5" 
                     Click="OnSaveClicked"/>
