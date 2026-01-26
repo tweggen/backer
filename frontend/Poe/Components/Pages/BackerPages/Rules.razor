@@ -39,35 +39,21 @@
 }
 else
 {
-    <table class="table">
-        <thead>
-        <tr>
-            <th>&nbsp;</th>
-            <th title="Rule name for identification">Name</th>
-            <th title="Source endpoint - where files are backed up FROM">Source (from)</th>
-            <th title="Copy = add/update only; Sync = mirror exactly">Operation</th>
-            <th title="Destination endpoint - where files are backed up TO">Destination (to)</th>
-            <th title="Maximum age of backup before a new one is triggered (seconds)">Max Age (s)</th>
-            <th title="Minimum time between retry attempts (seconds)">Retry (s)</th>
-            <th title="Preferred time of day to run (seconds from midnight)">Daily Time (s)</th>
-            <th title="Current rule status">Status</th>
-            <th title="Optional notes">Comment</th>
-            <th>&nbsp;</th>
-        </tr>
-        </thead>
-        <tbody>
+    @* === CARD VIEW (used for both mobile and desktop) === *@
+    <div class="rules-card-list">
         @foreach (var ru in _listRules)
         {
             @if (_editRuleId == ru.Id && _listEndpoints != null)
             {
-                <tr>
-                    <td>&nbsp;</td>
-                    <td><InputText id="name" class="form-control" @bind-Value="_editRule.Name" title="A descriptive name for this backup rule"/></td>
-                    <td>
-                        <InputSelect id="source" 
-                                     placeholder="Source Endpoint"
-                                     class="form-control"
-                                     title="The endpoint to backup files FROM (your source of truth)"
+                @* Edit mode card *@
+                <div class="rule-card rule-card-edit">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <InputText class="form-control" @bind-Value="_editRule.Name" placeholder="Rule name"/>
+                    </div>
+                    <div class="form-group">
+                        <label>Source (from)</label>
+                        <InputSelect class="form-control"
                                      @bind-Value="_editSourceEndpointId"
                                      @bind-Value:after="_onEditSourceEndpointChanged">
                             @foreach (var ep in _listEndpoints)
@@ -75,25 +61,19 @@ else
                                 <option value="@ep.Id">@ep.Name</option>
                             }
                         </InputSelect>
-                    </td>
-                    <td>
-                        <InputSelect TValue="Rule.RuleOperation"
-                                     id="operation"
-                                     placeholder="Operation"
-                                     class="form-control"
-                                     title="Copy = add/update only; Sync = mirror exactly (deletes files removed from source)."
-                                     @bind-Value="_editRule.Operation">
+                    </div>
+                    <div class="form-group">
+                        <label>Operation</label>
+                        <InputSelect TValue="Rule.RuleOperation" class="form-control" @bind-Value="_editRule.Operation">
                             @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
                             {
                                 <option value="@op">@op</option>
                             }
                         </InputSelect>
-                    </td>
-                    <td>
-                        <InputSelect id="destination"
-                                     placeholder="Destination Endpoint"
-                                     class="form-control"
-                                     title="The endpoint where backups will be stored"
+                    </div>
+                    <div class="form-group">
+                        <label>Destination (to)</label>
+                        <InputSelect class="form-control"
                                      @bind-Value="_editDestinationEndpointId"
                                      @bind-Value:after="_onEditDestinationEndpointChanged">
                             @foreach (var ep in _listEndpoints)
@@ -101,63 +81,78 @@ else
                                 <option value="@ep.Id">@ep.Name</option>
                             }
                         </InputSelect>
-                    </td>
-                    <td>
-                        <InputNumber id="maxDestAge"
-                                     @bind-Value="_editMaxDestAge"
-                                     class="form-control"
-                                     title="Maximum age of backup before triggering a new one (in seconds). 86400 = daily, 3600 = hourly"/>
-                    </td>
-                    <td>
-                        <InputNumber id="minRetryTime"
-                                     @bind-Value="_editMinRetryTime"
-                                     class="form-control"
-                                     title="Minimum wait time between retry attempts if a backup fails (in seconds)"/>
-                    </td>
-                    <td>
-                        <InputNumber id="dailyTriggerTime"
-                                     @bind-Value="_editDailyTriggerTime"
-                                     class="form-control"
-                                     title="Preferred time of day to run backups (seconds from midnight). 0 = midnight, 7200 = 2 AM"/>
-                    </td>
-                    <td><InputText id="comment" @bind-Value="_editRule.Comment" class="form-control" title="Optional notes about this rule"/></td>
-                    <td>
-                        <button @onclick="_onEditRuleSubmit" id="submiteditrule" class="close" title="Save changes">✔</button>
-                        <button @onclick="_onEditRuleCancel" class="close" aria-label="delete" title="Cancel editing">❌️</button>
-                    </td>
-                </tr>
-                
-            } else
+                    </div>
+                    <div class="edit-row">
+                        <div class="form-group">
+                            <label>Max Age (s)</label>
+                            <InputNumber class="form-control" @bind-Value="_editMaxDestAge"/>
+                        </div>
+                        <div class="form-group">
+                            <label>Retry (s)</label>
+                            <InputNumber class="form-control" @bind-Value="_editMinRetryTime"/>
+                        </div>
+                        <div class="form-group">
+                            <label>Daily (s)</label>
+                            <InputNumber class="form-control" @bind-Value="_editDailyTriggerTime"/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Comment</label>
+                        <InputText class="form-control" @bind-Value="_editRule.Comment" placeholder="Optional notes"/>
+                    </div>
+                    <div class="rule-card-edit-actions">
+                        <button class="btn-cancel" @onclick="_onEditRuleCancel">Cancel</button>
+                        <button class="btn-save" @onclick="_onEditRuleSubmit">Save</button>
+                    </div>
+                </div>
+            }
+            else
             {
-                <tr>
-                    <td><button id="starteditrule" @onclick="() => _onEdit(ru)" aria-label="edit" title="Edit this rule">✏</button></td>
-                    <td>@ru.Name</td>
-                    <td>@ru.SourceEndpoint.Name</td>
-                    <td>@ru.Operation.ToString()</td>
-                    <td>@ru.DestinationEndpoint.Name</td>
-                    <td>@ru.MaxDestinationAge.TotalSeconds</td>
-                    <td>@ru.MinRetryTime.TotalSeconds</td>
-                    <td>@ru.DailyTriggerTime.TotalSeconds</td>
-                    <td>
-                        @{
-                            var status = _ruleStates.TryGetValue(ru.Id, out var rs) 
-                                ? (rs.ExpiredAfter > DateTime.UtcNow ? "Active" : "Expired") 
-                                : "Unknown";
-                            var badgeClass = status == "Active" ? "bg-success" : (status == "Expired" ? "bg-warning" : "bg-secondary");
+                @* View mode card *@
+                <div class="rule-card">
+                    <div class="rule-card-header">
+                        <h4 class="rule-card-title">📋 @ru.Name</h4>
+                        <button class="btn-edit" @onclick="() => _onEdit(ru)" title="Edit">✏️</button>
+                    </div>
+                    <div class="rule-card-main">
+                        <div class="rule-card-endpoints">
+                            <span class="endpoint">@ru.SourceEndpoint.Name</span>
+                            <span class="arrow">→</span>
+                            <span class="endpoint">@ru.DestinationEndpoint.Name</span>
+                        </div>
+                        <div class="rule-card-operation">
+                            <strong>@ru.Operation.ToString()</strong>
+                        </div>
+                    </div>
+                    <div class="rule-card-right">
+                        <button class="btn-delete" @onclick="() => _onDelete(ru)" title="Delete">🗑️</button>
+                    </div>
+                    <div class="rule-card-footer">
+                        <div class="rule-card-status">
+                            @{
+                                var cardStatus = _ruleStates.TryGetValue(ru.Id, out var cardRs) 
+                                    ? (cardRs.ExpiredAfter > DateTime.UtcNow ? "Active" : "Expired") 
+                                    : "Unknown";
+                                var cardBadgeClass = cardStatus == "Active" ? "bg-success" : (cardStatus == "Expired" ? "bg-warning" : "bg-secondary");
+                            }
+                            <span class="badge @cardBadgeClass">@cardStatus</span>
+                        </div>
+                        <div class="rule-card-stats">
+                            <span>Age: @FormatDuration(ru.MaxDestinationAge)</span>
+                            <span>Retry: @FormatDuration(ru.MinRetryTime)</span>
+                            <span>Daily: @FormatTimeOfDay(ru.DailyTriggerTime)</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(ru.Comment))
+                        {
+                            <div class="rule-card-comment">@ru.Comment</div>
                         }
-                        <span class="badge @badgeClass" title="@(status == "Active" ? "Rule is active and will trigger backups" : (status == "Expired" ? "Backup is due" : "Status unknown"))">@status</span>
-                    </td>
-                    <td>@ru.Comment</td>
-                    <td>
-                        <button @onclick="() => _onDelete(ru)" class="close" aria-label="delete" title="Delete this rule">🗑️</button>
-                    </td>
-                </tr>
+                    </div>
+                </div>
             }
         }
-        </tbody>
-    </table>
+    </div>
     
-    <button @onclick="() => _onFlush()" class="btn btn-outline-warning btn-sm" title="Force the backup agent to re-evaluate all rules immediately. Use this after making changes to trigger backups sooner.">🔄 Re-evaluate Rules</button>
+    <button @onclick="() => _onFlush()" class="btn btn-outline-warning btn-sm mt-3" title="Force the backup agent to re-evaluate all rules immediately. Use this after making changes to trigger backups sooner.">🔄 Re-evaluate Rules</button>
 }
 
 @if (_listEndpoints == null)
@@ -314,6 +309,29 @@ else
     private Hannibal.Models.Endpoint? _newSourceEndpoint = null;
     private int _newDestinationEndpointId { get; set; } = -1;
     private Hannibal.Models.Endpoint? _newDestinationEndpoint = null;
+
+    /// <summary>
+    /// Format a TimeSpan duration into a human-readable string (e.g., "24h", "1h", "60s")
+    /// </summary>
+    private string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalDays >= 1)
+            return $"{duration.TotalDays:0.#}d";
+        if (duration.TotalHours >= 1)
+            return $"{duration.TotalHours:0.#}h";
+        if (duration.TotalMinutes >= 1)
+            return $"{duration.TotalMinutes:0.#}m";
+        return $"{duration.TotalSeconds:0}s";
+    }
+
+    /// <summary>
+    /// Format a TimeSpan as time of day (e.g., "2:00 AM", "6:00 PM")
+    /// </summary>
+    private string FormatTimeOfDay(TimeSpan time)
+    {
+        var dt = DateTime.Today.Add(time);
+        return dt.ToString("h:mm tt");
+    }
 
     public void Dispose()
     {

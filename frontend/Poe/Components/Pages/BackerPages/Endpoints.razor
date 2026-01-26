@@ -39,62 +39,68 @@
 }
 else
 {
-    <table class="table">
-        <thead>
-        <tr>
-            <th>&nbsp;</th>
-            <th title="Friendly name for this endpoint">Name</th>
-            <th title="The storage connection this endpoint uses">Storage</th>
-            <th title="Folder path within the storage">Path</th>
-            <th title="Optional notes">Comment</th>
-            <th>&nbsp;</th>
-        </tr>
-        </thead>
-        <tbody>
+    @* === CARD VIEW (used for both mobile and desktop) === *@
+    <div class="endpoints-card-list">
         @foreach (var ep in _listEndpoints)
         {
             @if (_editingEndpointId == ep.Id)
             {
-                    <tr>
-                        <td>&nbsp;</td>
-                        <td><InputText id="name" class="form-control" @bind-Value="_editingEndpoint.Name" title="A descriptive name for this endpoint"/></td>
-                        <td>
-                            <InputSelect id="storage"
-                                         placeholder="Storage"
-                                         class="form-control"
-                                         title="The storage connection this endpoint belongs to"
-                                         @bind-Value="_editingEndpointStorageId"
-                                         @bind-Value:after="_handleEditStorageChanged">
-                                @foreach (var st in _listStorages)
-                                {
-                                    <option value="@st.Id">@st.UriSchema (@st.Technology)</option>
-                                }
-                            </InputSelect>
-                        </td>
-                        <td><InputText id="path" @bind-Value="_editingEndpoint.Path" class="form-control" title="Folder path relative to the storage root"/></td>
-                        <td><InputText id="comment" @bind-Value="_editingEndpoint.Comment" class="form-control" title="Optional notes for your reference"/></td>
-                        <td>
-                            <button @onclick="_onEditEndpointSubmit" id="submiteditendpoint" class="close" title="Save changes">✔</button>
-                            <button @onclick="_onEditEndpointCancel" class="close" aria-label="cancel" title="Cancel editing">❌️</button>
-                        </td>
-                    </tr>
-                
-            } else
+                @* Edit mode card *@
+                <div class="endpoint-card endpoint-card-edit">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <InputText class="form-control" @bind-Value="_editingEndpoint.Name" placeholder="Endpoint name"/>
+                    </div>
+                    <div class="form-group">
+                        <label>Storage</label>
+                        <InputSelect class="form-control"
+                                     @bind-Value="_editingEndpointStorageId"
+                                     @bind-Value:after="_handleEditStorageChanged">
+                            @foreach (var st in _listStorages)
+                            {
+                                <option value="@st.Id">@st.UriSchema (@st.Technology)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-group">
+                        <label>Path</label>
+                        <InputText class="form-control" @bind-Value="_editingEndpoint.Path" placeholder="Folder path"/>
+                    </div>
+                    <div class="form-group">
+                        <label>Comment</label>
+                        <InputText class="form-control" @bind-Value="_editingEndpoint.Comment" placeholder="Optional notes"/>
+                    </div>
+                    <div class="endpoint-card-edit-actions">
+                        <button class="btn-cancel" @onclick="_onEditEndpointCancel">Cancel</button>
+                        <button class="btn-save" @onclick="_onEditEndpointSubmit">Save</button>
+                    </div>
+                </div>
+            }
+            else
             {
-                <tr>
-                    <td><button id="starteditendpoint" @onclick="() => _onEdit(ep)" aria-label="edit" title="Edit this endpoint">✏</button></td>
-                    <td>@ep.Name</td>
-                    <td>@ep.Storage.UriSchema (@ep.Storage.Technology)</td>
-                    <td>@ep.Path</td>
-                    <td>@ep.Comment</td>
-                    <td>
-                        <button @onclick="() => _onDelete(ep)" class="close" aria-label="delete" title="Delete this endpoint">🗑️</button>
-                    </td>
-                </tr>
+                @* View mode card *@
+                <div class="endpoint-card">
+                    <div class="endpoint-card-header">
+                        <h4 class="endpoint-card-title">📁 @ep.Name</h4>
+                        <button class="btn-edit" @onclick="() => _onEdit(ep)" title="Edit">✏️</button>
+                    </div>
+                    <div class="endpoint-card-main">
+                        <div class="endpoint-card-storage">@ep.Storage.UriSchema (@ep.Storage.Technology)</div>
+                        <div class="endpoint-card-path">@ep.Path</div>
+                    </div>
+                    <div class="endpoint-card-right">
+                        <button class="btn-delete" @onclick="() => _onDelete(ep)" title="Delete">🗑️</button>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(ep.Comment))
+                    {
+                        <div class="endpoint-card-footer">
+                            <div class="endpoint-card-comment">@ep.Comment</div>
+                        </div>
+                    }
+                </div>
             }
         }
-        </tbody>
-    </table>
+    </div>
 }
 
 @if (_listStorages == null)

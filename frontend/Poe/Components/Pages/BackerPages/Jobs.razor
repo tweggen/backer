@@ -42,24 +42,13 @@
 }
 else
 {
-    <table class="table">
-        <thead>
-        <tr>
-            <th title="Unique job identifier">ID</th>
-            <th title="Current job status">State</th>
-            <th title="Where files are being backed up FROM">Source</th>
-            <th title="Where files are being backed up TO">Destination</th>
-            <th title="When this job was scheduled to start">Start Time</th>
-            <th title="Deadline for job completion">End By</th>
-            <th title="Last status update from the backup agent">Last Update</th>
-        </tr>
-        </thead>
-        <tbody>
+    @* === CARD VIEW (used for both mobile and desktop) === *@
+    <div class="jobs-card-list">
         @foreach (var job in listJobs)
         {
-            <tr>
-                <td>@job.Id</td>
-                <td>
+            <div class="job-card">
+                <div class="job-card-header">
+                    <span class="job-card-id">#@job.Id</span>
                     @{
                         var jobBadgeClass = job.State switch
                         {
@@ -70,28 +59,26 @@ else
                             Job.JobState.DoneFailure => "bg-danger",
                             _ => "bg-secondary"
                         };
-                        var jobStateTooltip = job.State switch
-                        {
-                            Job.JobState.Preparing => "Job is being set up",
-                            Job.JobState.Ready => "Ready for agent pickup",
-                            Job.JobState.Executing => "Backup in progress",
-                            Job.JobState.DoneSuccess => "Completed successfully",
-                            Job.JobState.DoneFailure => "Backup failed - check logs",
-                            _ => "Unknown state"
-                        };
                     }
-                    <span class="badge @jobBadgeClass" title="@jobStateTooltip">@job.State</span>
-                </td>
-                <td>@job.SourceEndpoint.Name</td>
-                <td>@job.DestinationEndpoint.Name</td>
-                <td>@job.StartFrom</td>
-                <td>@job.EndBy</td>
-                <td>@job.LastReported</td>
-            </tr>
+                    <span class="badge @jobBadgeClass">@job.State</span>
+                </div>
+                <div class="job-card-main">
+                    <div class="job-card-endpoints">
+                        <span class="endpoint">@job.SourceEndpoint.Name</span>
+                        <span class="arrow">→</span>
+                        <span class="endpoint">@job.DestinationEndpoint.Name</span>
+                    </div>
+                </div>
+                <div class="job-card-times">
+                    <span>Start: @FormatDateTime(job.StartFrom)</span>
+                    <span>End by: @FormatDateTime(job.EndBy)</span>
+                    <span>Updated: @FormatDateTime(job.LastReported)</span>
+                </div>
+            </div>
         }
-        </tbody>
-    </table>
-    <button @onclick="_onClearJobs" id="clearJobs" class="btn btn-outline-secondary btn-sm mt-2" title="Remove all completed jobs from the list">Clear Completed Jobs</button>
+    </div>
+    
+    <button @onclick="_onClearJobs" id="clearJobs" class="btn btn-outline-secondary btn-sm mt-3" title="Remove all completed jobs from the list">Clear Completed Jobs</button>
 }
 
 @code {
@@ -99,7 +86,15 @@ else
     private IdentityUser? _user;
     private HubConnection? hubConnection;
 
-    
+    /// <summary>
+    /// Format a DateTime for display
+    /// </summary>
+    private string FormatDateTime(DateTime dt)
+    {
+        var local = dt.ToLocalTime();
+        return local.ToString("MM/dd HH:mm");
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (hubConnection is not null)

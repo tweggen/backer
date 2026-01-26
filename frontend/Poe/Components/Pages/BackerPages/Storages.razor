@@ -35,132 +35,128 @@
 }
 else
 {
-    <table class="table">
-        <thead>
-        <tr>
-            <th>&nbsp;</th>
-            <th title="Storage provider type (cloud service or protocol)">Technology</th>
-            <th title="Unique identifier for this storage connection">Name</th>
-            <th title="Server address for SMB, or root path for cloud storage">Host / Path</th>
-            <th title="Username for SMB, or email for cloud services">Account</th>
-            <th title="Networks where this storage is accessible (empty = all networks)">Networks</th>
-            <th title="Connection status - whether the storage is properly configured and authenticated">Status</th>
-            <th>&nbsp;</th>
-        </tr>
-        </thead>
-        <tbody>
+    @* === CARD VIEW (used for both mobile and desktop) === *@
+    <div class="storages-card-list">
         @foreach (var sto in _listStorages)
         {
             @if (_editingStorageId == sto.Id)
             {
-                @* === EDIT MODE === *@
-                <tr>
-                    <td>&nbsp;</td>
-                    <td>@sto.Technology</td>
+                @* Edit mode card *@
+                <div class="storage-card storage-card-edit">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <InputText class="form-control" @bind-Value="_editingStorage.UriSchema" placeholder="Storage name"/>
+                    </div>
                     @if (IsCredentialBased(sto.Technology))
                     {
-                        <td><InputText id="urischema" @bind-Value="_editingStorage.UriSchema" class="form-control" placeholder="e.g., nas_admin" title="Unique identifier for this storage connection (cannot be changed after endpoints are created)"/></td>
-                        <td><InputText id="host" @bind-Value="_editingStorage.Host" class="form-control" placeholder="hostname or IP" title="Server hostname or IP address (e.g., fileserver.local, 192.168.1.50)"/></td>
-                        <td><InputText id="username" @bind-Value="_editingStorage.Username" class="form-control" placeholder="username" title="Your login username for this server"/></td>
+                        <div class="form-group">
+                            <label>Host</label>
+                            <InputText class="form-control" @bind-Value="_editingStorage.Host" placeholder="hostname or IP"/>
+                        </div>
+                        <div class="form-group">
+                            <label>Username</label>
+                            <InputText class="form-control" @bind-Value="_editingStorage.Username" placeholder="username"/>
+                        </div>
+                        <div class="edit-row">
+                            <div class="form-group">
+                                <label>Password</label>
+                                <InputText type="password" class="form-control" @bind-Value="_editingStorage.Password" placeholder="(keep current)"/>
+                            </div>
+                            <div class="form-group">
+                                <label>Domain</label>
+                                <InputText class="form-control" @bind-Value="_editingStorage.Domain" placeholder="optional"/>
+                            </div>
+                            <div class="form-group">
+                                <label>Port</label>
+                                <InputNumber class="form-control" @bind-Value="_editingStorage.Port"/>
+                            </div>
+                        </div>
                     }
                     else
                     {
-                        <td><InputText id="urischeme" @bind-Value="_editingStorage.UriSchema" class="form-control" title="Root path within your cloud storage (leave empty for root)"/></td>
-                        <td>—</td>
-                        <td><InputText id="useremail" @bind-Value="_editingStorage.OAuth2Email" class="form-control" title="Email address associated with your cloud account"/></td>
+                        <div class="form-group">
+                            <label>Account Email</label>
+                            <InputText class="form-control" @bind-Value="_editingStorage.OAuth2Email" placeholder="email"/>
+                        </div>
                     }
-                    <td><InputText id="networks" @bind-Value="_editingStorage.Networks" class="form-control" title="Comma-separated network names where this storage is accessible (empty = all networks)"/></td>
-                    <td>&nbsp;</td>
-                    <td>
-                        <button @onclick="_onEditStorageSubmit" id="submiteditstorage" class="close" title="Save changes">✔</button>
-                        <button @onclick="_onEditStorageCancel" class="close" aria-label="cancel" title="Cancel editing">❌️</button>
-                    </td>
-                </tr>
-                @if (IsCredentialBased(sto.Technology))
-                {
-                    <tr>
-                        <td colspan="2">&nbsp;</td>
-                        <td>
-                            <InputText id="edit-password" type="password" @bind-Value="_editingStorage.Password" 
-                                       class="form-control" placeholder="password (leave empty to keep current)"
-                                       title="Enter new password or leave empty to keep current password"/>
-                        </td>
-                        <td>
-                            <InputText id="edit-domain" @bind-Value="_editingStorage.Domain" 
-                                       class="form-control" placeholder="domain (optional)"
-                                       title="Windows domain for Active Directory authentication (e.g., CORP, MYDOMAIN)"/>
-                        </td>
-                        <td>
-                            <InputNumber id="edit-port" @bind-Value="_editingStorage.Port" 
-                                         class="form-control" placeholder="port"
-                                         title="Custom port number (leave empty for default: 445 for SMB)"/>
-                        </td>
-                        <td colspan="2">&nbsp;</td>
-                    </tr>
-                }
+                    <div class="form-group">
+                        <label>Networks</label>
+                        <InputText class="form-control" @bind-Value="_editingStorage.Networks" placeholder="optional"/>
+                    </div>
+                    <div class="storage-card-edit-actions">
+                        <button class="btn-cancel" @onclick="_onEditStorageCancel">Cancel</button>
+                        <button class="btn-save" @onclick="_onEditStorageSubmit">Save</button>
+                    </div>
+                </div>
             }
             else
             {
-                @* === VIEW MODE === *@
-                <tr>
-                    <td><button id="starteditstorage" @onclick="() => _onEdit(sto)" aria-label="edit" title="Edit this storage configuration">✏</button></td>
-                    <td>@sto.Technology</td>
-                    @if (IsCredentialBased(sto.Technology))
-                    {
-                        <td><strong>@sto.UriSchema</strong></td>
-                        <td>@sto.Host@(sto.Port.HasValue ? $":{sto.Port}" : "")</td>
-                        <td>@(string.IsNullOrWhiteSpace(sto.Domain) ? sto.Username : $"{sto.Domain}\\{sto.Username}")</td>
-                    }
-                    else
-                    {
-                        <td><strong>@sto.UriSchema</strong></td>
-                        <td>—</td>
-                        <td>@sto.OAuth2Email</td>
-                    }
-                    <td>@sto.Networks</td>
-                    <td>
+                @* View mode card *@
+                <div class="storage-card">
+                    <div class="storage-card-header">
+                        <h4 class="storage-card-title">☁️ @sto.UriSchema</h4>
+                        <span class="storage-card-tech">@sto.Technology</span>
+                        <button class="btn-edit" @onclick="() => _onEdit(sto)" title="Edit">✏️</button>
+                    </div>
+                    <div class="storage-card-main">
+                        @if (IsCredentialBased(sto.Technology))
+                        {
+                            <div class="storage-card-details">@sto.Host@(sto.Port.HasValue ? $":{sto.Port}" : "")</div>
+                            <div class="storage-card-account">@(string.IsNullOrWhiteSpace(sto.Domain) ? sto.Username : $"{sto.Domain}\\{sto.Username}")</div>
+                        }
+                        else
+                        {
+                            <div class="storage-card-account">@sto.OAuth2Email</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(sto.Networks))
+                        {
+                            <div class="storage-card-networks">Networks: @sto.Networks</div>
+                        }
+                    </div>
+                    <div class="storage-card-right">
+                        <button class="btn-delete" @onclick="() => _onDelete(sto)" title="Delete">🗑️</button>
+                    </div>
+                    <div class="storage-card-footer">
                         @if (IsCredentialBased(sto.Technology))
                         {
                             @if (!string.IsNullOrWhiteSpace(sto.Host) && !string.IsNullOrWhiteSpace(sto.Username))
                             {
-                                <span class="badge bg-success" title="Server and credentials are configured. The backup agent can connect to this storage.">Configured</span>
+                                <span class="badge bg-success">Configured</span>
                             }
                             else
                             {
-                                <span class="badge bg-warning" title="Missing required fields (host or username). Edit this storage to complete the configuration.">Incomplete</span>
+                                <span class="badge bg-warning">Incomplete</span>
                             }
                         }
                         else
                         {
                             @if (!string.IsNullOrWhiteSpace(sto.AccessToken))
                             {
-                                <span class="badge bg-success" title="Successfully authenticated with your cloud account. The backup agent can access your files.">Connected</span>
+                                <span class="badge bg-success">Connected</span>
                             }
                             else
                             {
-                                <span class="badge bg-warning" title="Click 'Authenticate' to connect your cloud account. You'll be redirected to sign in securely.">Not authenticated</span>
+                                <span class="badge bg-warning">Not authenticated</span>
                             }
                         }
-                    </td>
-                    <td>
-                        @if (RequiresOAuth(sto.Technology))
-                        {
-                            @if (string.IsNullOrWhiteSpace(sto.AccessToken))
+                        <div class="storage-card-actions">
+                            @if (RequiresOAuth(sto.Technology))
                             {
-                                <button @onclick="() => _onOAuthConnect(sto)" class="btn btn-sm btn-primary" title="Connect to your cloud account via OAuth - you'll be redirected to sign in">Authenticate...</button>
+                                @if (string.IsNullOrWhiteSpace(sto.AccessToken))
+                                {
+                                    <button @onclick="() => _onOAuthConnect(sto)" class="btn btn-sm btn-primary">Authenticate...</button>
+                                }
+                                else
+                                {
+                                    <button @onclick="() => _onOAuthDisconnect(sto)" class="btn btn-sm btn-outline-secondary">Disconnect</button>
+                                }
                             }
-                            else
-                            {
-                                <button @onclick="() => _onOAuthDisconnect(sto)" class="btn btn-sm btn-outline-secondary" title="Remove the connection to your cloud account (you can reconnect later)">Disconnect</button>
-                            }
-                        }
-                        <button @onclick="() => _onDelete(sto)" class="btn btn-sm btn-outline-danger" aria-label="delete" title="Delete this storage and all endpoints using it">🗑️</button>
-                    </td>
-                </tr>
+                        </div>
+                    </div>
+                </div>
             }
         }
-        </tbody>
-    </table>
+    </div>
 
     <h2>Create new storage</h2>
     <div class="row">
