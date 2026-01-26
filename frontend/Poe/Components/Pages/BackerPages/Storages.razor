@@ -161,169 +161,113 @@ else
         }
     </div>
 
-    <h2>Create new storage</h2>
-    <div class="row">
-        <div class="col-md-6">
-            <EditForm method="post"  
-                      OnValidSubmit="_addStorage"
-                      FormName="create" Enhance
-                      EditContext="_editContext">
-                <DataAnnotationsValidator/>
-                <CustomValidator @ref="_customValidator"/>
-                <ValidationSummary class="text-danger"/>
-                
-                @* Technology Selection *@
-                <div class="mb-3">
-                    <label for="technology" class="form-label">Technology:</label>
-                    <InputSelect id="technology"
-                                 class="form-control"
-                                 title="Select the type of storage you want to connect. Cloud storages use OAuth authentication, while SMB uses username/password."
-                                 @bind-Value="_newStorage.Technology"
-                                 @bind-Value:after="_onTechnologyChanged">
-                        @foreach (var tech in Technologies.GetTechnologies())
-                        {
-                            <option value="@tech">@GetTechnologyDisplayName(tech)</option>
-                        }
-                    </InputSelect>
-                    <small class="form-text text-muted">Choose the storage provider or protocol</small>
-                    <ValidationMessage For="() => _newStorage.Technology" class="text-danger"/>
+    @* === COLLAPSIBLE CREATE FORM === *@
+    <div class="create-section mt-4">
+        @if (!_showCreateForm)
+        {
+            <button type="button" class="btn btn-outline-primary" @onclick="_onShowCreateForm">
+                ➕ Create new storage...
+            </button>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Create new storage</h5>
+                    <button type="button" class="btn-close" @onclick="_onCancelCreate" title="Cancel"></button>
                 </div>
+                <div class="card-body">
+                    <EditForm method="post" OnValidSubmit="_addStorage" FormName="create" Enhance EditContext="_editContext">
+                        <DataAnnotationsValidator/>
+                        <CustomValidator @ref="_customValidator"/>
+                        <ValidationSummary class="text-danger"/>
+                        <fieldset disabled="@_isCreating">
+                            <div class="mb-3">
+                                <label for="technology" class="form-label">Technology:</label>
+                                <InputSelect id="technology" class="form-control" @bind-Value="_newStorage.Technology" @bind-Value:after="_onTechnologyChanged">
+                                    @foreach (var tech in Technologies.GetTechnologies())
+                                    {
+                                        <option value="@tech">@GetTechnologyDisplayName(tech)</option>
+                                    }
+                                </InputSelect>
+                                <small class="form-text text-muted">Choose the storage provider or protocol</small>
+                            </div>
 
-                @if (IsCredentialBased(_newStorage.Technology))
-                {
-                    @* === CREDENTIAL-BASED STORAGE (SMB, Local, etc.) === *@
-                    <div class="alert alert-info" role="alert">
-                        <strong>@GetTechnologyDisplayName(_newStorage.Technology)</strong> uses username/password authentication.
-                        <br/><small>Create one Storage per server + login combination. Share names and folder paths are configured in Endpoints.</small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="host" class="form-label">Host: <span class="text-danger">*</span></label>
-                        <InputText id="host"
-                                   placeholder="server.local or 192.168.1.100"
-                                   class="form-control"
-                                   title="The hostname or IP address of the file server. Examples: fileserver.local, nas.home, 192.168.1.50"
-                                   @bind-Value="_newStorage.Host"/>
-                        <small class="form-text text-muted">Server hostname or IP address where your shares are located</small>
-                        <ValidationMessage For="() => _newStorage.Host" class="text-danger"/>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username: <span class="text-danger">*</span></label>
-                        <InputText id="username"
-                                   placeholder="username"
-                                   class="form-control"
-                                   title="Your login username for the file server. For domain accounts, enter just the username (domain goes in the Domain field)."
-                                   @bind-Value="_newStorage.Username"/>
-                        <small class="form-text text-muted">Your account username for this server</small>
-                        <ValidationMessage For="() => _newStorage.Username" class="text-danger"/>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password:</label>
-                        <InputText id="password"
-                                   type="password"
-                                   placeholder="password"
-                                   class="form-control"
-                                   title="Your account password. This is stored securely and used by the backup agent to connect."
-                                   @bind-Value="_newStorage.Password"/>
-                        <small class="form-text text-muted">Password for authentication (stored securely)</small>
-                        <ValidationMessage For="() => _newStorage.Password" class="text-danger"/>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="domain" class="form-label">Domain (optional):</label>
-                        <InputText id="domain"
-                                   placeholder="WORKGROUP or domain name"
-                                   class="form-control"
-                                   title="For Active Directory environments, enter your Windows domain name. Leave empty for workgroup-based authentication."
-                                   @bind-Value="_newStorage.Domain"/>
-                        <small class="form-text text-muted">Windows domain for Active Directory authentication (e.g., CORP, MYDOMAIN)</small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="port" class="form-label">Port (optional):</label>
-                        <InputNumber id="port"
-                                     class="form-control"
-                                     title="Custom port number if your server uses a non-standard port. SMB typically uses port 445."
-                                     @bind-Value="_newStorage.Port"/>
-                        <small class="form-text text-muted">Leave empty for default (445 for SMB). Only change if your server uses a custom port.</small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="urischema" class="form-label">Storage Name: <span class="text-danger">*</span></label>
-                        <InputText id="urischema"
-                                   placeholder="e.g., nas_admin, fileserver_backup"
-                                   class="form-control"
-                                   title="A unique name to identify this storage connection. Use something descriptive like 'nas_admin' or 'server_guest'. This is NOT the share name."
-                                   @bind-Value="_newStorage.UriSchema"/>
-                        <small class="form-text text-muted">A unique identifier for this connection (e.g., "nas_admin", "fileserver_backup"). <strong>Not</strong> the share name — that goes in Endpoints.</small>
-                        <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
-                    </div>
-                }
-                else if (_newStorage.Technology == "local")
-                {
-                    @* === LOCAL STORAGE === *@
-                    <div class="alert alert-info" role="alert">
-                        <strong>Local Storage</strong> accesses files directly on the backup agent's machine. Use this for local drives or mounted volumes.
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="urischema" class="form-label">Base Path:</label>
-                        <InputText id="urischema"
-                                   placeholder="/path/to/folder or C:\path\to\folder"
-                                   class="form-control"
-                                   title="The root folder path on the backup agent's filesystem. Use forward slashes for Linux/Mac, backslashes for Windows."
-                                   @bind-Value="_newStorage.UriSchema"/>
-                        <small class="form-text text-muted">Base folder path on the agent machine (e.g., /home/user/documents or D:\Backups)</small>
-                        <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
-                    </div>
-                }
-                else
-                {
-                    @* === OAUTH-BASED STORAGE (OneDrive, Dropbox, Google Drive) === *@
-                    <div class="alert alert-info" role="alert">
-                        <strong>@GetTechnologyDisplayName(_newStorage.Technology)</strong> uses OAuth authentication. 
-                        After creating, click "Authenticate" to securely connect your cloud account without sharing your password.
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="urischema" class="form-label">Root Path (optional):</label>
-                        <InputText id="urischema"
-                                   placeholder="/Backups"
-                                   class="form-control"
-                                   title="Optional: Specify a default folder path within your cloud storage. Leave empty to start from the root."
-                                   @bind-Value="_newStorage.UriSchema"/>
-                        <small class="form-text text-muted">Default folder path in your cloud storage (leave empty for root)</small>
-                        <ValidationMessage For="() => _newStorage.UriSchema" class="text-danger"/>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="useremail" class="form-label">Account Email: <span class="text-danger">*</span></label>
-                        <InputText id="useremail"
-                                   placeholder="your-email@example.com"
-                                   class="form-control"
-                                   title="The email address of your cloud storage account. This helps identify which account to authenticate."
-                                   @bind-Value="_newStorage.OAuth2Email"/>
-                        <small class="form-text text-muted">The email associated with your @GetTechnologyDisplayName(_newStorage.Technology) account</small>
-                        <ValidationMessage For="() => _newStorage.OAuth2Email" class="text-danger"/>
-                    </div>
-                }
-                
-                @* Common fields *@
-                <div class="mb-3">
-                    <label for="networks" class="form-label">Networks (optional):</label>
-                    <InputText id="networks"
-                               placeholder="home, office"
-                               class="form-control"
-                               title="Restrict this storage to specific networks. The backup agent will only use this storage when connected to one of these networks. Leave empty to allow access from any network."
-                               @bind-Value="_newStorage.Networks"/>
-                    <small class="form-text text-muted">Comma-separated network names (e.g., "home, office"). Leave empty to allow access from anywhere.</small>
+                            @if (IsCredentialBased(_newStorage.Technology))
+                            {
+                                <div class="mb-3">
+                                    <label for="host" class="form-label">Host: <span class="text-danger">*</span></label>
+                                    <InputText id="host" placeholder="server.local or 192.168.1.100" class="form-control" @bind-Value="_newStorage.Host"/>
+                                    <small class="form-text text-muted">Server hostname or IP address</small>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="username" class="form-label">Username: <span class="text-danger">*</span></label>
+                                        <InputText id="username" placeholder="username" class="form-control" @bind-Value="_newStorage.Username"/>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="password" class="form-label">Password:</label>
+                                        <InputText id="password" type="password" placeholder="password" class="form-control" @bind-Value="_newStorage.Password"/>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="domain" class="form-label">Domain (optional):</label>
+                                        <InputText id="domain" placeholder="WORKGROUP" class="form-control" @bind-Value="_newStorage.Domain"/>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="port" class="form-label">Port (optional):</label>
+                                        <InputNumber id="port" class="form-control" @bind-Value="_newStorage.Port"/>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="urischema" class="form-label">Storage Name: <span class="text-danger">*</span></label>
+                                    <InputText id="urischema" placeholder="e.g., nas_admin" class="form-control" @bind-Value="_newStorage.UriSchema"/>
+                                    <small class="form-text text-muted">A unique identifier for this connection</small>
+                                </div>
+                            }
+                            else if (_newStorage.Technology == "local")
+                            {
+                                <div class="mb-3">
+                                    <label for="urischema" class="form-label">Base Path:</label>
+                                    <InputText id="urischema" placeholder="/path/to/folder" class="form-control" @bind-Value="_newStorage.UriSchema"/>
+                                    <small class="form-text text-muted">Base folder path on the agent machine</small>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="mb-3">
+                                    <label for="urischema" class="form-label">Root Path (optional):</label>
+                                    <InputText id="urischema" placeholder="/Backups" class="form-control" @bind-Value="_newStorage.UriSchema"/>
+                                    <small class="form-text text-muted">Default folder path in your cloud storage</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="useremail" class="form-label">Account Email: <span class="text-danger">*</span></label>
+                                    <InputText id="useremail" placeholder="your-email@example.com" class="form-control" @bind-Value="_newStorage.OAuth2Email"/>
+                                    <small class="form-text text-muted">The email associated with your cloud account</small>
+                                </div>
+                            }
+                            
+                            <div class="mb-3">
+                                <label for="networks" class="form-label">Networks (optional):</label>
+                                <InputText id="networks" placeholder="home, office" class="form-control" @bind-Value="_newStorage.Networks"/>
+                                <small class="form-text text-muted">Comma-separated network names</small>
+                            </div>
+                        </fieldset>
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-secondary" @onclick="_onCancelCreate" disabled="@_isCreating">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@_isCreating">
+                                @if (_isCreating)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                Create Storage
+                            </button>
+                        </div>
+                    </EditForm>
                 </div>
-                
-                <button type="submit" class="btn btn-primary">Create Storage</button>
-            </EditForm>
-        </div>
+            </div>
+        }
     </div>
 }
 
@@ -336,6 +280,8 @@ else
     private List<Storage>? _listStorages = null;
     private IdentityUser? _user = null;
     private bool _showStoragesDetails = false;
+    private bool _showCreateForm = false;
+    private bool _isCreating = false;
 
     private int _editingStorageId { get; set; } = -1;
 
@@ -428,6 +374,25 @@ else
         {
             _editContext.OnValidationRequested -= _onValidateNewStorage;
         }
+    }
+
+    private void _onShowCreateForm()
+    {
+        _resetNewStorageForm();
+        _showCreateForm = true;
+    }
+
+    private void _onCancelCreate()
+    {
+        _showCreateForm = false;
+        _resetNewStorageForm();
+    }
+
+    private void _resetNewStorageForm()
+    {
+        _newStorage = Storage.Default();
+        _editContext = new EditContext(_newStorage);
+        _editContext.OnValidationRequested += _onValidateNewStorage;
     }
 
 
@@ -650,12 +615,30 @@ else
 
     private async Task _addStorage()
     {
-        await HigginsServiceClient.CreateStorageAsync(_newStorage, CancellationToken.None);
-        _listStorages = new List<Storage>(
-            await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
-        );
-        _newStorage = Storage.Default();
-        await InvokeAsync(StateHasChanged);      
+        _isCreating = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await HigginsServiceClient.CreateStorageAsync(_newStorage, CancellationToken.None);
+            _listStorages = new List<Storage>(
+                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
+            );
+            
+            // Success - close form and reset
+            _showCreateForm = false;
+            _resetNewStorageForm();
+        }
+        catch (Exception e)
+        {
+            // Stay open on error
+            Console.WriteLine($"Create storage error: {e}");
+        }
+        finally
+        {
+            _isCreating = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
     
     

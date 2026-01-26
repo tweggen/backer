@@ -115,61 +115,65 @@ else
 }
 else
 {
-    <h2>Create new endpoint</h2>
-    <div class="row">
-        <div class="col-md-6">
-            <EditForm method="post" Model="_newEndpoint" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
-                <DataAnnotationsValidator/>
-                <ValidationSummary class="text-danger"/>
-                <div class="mb-3">
-                    <label for="name" class="form-label">Name: <span class="text-danger">*</span></label>
-                    <InputText id="name"
-                               placeholder="My Documents Backup"
-                               class="form-control"
-                               title="A friendly name to identify this endpoint. Use something descriptive like 'Work Documents' or 'Photos Backup'."
-                               @bind-Value="_newEndpoint.Name" />
-                    <small class="form-text text-muted">A descriptive name to identify this folder location</small>
-                    <ValidationMessage For="() => _newEndpoint.Name" class="text-danger"/>
+    @* === COLLAPSIBLE CREATE FORM === *@
+    <div class="create-section mt-4">
+        @if (!_showCreateForm)
+        {
+            <button type="button" class="btn btn-outline-primary" @onclick="_onShowCreateForm">
+                ➕ Create new endpoint...
+            </button>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Create new endpoint</h5>
+                    <button type="button" class="btn-close" @onclick="_onCancelCreate" title="Cancel"></button>
                 </div>
-                <div class="mb-3">
-                    <label for="storage" class="form-label">Storage: <span class="text-danger">*</span></label>
-                    <InputSelect id="storage"
-                                 placeholder="Storage"
-                                 class="form-control"
-                                 title="Select the storage connection where this folder is located. You must create a storage first before creating endpoints."
-                                 @bind-Value="_newEndpointStorageId" 
-                                 @bind-Value:after="handleNewStorageChanged" 
-                                 >
-                        @foreach (var storage in _listStorages)
-                        {
-                            <option value="@storage.Id">@storage.UriSchema (@storage.Technology)</option>
-                        }
-                    </InputSelect>
-                    <small class="form-text text-muted">The storage connection this endpoint belongs to</small>
+                <div class="card-body">
+                    <EditForm method="post" Model="_newEndpoint" OnValidSubmit="AddEndpoint" FormName="create" Enhance>
+                        <DataAnnotationsValidator/>
+                        <ValidationSummary class="text-danger"/>
+                        <fieldset disabled="@_isCreating">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Name: <span class="text-danger">*</span></label>
+                                <InputText id="name" placeholder="My Documents Backup" class="form-control" @bind-Value="_newEndpoint.Name" />
+                                <small class="form-text text-muted">A descriptive name to identify this folder location</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="storage" class="form-label">Storage: <span class="text-danger">*</span></label>
+                                <InputSelect id="storage" class="form-control" @bind-Value="_newEndpointStorageId" @bind-Value:after="handleNewStorageChanged">
+                                    @foreach (var storage in _listStorages)
+                                    {
+                                        <option value="@storage.Id">@storage.UriSchema (@storage.Technology)</option>
+                                    }
+                                </InputSelect>
+                                <small class="form-text text-muted">The storage connection this endpoint belongs to</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="path" class="form-label">Path: <span class="text-danger">*</span></label>
+                                <InputText id="path" placeholder="@GetPathPlaceholder()" class="form-control" @bind-Value="_newEndpoint.Path"/>
+                                <small class="form-text text-muted">@GetPathHelpText()</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="comment" class="form-label">Comment (optional):</label>
+                                <InputText id="comment" placeholder="Optional notes" class="form-control" @bind-Value="_newEndpoint.Comment" />
+                            </div>
+                        </fieldset>
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-secondary" @onclick="_onCancelCreate" disabled="@_isCreating">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@_isCreating">
+                                @if (_isCreating)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                Create Endpoint
+                            </button>
+                        </div>
+                    </EditForm>
                 </div>
-                <div class="mb-3">
-                    <label for="path" class="form-label">Path: <span class="text-danger">*</span></label>
-                    <InputText id="path"
-                               placeholder="@GetPathPlaceholder()"
-                               class="form-control"
-                               title="@GetPathTooltip()"
-                               @bind-Value="_newEndpoint.Path"/>
-                    <small class="form-text text-muted">@GetPathHelpText()</small>
-                    <ValidationMessage For="() => _newEndpoint.Path" class="text-danger"/>
-                </div>
-                <div class="mb-3">
-                    <label for="comment" class="form-label">Comment (optional):</label>
-                    <InputText id="comment"
-                               placeholder="Optional notes about this endpoint"
-                               class="form-control"
-                               title="Add any notes or reminders about this endpoint for your own reference."
-                               @bind-Value="_newEndpoint.Comment" />
-                    <small class="form-text text-muted">Optional notes for your own reference</small>
-                    <ValidationMessage For="() => _newEndpoint.Comment" class="text-danger"/>
-                </div>
-                <button type="submit" class="btn btn-primary">Create Endpoint</button>
-            </EditForm>
-        </div>
+            </div>
+        }
     </div>
 }
 
@@ -179,6 +183,8 @@ else
     private List<Hannibal.Models.Storage>? _listStorages = null;
     private IdentityUser? _user = null;
     private bool _showEndpointsDetails = false;
+    private bool _showCreateForm = false;
+    private bool _isCreating = false;
 
     private int _editingEndpointId { get; set; } = -1;
     private int _editingEndpointStorageId { get; set; } = -1;
@@ -242,6 +248,30 @@ else
     public void Dispose()
     {
         // Dispose logic if needed
+    }
+
+    private void _onShowCreateForm()
+    {
+        _resetNewEndpointForm();
+        _showCreateForm = true;
+    }
+
+    private void _onCancelCreate()
+    {
+        _showCreateForm = false;
+        _resetNewEndpointForm();
+    }
+
+    private void _resetNewEndpointForm()
+    {
+        _newEndpoint = new() { UserId = _user?.Id ?? "", IsActive = true };
+        _selectedStorage = _listStorages?.FirstOrDefault();
+        _newEndpointStorageId = _selectedStorage?.Id ?? -1;
+        if (_newEndpoint != null && _selectedStorage != null)
+        {
+            _newEndpoint.StorageId = _newEndpointStorageId;
+            _newEndpoint.Storage = _selectedStorage;
+        }
     }
 
     
@@ -322,18 +352,34 @@ else
 
     private async Task AddEndpoint()
     {
-        // TXWTODO: Where to actually validate before submiit?
-
         if (null == _newEndpoint.Storage || string.IsNullOrWhiteSpace(_newEndpoint.Name))
         {
             return;
         }
-        
-        await HigginsServiceClient.CreateEndpointAsync(_newEndpoint, CancellationToken.None);
-        _listEndpoints = new List<Hannibal.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
-        );
-        await InvokeAsync(StateHasChanged);      
+
+        _isCreating = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await HigginsServiceClient.CreateEndpointAsync(_newEndpoint, CancellationToken.None);
+            _listEndpoints = new List<Hannibal.Models.Endpoint>(
+                await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
+            );
+            
+            // Success - close form and reset
+            _showCreateForm = false;
+            _resetNewEndpointForm();
+        }
+        catch (Exception e)
+        {
+            // Stay open on error
+        }
+        finally
+        {
+            _isCreating = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
     
     protected override async Task OnAfterRenderAsync(bool firstRender)

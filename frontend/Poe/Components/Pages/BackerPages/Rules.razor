@@ -167,122 +167,108 @@ else
 }
 else
 {
-    <h2>Create new rule</h2>
-    <div class="row">
-        <div class="col-md-6">
-            <EditForm method="post" Model="_newRule" OnValidSubmit="_onNewRuleSubmit" FormName="create" Enhance>
-                <DataAnnotationsValidator/>
-                <ValidationSummary class="text-danger"/>
-                <div class="mb-3">
-                    <label for="name" class="form-label">Rule Name: <span class="text-danger">*</span></label>
-                    <InputText id="name"
-                               placeholder="Daily Documents Backup"
-                               class="form-control"
-                               title="A descriptive name for this backup rule. Examples: 'Daily Documents Backup', 'Hourly Photos Sync'"
-                               @bind-Value="_newRule.Name" />
-                    <small class="form-text text-muted">A friendly name to identify this backup rule</small>
-                    <ValidationMessage For="() => _newRule.Name" class="text-danger"/>
+    @* === COLLAPSIBLE CREATE FORM === *@
+    <div class="create-section mt-4">
+        @if (!_showCreateForm)
+        {
+            <button type="button" class="btn btn-outline-primary" @onclick="_onShowCreateForm">
+                ➕ Create new rule...
+            </button>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Create new rule</h5>
+                    <button type="button" class="btn-close" @onclick="_onCancelCreate" title="Cancel"></button>
                 </div>
-                <div class="mb-3">
-                    <label for="sourceEndpoint" class="form-label">Source Endpoint (backup from): <span class="text-danger">*</span></label>
-                    <InputSelect id="sourceEndpoint"
-                                 placeholder="Source"
-                                 class="form-control"
-                                 title="Select the endpoint containing the files you want to backup. This is your 'source of truth' - where your original files live."
-                                 @bind-Value="_newSourceEndpointId" 
-                                 @bind-Value:after="_onNewSourceEndpointChanged" 
-                                 >
-                        @foreach (var ep in _listEndpoints)
-                        {
-                            <option value="@ep.Id">@ep.Name</option>
-                        }
-                    </InputSelect>
-                    <small class="form-text text-muted">Where your original files are (the folder to backup)</small>
+                <div class="card-body">
+                    <EditForm method="post" Model="_newRule" OnValidSubmit="_onNewRuleSubmit" FormName="create" Enhance>
+                        <DataAnnotationsValidator/>
+                        <ValidationSummary class="text-danger"/>
+                        <fieldset disabled="@_isCreating">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Rule Name: <span class="text-danger">*</span></label>
+                                <InputText id="name"
+                                           placeholder="Daily Documents Backup"
+                                           class="form-control"
+                                           @bind-Value="_newRule.Name" />
+                                <small class="form-text text-muted">A friendly name to identify this backup rule</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="sourceEndpoint" class="form-label">Source Endpoint (backup from): <span class="text-danger">*</span></label>
+                                <InputSelect id="sourceEndpoint"
+                                             class="form-control"
+                                             @bind-Value="_newSourceEndpointId" 
+                                             @bind-Value:after="_onNewSourceEndpointChanged">
+                                    @foreach (var ep in _listEndpoints)
+                                    {
+                                        <option value="@ep.Id">@ep.Name</option>
+                                    }
+                                </InputSelect>
+                                <small class="form-text text-muted">Where your original files are</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="operation" class="form-label">Operation: <span class="text-danger">*</span></label>
+                                <InputSelect TValue="Rule.RuleOperation" id="operation" class="form-control" @bind-Value="_newRule.Operation">
+                                    @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
+                                    {
+                                        <option value="@op">@op</option>
+                                    }
+                                </InputSelect>
+                                <small class="form-text text-muted"><strong>Copy</strong> = add/update only; <strong>Sync</strong> = mirror exactly</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="destinationEndpoint" class="form-label">Destination Endpoint (backup to): <span class="text-danger">*</span></label>
+                                <InputSelect id="destinationEndpoint"
+                                             class="form-control"
+                                             @bind-Value="_newDestinationEndpointId"
+                                             @bind-Value:after="_onNewDestinationEndpointChanged">
+                                    @foreach (var ep in _listEndpoints)
+                                    {
+                                        <option value="@ep.Id">@ep.Name</option>
+                                    }
+                                </InputSelect>
+                                <small class="form-text text-muted">Where backups will be stored</small>
+                            </div>
+                            
+                            <h6 class="mt-4 mb-3">Scheduling Options</h6>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="maxDestAge" class="form-label">Max Age (seconds):</label>
+                                    <InputNumber id="maxDestAge" class="form-control" @bind-Value="_newMaxDestAge"/>
+                                    <small class="form-text text-muted">86400 = daily</small>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="minRetryTime" class="form-label">Retry Time (seconds):</label>
+                                    <InputNumber id="minRetryTime" class="form-control" @bind-Value="_newMinRetryTime"/>
+                                    <small class="form-text text-muted">Wait after failure</small>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="dailyTriggerTime" class="form-label">Daily Time (seconds):</label>
+                                    <InputNumber id="dailyTriggerTime" class="form-control" @bind-Value="_newDailyTriggerTime"/>
+                                    <small class="form-text text-muted">7200 = 2:00 AM</small>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="comment" class="form-label">Comment (optional):</label>
+                                <InputText id="comment" placeholder="Optional notes" class="form-control" @bind-Value="_newRule.Comment" />
+                            </div>
+                        </fieldset>
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-secondary" @onclick="_onCancelCreate" disabled="@_isCreating">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@_isCreating">
+                                @if (_isCreating)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                }
+                                Create Rule
+                            </button>
+                        </div>
+                    </EditForm>
                 </div>
-                <div class="mb-3">
-                    <label for="operation" class="form-label">Operation: <span class="text-danger">*</span></label>
-                    <InputSelect TValue="Rule.RuleOperation"
-                                 id="operation"
-                                 placeholder="Operation"
-                                 class="form-control"
-                                 title="Copy: Only adds new or changed files to destination. Sync: Makes destination match source exactly (deletes files removed from source)."
-                                 @bind-Value="_newRule.Operation">
-                        @foreach (var op in Enum.GetValues(typeof(Rule.RuleOperation)))
-                        {
-                            <option value="@op">@op</option>
-                        }
-                    </InputSelect>
-                    <small class="form-text text-muted"><strong>Copy</strong> = add/update only; <strong>Sync</strong> = mirror exactly (may delete files)</small>
-                </div>
-                <div class="mb-3">
-                    <label for="destinationEndpoint" class="form-label">Destination Endpoint (backup to): <span class="text-danger">*</span></label>
-                    <InputSelect id="destinationEndpoint"
-                                 placeholder="Dest"
-                                 class="form-control"
-                                 title="Select where backups should be stored. This should be different from the source - typically a cloud storage or separate drive."
-                                 @bind-Value="_newDestinationEndpointId"
-                                 @bind-Value:after="_onNewDestinationEndpointChanged"
-                    >
-                        @foreach (var ep in _listEndpoints)
-                        {
-                            <option value="@ep.Id">@ep.Name</option>
-                        }
-                    </InputSelect>
-                    <small class="form-text text-muted">Where backups will be stored (must differ from source)</small>
-                </div>
-                
-                <h5 class="mt-4 mb-3">Scheduling Options</h5>
-                <div class="alert alert-secondary py-2">
-                    <small>
-                        <strong>Time values are in seconds.</strong><br/>
-                        <strong>Intervals:</strong> 3600 = 1 hour, 86400 = 24 hours, 604800 = 1 week<br/>
-                        <strong>Times of day:</strong> 0 = midnight, 7200 = 2 AM, 21600 = 6 AM, 28800 = 8 AM, 43200 = noon, 64800 = 6 PM
-                    </small>
-                </div>
-                
-                <div class="mb-3">
-                    <label for="maxDestAge" class="form-label">Max Destination Age (seconds):</label>
-                    <InputNumber id="maxDestAge"
-                               placeholder="86400"
-                               class="form-control"
-                               title="How old the most recent backup can be before a new backup is triggered. Set to 86400 for daily backups, 3600 for hourly, 604800 for weekly."
-                               @bind-Value="_newMaxDestAge"/>
-                    <small class="form-text text-muted">Maximum time since last backup before triggering a new one (default: 129600 = 36 hours)</small>
-                    <ValidationMessage For="() => _newRule.MaxDestinationAge" class="text-danger"/>
-                </div>
-                <div class="mb-3">
-                    <label for="minRetryTime" class="form-label">Min Retry Time (seconds):</label>
-                    <InputNumber id="minRetryTime"
-                                 placeholder="60"
-                                 class="form-control"
-                                 title="If a backup fails, how long to wait before trying again. Prevents rapid retry loops."
-                                 @bind-Value="_newMinRetryTime"/>
-                    <small class="form-text text-muted">Minimum wait between retry attempts after a failure (default: 60 seconds)</small>
-                    <ValidationMessage For="() => _newRule.MinRetryTime" class="text-danger"/>
-                </div>
-                <div class="mb-3">
-                    <label for="dailyTriggerTime" class="form-label">Preferred Daily Time (seconds from midnight):</label>
-                    <InputNumber id="dailyTriggerTime"
-                                 placeholder="7200"
-                                 class="form-control"
-                                 title="The preferred time of day to run backups, as seconds from midnight. Examples: 0 = midnight, 7200 = 2:00 AM, 28800 = 8:00 AM, 43200 = noon"
-                                 @bind-Value="_newDailyTriggerTime"/>
-                    <small class="form-text text-muted">Preferred backup time: 0 = midnight, 7200 = 2 AM, 28800 = 8 AM (default: 7200)</small>
-                    <ValidationMessage For="() => _newRule.DailyTriggerTime" class="text-danger"/>
-                </div>
-                <div class="mb-3">
-                    <label for="comment" class="form-label">Comment (optional):</label>
-                    <InputText id="comment"
-                               placeholder="Optional notes about this rule"
-                               class="form-control"
-                               title="Add any notes or reminders about this backup rule."
-                               @bind-Value="_newRule.Comment" />
-                    <small class="form-text text-muted">Optional notes for your reference</small>
-                    <ValidationMessage For="() => _newRule.Comment" class="text-danger"/>
-                </div>
-                <button type="submit" class="btn btn-primary">Create Rule</button>
-            </EditForm>
-        </div>
+            </div>
+        }
     </div>
 }
 
@@ -293,6 +279,8 @@ else
     private List<Hannibal.Models.Endpoint>? _listEndpoints = null;
     private IdentityUser? _user = null;
     private bool _showRulesDetails = false;
+    private bool _showCreateForm = false;
+    private bool _isCreating = false;
 
     [SupplyParameterFromForm] private Hannibal.Models.Rule _editRule { get; set; } = new() { Id = -1 };
     [SupplyParameterFromForm] private Hannibal.Models.Rule? _newRule { get; set; } = null;
@@ -352,7 +340,37 @@ else
         catch (Exception e)
         {
         }
+    }
 
+    private void _onShowCreateForm()
+    {
+        _resetNewRuleForm();
+        _showCreateForm = true;
+    }
+
+    private void _onCancelCreate()
+    {
+        _showCreateForm = false;
+        _resetNewRuleForm();
+    }
+
+    private void _resetNewRuleForm()
+    {
+        _newRule = new() { UserId = _user?.Id ?? "" };
+        _newMaxDestAge = 36 * 3600;
+        _newMinRetryTime = 60;
+        _newDailyTriggerTime = 2 * 3600;
+        _newSourceEndpoint = _listEndpoints?.FirstOrDefault();
+        _newSourceEndpointId = _newSourceEndpoint?.Id ?? -1;
+        _newDestinationEndpoint = _listEndpoints?.FirstOrDefault();
+        _newDestinationEndpointId = _newDestinationEndpoint?.Id ?? -1;
+        if (_newRule != null)
+        {
+            _newRule.SourceEndpoint = _newSourceEndpoint;
+            _newRule.SourceEndpointId = _newSourceEndpointId;
+            _newRule.DestinationEndpoint = _newDestinationEndpoint;
+            _newRule.DestinationEndpointId = _newDestinationEndpointId;
+        }
     }
     
     private void _onEditSourceEndpointChanged()
@@ -470,23 +488,38 @@ else
 
     private async Task _onNewRuleSubmit()
     {
-        // TXWTODO: Where to actually validate before submit?
-
         if (_newRule.SourceEndpoint == null
             || _newRule.DestinationEndpoint == null
-            // || string.IsNullOrWhiteSpace(_newRule.Name)
             || _newRule.SourceEndpoint == _newRule.DestinationEndpoint)
         {
             return;
         }
 
-        _newRule.DailyTriggerTime = TimeSpan.FromSeconds(_newDailyTriggerTime);
-        _newRule.MaxDestinationAge = TimeSpan.FromSeconds(_newMaxDestAge);
-        _newRule.MinRetryTime = TimeSpan.FromSeconds(_newMinRetryTime);
-        
-        await HannibalServiceClient.CreateRuleAsync(_newRule, CancellationToken.None);
-        await _reloadRulePage(CancellationToken.None);
-        await InvokeAsync(StateHasChanged);      
+        _isCreating = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            _newRule.DailyTriggerTime = TimeSpan.FromSeconds(_newDailyTriggerTime);
+            _newRule.MaxDestinationAge = TimeSpan.FromSeconds(_newMaxDestAge);
+            _newRule.MinRetryTime = TimeSpan.FromSeconds(_newMinRetryTime);
+            
+            await HannibalServiceClient.CreateRuleAsync(_newRule, CancellationToken.None);
+            await _reloadRulePage(CancellationToken.None);
+            
+            // Success - close form and reset
+            _showCreateForm = false;
+            _resetNewRuleForm();
+        }
+        catch (Exception e)
+        {
+            // Stay open on error
+        }
+        finally
+        {
+            _isCreating = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
     
     
