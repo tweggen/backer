@@ -13,20 +13,23 @@
 <h3>Storages</h3>
 
 <div class="alert alert-info mb-4" role="alert">
-    <h5 class="alert-heading"><span class="me-2">💾</span>Storage Connections</h5>
-    <p class="mb-2">
-        Storages represent your connected cloud accounts or network server credentials. Each Storage defines <strong>how to connect</strong> to a server or cloud account.
+    <p class="mb-0">
+        Storages represent your connected cloud accounts or network server credentials. Each storage defines <strong>how to connect</strong> to a server or cloud account.
+        <button type="button" class="info-toggle" @onclick="() => _showStoragesDetails = !_showStoragesDetails">@(_showStoragesDetails ? "less details..." : "more details...")</button>
     </p>
-    <hr>
-    <p class="mb-0"><strong>How to use:</strong></p>
-    <ul class="mb-0 mt-2">
-        <li><strong>Cloud Storage</strong> (OneDrive, Dropbox, Google Drive) — Create a storage entry with your email, then click "Authenticate" to connect your account via OAuth.</li>
-        <li><strong>Network Shares</strong> (SMB/CIFS) — Create one Storage entry per server + username combination. The actual share names and folder paths are specified later when creating Endpoints.</li>
-        <li><strong>Local Storage</strong> — Access folders directly on the backup agent's machine.</li>
-        <li><strong>Networks</strong> — Optionally specify which networks this storage is available on (useful for SMB shares only accessible from certain locations).</li>
-    </ul>
-    <hr>
-    <p class="mb-0"><small><strong>💡 Tip for SMB:</strong> If you have multiple shares on the same server that require <em>different</em> login credentials, create a separate Storage entry for each username/password combination. The share name (e.g., "DATA", "Backup") and path (e.g., "Documents/Photos") are configured in <strong>Endpoints</strong>, not here.</small></p>
+    @if (_showStoragesDetails)
+    {
+        <hr>
+        <p class="mb-0"><strong>How to use:</strong></p>
+        <ul class="mb-0 mt-2">
+            <li><strong>Cloud Storage</strong> (OneDrive, Dropbox, Google Drive) — Create a storage entry with your email, then click "Authenticate" to connect your account via OAuth.</li>
+            <li><strong>Network Shares</strong> (SMB/CIFS) — Create one Storage entry per server + username combination. The actual share names and folder paths are specified later when creating Endpoints.</li>
+            <li><strong>Local Storage</strong> — Access folders directly on the backup agent's machine.</li>
+            <li><strong>Networks</strong> — Optionally specify which networks this storage is available on (useful for SMB shares only accessible from certain locations).</li>
+        </ul>
+        <hr>
+        <p class="mb-0"><small><strong>💡 Tip for SMB:</strong> If you have multiple shares on the same server that require <em>different</em> login credentials, create a separate Storage entry for each username/password combination. The share name (e.g., "DATA", "Backup") and path (e.g., "Documents/Photos") are configured in <strong>Endpoints</strong>, not here.</small></p>
+    }
 </div>
 
 @if (_listStorages == null)
@@ -332,6 +335,7 @@ else
 
     private List<Storage>? _listStorages = null;
     private IdentityUser? _user = null;
+    private bool _showStoragesDetails = false;
 
     private int _editingStorageId { get; set; } = -1;
 

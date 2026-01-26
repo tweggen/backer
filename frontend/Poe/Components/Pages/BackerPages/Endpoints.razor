@@ -13,24 +13,27 @@
 <h3>Endpoints</h3>
 
 <div class="alert alert-info mb-4" role="alert">
-    <h5 class="alert-heading"><span class="me-2">📁</span>Backup Endpoints</h5>
-    <p class="mb-2">
-        Endpoints define specific folder locations within your storages. Each endpoint points to a folder that can be used as a source (where to backup from) or destination (where to backup to) in your backup rules.
+    <p class="mb-0">
+        Endpoints define specific folder locations within your storages. Each endpoint points to a folder that can be used as a source or destination in your backup rules.
+        <button type="button" class="info-toggle" @onclick="() => _showEndpointsDetails = !_showEndpointsDetails">@(_showEndpointsDetails ? "less details..." : "more details...")</button>
     </p>
-    <hr>
-    <p class="mb-0"><strong>How to use:</strong></p>
-    <ul class="mb-0 mt-2">
-        <li><strong>Name</strong> — Give your endpoint a descriptive name (e.g., "My Documents", "Cloud Backup Folder", "Photos Archive").</li>
-        <li><strong>Storage</strong> — Select which storage connection this endpoint belongs to.</li>
-        <li><strong>Path</strong> — Specify the folder path:
-            <ul>
-                <li><em>For SMB/Network shares:</em> Include the <strong>share name</strong> followed by the folder path (e.g., <code>DATA/Documents</code> or <code>Backup/Photos/2024</code>)</li>
-                <li><em>For Cloud storage:</em> Folder path within your cloud drive (e.g., <code>Documents/Work</code>)</li>
-                <li><em>For Local storage:</em> Folder path relative to the storage base path</li>
-            </ul>
-        </li>
-    </ul>
-    <p class="mt-2 mb-0"><em>Tip: Create separate endpoints for different folders you want to backup, even within the same storage.</em></p>
+    @if (_showEndpointsDetails)
+    {
+        <hr>
+        <p class="mb-0"><strong>How to use:</strong></p>
+        <ul class="mb-0 mt-2">
+            <li><strong>Name</strong> — Give your endpoint a descriptive name (e.g., "My Documents", "Cloud Backup Folder", "Photos Archive").</li>
+            <li><strong>Storage</strong> — Select which storage connection this endpoint belongs to.</li>
+            <li><strong>Path</strong> — Specify the folder path:
+                <ul>
+                    <li><em>For SMB/Network shares:</em> Include the <strong>share name</strong> followed by the folder path (e.g., <code>DATA/Documents</code> or <code>Backup/Photos/2024</code>)</li>
+                    <li><em>For Cloud storage:</em> Folder path within your cloud drive (e.g., <code>Documents/Work</code>)</li>
+                    <li><em>For Local storage:</em> Folder path relative to the storage base path</li>
+                </ul>
+            </li>
+        </ul>
+        <p class="mt-2 mb-0"><em>Tip: Create separate endpoints for different folders you want to backup, even within the same storage.</em></p>
+    }
 </div>
 
 @if (_listEndpoints == null)
@@ -175,6 +178,7 @@ else
     private List<Hannibal.Models.Endpoint>? _listEndpoints = null;
     private List<Hannibal.Models.Storage>? _listStorages = null;
     private IdentityUser? _user = null;
+    private bool _showEndpointsDetails = false;
 
     private int _editingEndpointId { get; set; } = -1;
     private int _editingEndpointStorageId { get; set; } = -1;

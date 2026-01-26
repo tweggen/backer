@@ -16,21 +16,24 @@
 <h3>Backup Rules</h3>
 
 <div class="alert alert-info mb-4" role="alert">
-    <h5 class="alert-heading"><span class="me-2">⏰</span>Backup Rules</h5>
-    <p class="mb-2">
+    <p class="mb-0">
         Rules define your backup schedules. Each rule specifies what to backup (source), where to backup (destination), and when to run.
+        <button type="button" class="info-toggle" @onclick="() => _showRulesDetails = !_showRulesDetails">@(_showRulesDetails ? "less details..." : "more details...")</button>
     </p>
-    <hr>
-    <p class="mb-0"><strong>How rules work:</strong></p>
-    <ul class="mb-0 mt-2">
-        <li><strong>Source Endpoint</strong> — The folder you want to backup (where your files are).</li>
-        <li><strong>Destination Endpoint</strong> — Where the backup should be stored.</li>
-        <li><strong>Operation</strong> — <em>Copy</em> adds new/changed files; <em>Sync</em> also removes files deleted from source.</li>
-        <li><strong>Max Destination Age</strong> — How old the backup can get before a new backup is triggered (in seconds).</li>
-        <li><strong>Min Retry Time</strong> — Minimum wait time between retry attempts if a backup fails (in seconds).</li>
-        <li><strong>Daily Trigger Time</strong> — Preferred time of day to run backups (seconds from midnight, e.g., 7200 = 2:00 AM).</li>
-    </ul>
-    <p class="mt-2 mb-0"><em>Tip: Set Max Destination Age to 86400 (24 hours) for daily backups, or 3600 (1 hour) for hourly backups.</em></p>
+    @if (_showRulesDetails)
+    {
+        <hr>
+        <p class="mb-0"><strong>How rules work:</strong></p>
+        <ul class="mb-0 mt-2">
+            <li><strong>Source Endpoint</strong> — The folder you want to backup (where your files are).</li>
+            <li><strong>Destination Endpoint</strong> — Where the backup should be stored.</li>
+            <li><strong>Operation</strong> — <em>Copy</em> adds new/changed files; <em>Sync</em> also removes files deleted from source.</li>
+            <li><strong>Max Destination Age</strong> — How old the backup can get before a new backup is triggered (in seconds).</li>
+            <li><strong>Min Retry Time</strong> — Minimum wait time between retry attempts if a backup fails (in seconds).</li>
+            <li><strong>Daily Trigger Time</strong> — Preferred time of day to run backups (seconds from midnight, e.g., 7200 = 2:00 AM).</li>
+        </ul>
+        <p class="mt-2 mb-0"><em>Tip: Set Max Destination Age to 86400 (24 hours) for daily backups, or 3600 (1 hour) for hourly backups.</em></p>
+    }
 </div>
 
 @if (_listRules == null)
@@ -289,6 +292,7 @@ else
     private Dictionary<int, RuleState> _ruleStates = new();
     private List<Hannibal.Models.Endpoint>? _listEndpoints = null;
     private IdentityUser? _user = null;
+    private bool _showRulesDetails = false;
 
     [SupplyParameterFromForm] private Hannibal.Models.Rule _editRule { get; set; } = new() { Id = -1 };
     [SupplyParameterFromForm] private Hannibal.Models.Rule? _newRule { get; set; } = null;

@@ -20,20 +20,23 @@
 <h3>Backup Jobs</h3>
 
 <div class="alert alert-info mb-4" role="alert">
-    <h5 class="alert-heading"><span class="me-2">▶️</span>Job Monitor</h5>
-    <p class="mb-2">
+    <p class="mb-0">
         Jobs are the actual backup tasks that run based on your rules. This screen shows the status of recent and active backup jobs.
+        <button type="button" class="info-toggle" @onclick="() => _showJobsDetails = !_showJobsDetails">@(_showJobsDetails ? "less details..." : "more details...")</button>
     </p>
-    <hr>
-    <p class="mb-0"><strong>Job States:</strong></p>
-    <ul class="mb-0 mt-2">
-        <li><span class="badge bg-info me-1">Preparing</span> — Job is being set up and will start soon.</li>
-        <li><span class="badge bg-secondary me-1">Ready</span> — Job is ready to be picked up by the agent.</li>
-        <li><span class="badge bg-primary me-1">Executing</span> — Backup is currently in progress.</li>
-        <li><span class="badge bg-success me-1">DoneSuccess</span> — Backup completed successfully.</li>
-        <li><span class="badge bg-danger me-1">DoneFailure</span> — Backup failed (check logs for details).</li>
-    </ul>
-    <p class="mt-2 mb-0"><em>This page auto-refreshes when jobs are updated. Use "Clear" to remove completed jobs from the list.</em></p>
+    @if (_showJobsDetails)
+    {
+        <hr>
+        <p class="mb-0"><strong>Job States:</strong></p>
+        <ul class="mb-0 mt-2">
+            <li><span class="badge bg-info me-1">Preparing</span> — Job is being set up and will start soon.</li>
+            <li><span class="badge bg-secondary me-1">Ready</span> — Job is ready to be picked up by the agent.</li>
+            <li><span class="badge bg-primary me-1">Executing</span> — Backup is currently in progress.</li>
+            <li><span class="badge bg-success me-1">DoneSuccess</span> — Backup completed successfully.</li>
+            <li><span class="badge bg-danger me-1">DoneFailure</span> — Backup failed (check logs for details).</li>
+        </ul>
+        <p class="mt-2 mb-0"><em>This page auto-refreshes when jobs are updated. Use "Clear" to remove completed jobs from the list.</em></p>
+    }
 </div>
 
 @if (listJobs == null)
@@ -85,6 +88,7 @@ else
     private List<Job> listJobs;
     private IdentityUser? _user;
     private HubConnection? hubConnection;
+    private bool _showJobsDetails = false;
 
     /// <summary>
     /// Format a DateTime for display

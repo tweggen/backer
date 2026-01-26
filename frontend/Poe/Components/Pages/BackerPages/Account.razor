@@ -20,16 +20,20 @@
 <h3>Account Settings</h3>
 
 <div class="alert alert-info mb-4" role="alert">
-    <h5 class="alert-heading"><span class="me-2">👤</span>Your Account</h5>
-    <p class="mb-2">
-        Manage your Backer account settings here. You can view your account details or permanently delete your account.
+    <p class="mb-0">
+        Manage your Backer account settings here. You can view your account details, backup/restore configuration, or permanently delete your account.
+        <button type="button" class="info-toggle" @onclick="() => _showAccountDetails = !_showAccountDetails">@(_showAccountDetails ? "less details..." : "more details...")</button>
     </p>
-    <hr>
-    <p class="mb-0"><strong>Important:</strong></p>
-    <ul class="mb-0 mt-2">
-        <li><strong>Logout</strong> — End your current session. You can log back in anytime.</li>
-        <li><strong>Delete Account</strong> — Permanently removes your account and all associated data (storages, endpoints, rules, job history). This action cannot be undone!</li>
-    </ul>
+    @if (_showAccountDetails)
+    {
+        <hr>
+        <p class="mb-0"><strong>Important:</strong></p>
+        <ul class="mb-0 mt-2">
+            <li><strong>Logout</strong> — End your current session. You can log back in anytime.</li>
+            <li><strong>Export/Import</strong> — Backup your configuration or restore from a previous backup.</li>
+            <li><strong>Delete Account</strong> — Permanently removes your account and all associated data (storages, endpoints, rules, job history). This action cannot be undone!</li>
+        </ul>
+    }
 </div>
 
 <div class="card mb-4">
@@ -194,6 +198,7 @@
 
 @code {
     private IdentityUser? _user = null;
+    private bool _showAccountDetails = false;
     
     // Export state
     private bool _exportIncludePasswords = false;
