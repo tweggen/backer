@@ -37,6 +37,10 @@
                 <label for="password" class="form-label">Password</label>
                 <InputText id="password" @bind-Value="loginModel.Password" class="form-control" type="password" placeholder="••••••••" />
             </div>
+            <div class="mb-3 form-check">
+                <InputCheckbox id="rememberMe" @bind-Value="loginModel.RememberMe" class="form-check-input" />
+                <label for="rememberMe" class="form-check-label">Remember me</label>
+            </div>
             <button type="submit" class="btn btn-primary w-100">Sign In</button>
         </EditForm>
 
@@ -75,18 +79,33 @@
 
                 var identity = new ClaimsIdentity(claims, "Cookies");
                 var principal = new ClaimsPrincipal(identity);
-                await HttpContextAccessor.HttpContext!.SignInAsync("Cookies", principal);
+                
+                var authProperties = new AuthenticationProperties
+                {
+                    IsPersistent = loginModel.RememberMe,
+                    ExpiresUtc = loginModel.RememberMe ? DateTimeOffset.UtcNow.AddDays(30) : null
+                };
+                
+                await HttpContextAccessor.HttpContext!.SignInAsync("Cookies", principal, authProperties);
 
                 var tokenResult = await IdentityApiService.TokenAsync(loginRequest, CancellationToken.None);
                 if (tokenResult.Result is Ok<AccessTokenResponse> okTokenResult)
                 {
                     var token = okTokenResult.Value!.AccessToken;
-                    HttpContextAccessor.HttpContext!.Response.Cookies.Append("access_token", token, new CookieOptions
+                    var cookieOptions = new CookieOptions
                     {
                         HttpOnly = true,
                         Secure = true,
                         SameSite = SameSiteMode.Strict
-                    });
+                    };
+                    
+                    // Set expiration if "Remember Me" is checked
+                    if (loginModel.RememberMe)
+                    {
+                        cookieOptions.Expires = DateTimeOffset.UtcNow.AddDays(30);
+                    }
+                    
+                    HttpContextAccessor.HttpContext!.Response.Cookies.Append("access_token", token, cookieOptions);
                 }
 
                 HttpContextAccessor.HttpContext!.Response.Redirect($"{BasePath.Value}/backer/");
@@ -106,5 +125,6 @@
     {
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
+        public bool RememberMe { get; set; } = false;
     }
 }

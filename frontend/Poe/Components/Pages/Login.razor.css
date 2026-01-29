@@ -60,6 +60,19 @@
     margin-top: 0.5rem;
 }
 
+.login-form .form-check {
+    margin-top: 1rem;
+}
+
+.login-form .form-check-input {
+    margin-top: 0.3rem;
+}
+
+.login-form .form-check-label {
+    color: #374151;
+    font-weight: 400;
+}
+
 .login-footer {
     text-align: center;
     margin-top: 1.5rem;
