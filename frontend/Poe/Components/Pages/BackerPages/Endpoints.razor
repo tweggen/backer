@@ -319,12 +319,27 @@ else
     }
 
 
+    private async Task _rereadListEndpoints()
+    {
+        _listEndpoints = new List<Hannibal.Models.Endpoint>(
+            (await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None))
+            .OrderBy(ep => ep.Name)
+        );
+    }
+
+
+    private async Task _rereadListStorages()
+    {
+        _listStorages = new List<Hannibal.Models.Storage>(
+            (await HigginsServiceClient.GetStoragesAsync(CancellationToken.None))
+            .OrderBy(st => st.Technology)
+        );
+    }
+
     private async Task _onDelete(Hannibal.Models.Endpoint ep)
     {
         await HigginsServiceClient.DeleteEndpointAsync(ep.Id, CancellationToken.None);
-        _listEndpoints = new List<Hannibal.Models.Endpoint>(
-            await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
-        );
+        await _rereadListEndpoints();
         await InvokeAsync(StateHasChanged);      
     }
     
@@ -363,9 +378,7 @@ else
         try
         {
             await HigginsServiceClient.CreateEndpointAsync(_newEndpoint, CancellationToken.None);
-            _listEndpoints = new List<Hannibal.Models.Endpoint>(
-                await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
-            );
+            await _rereadListEndpoints();
             
             // Success - close form and reset
             _showCreateForm = false;
@@ -407,12 +420,8 @@ else
 
             _newEndpoint = new() { UserId = _user.Id, IsActive = true };
 
-            _listEndpoints = new List<Hannibal.Models.Endpoint>(
-                await HigginsServiceClient.GetEndpointsAsync(CancellationToken.None)
-            );
-            _listStorages = new List<Hannibal.Models.Storage>(
-                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
-            );
+            await _rereadListEndpoints();
+            await _rereadListStorages();
         }
         catch (Exception e)
         {
