@@ -126,7 +126,9 @@ builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(sp =>
                 .AddUserSecrets<Program>(optional: true)
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
+                    [$"RCloneService:oauth2:Providers:onedrive:Client{""}Id"] = "d9b13a4a-f0bd-4793-b638-93fc1b941662",
                     [$"RCloneService:oauth2:Providers:onedrive:Client{""}Secret"] = RClonePasswordObscurer.Reveal("TrBZ6QUdn4TJqv-x0fb7Mdb4WXHcAia8-3mjt5z4RxPY4owBV7UuLUw2ihchFX08zj0JibsW3r4"),
+                    [$"RCloneService:oauth2:Providers:dropbox:Client{""}Id"] = "4bpfjazat4ruy39",
                     [$"RCloneService:oauth2:Providers:dropbox:Client{""}Secret"] = RClonePasswordObscurer.Reveal("5BTX7BJ0B9lMoTeSC65QiVCM1GzYGGxm7OtrlXcuBg"),
                     
                 }));
