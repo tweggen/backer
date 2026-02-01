@@ -499,12 +499,19 @@ else
     }
 
 
+    private async Task _rereadStorages()
+    {
+        _listStorages = new List<Storage>(
+            (await HigginsServiceClient.GetStoragesAsync(CancellationToken.None))
+            .OrderBy(st => st.Technology)
+        );
+    }
+    
+
     private async Task _onDelete(Storage sto)
     {
         await HigginsServiceClient.DeleteStorageAsync(sto.Id, CancellationToken.None);
-        _listStorages = new List<Storage>(
-            await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
-        );
+        await _rereadStorages();
         await InvokeAsync(StateHasChanged);      
     }
     
@@ -535,9 +542,7 @@ else
             await HigginsServiceClient.UpdateStorageAsync(_editingStorage.Id, _editingStorage, CancellationToken.None);
             
             // Refresh the list
-            _listStorages = new List<Storage>(
-                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
-            );
+            await _rereadStorages();
         }
 
         _editingStorageId = -1;
@@ -658,9 +663,7 @@ else
         try
         {
             await HigginsServiceClient.CreateStorageAsync(_newStorage, CancellationToken.None);
-            _listStorages = new List<Storage>(
-                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
-            );
+            await _rereadStorages();
             
             // Success - close form and reset
             _showCreateForm = false;
@@ -702,9 +705,7 @@ else
                 Navigation.NavigateTo($"{BasePath.Value}/login");
             }
 
-            _listStorages = new List<Storage>(
-                await HigginsServiceClient.GetStoragesAsync(CancellationToken.None)
-            );
+            await _rereadStorages();
 
             _newStorage = Storage.Default();
 
