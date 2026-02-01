@@ -90,6 +90,50 @@ public abstract class OAuthStorageProviderBase : StorageProviderBase
         }
     }
 
+    /// <inheritdoc />
+    public override async Task<TokenValidationResult> EnsureTokensValidAsync(
+        StorageState state, 
+        TimeSpan? bufferTime = null,
+        CancellationToken cancellationToken = default)
+    {
+        var storage = state.Storage;
+        var buffer = bufferTime ?? TimeSpan.FromMinutes(5);
+        
+        // If no tokens exist yet, nothing to validate
+        if (string.IsNullOrWhiteSpace(storage.AccessToken) && 
+            string.IsNullOrWhiteSpace(storage.RefreshToken))
+        {
+            Logger.LogDebug($"{Technology}: No tokens present, nothing to validate");
+            return TokenValidationResult.NotApplicable();
+        }
+        
+        // Check if token is still valid (with buffer time)
+        var now = DateTime.UtcNow;
+        var expiresAt = storage.ExpiresAt.ToUniversalTime();
+        var effectiveExpiry = expiresAt - buffer;
+        
+        if (now < effectiveExpiry)
+        {
+            Logger.LogDebug($"{Technology}: Token still valid until {expiresAt} (effective: {effectiveExpiry})");
+            return TokenValidationResult.AlreadyValid();
+        }
+        
+        // Token is expired or about to expire, refresh it
+        Logger.LogInformation($"{Technology}: Token expired or expiring soon (expires: {expiresAt}), refreshing...");
+        
+        try
+        {
+            await RefreshTokensAsync(state, cancellationToken);
+            Logger.LogInformation($"{Technology}: Token refreshed successfully, new expiry: {storage.ExpiresAt}");
+            return TokenValidationResult.RefreshedSuccessfully();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"{Technology}: Failed to refresh token");
+            return TokenValidationResult.RefreshFailed(ex.Message);
+        }
+    }
+
     /// <summary>
     /// Update storage tokens in the database
     /// </summary>

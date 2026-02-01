@@ -120,4 +120,41 @@ public class RCloneStorages
     /// </summary>
     public bool IsSupported(string technology) => 
         _providerFactory.IsSupported(technology);
+
+    /// <summary>
+    /// Ensure tokens are valid for a storage, refreshing if necessary.
+    /// Call this before starting an rclone job to ensure tokens are fresh.
+    /// </summary>
+    /// <param name="storage">The storage to check</param>
+    /// <param name="bufferTime">Optional buffer time before expiry to trigger refresh</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Result indicating token status and any refresh actions taken</returns>
+    public async Task<TokenValidationResult> EnsureTokensValidAsync(
+        Storage storage,
+        TimeSpan? bufferTime = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_providerFactory.IsSupported(storage.Technology))
+        {
+            _logger.LogWarning($"Storage technology '{storage.Technology}' is not supported");
+            return TokenValidationResult.NotApplicable();
+        }
+
+        // Get or create the storage state
+        var state = await FindStorageState(storage, cancellationToken);
+        
+        // Get the provider and check tokens
+        var provider = _providerFactory.GetProvider(storage.Technology);
+        var result = await provider.EnsureTokensValidAsync(state, bufferTime, cancellationToken);
+        
+        // If tokens were refreshed, we need to update the rclone parameters
+        if (result.WasRefreshed && result.IsNowValid)
+        {
+            _logger.LogInformation($"Tokens refreshed for {storage.UriSchema}, updating rclone parameters");
+            var parameters = await provider.BuildRCloneParametersAsync(state, cancellationToken);
+            state.RCloneParameters = new SortedDictionary<string, string>(parameters);
+        }
+        
+        return result;
+    }
 }

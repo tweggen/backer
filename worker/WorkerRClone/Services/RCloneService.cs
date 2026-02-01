@@ -310,6 +310,7 @@ public class RCloneService : BackgroundService
     /**
      * Take care we have all remotes that we need for this endpoint in the configuration.
      * If necessary, create them, restart rclone.
+     * Also ensures tokens are valid before starting the job.
      */
     private async Task _ensureConfiguredEndpoint(
         EndpointState es, 
@@ -330,6 +331,20 @@ public class RCloneService : BackgroundService
         }
 
         Storage storage = es.Endpoint.Storage;
+        
+        // Ensure tokens are valid before starting the job
+        var tokenResult = await _rcloneStorages.EnsureTokensValidAsync(storage, cancellationToken: cancellationToken);
+        if (!tokenResult.IsNowValid)
+        {
+            _logger.LogError($"Token validation failed for storage {storage.UriSchema}: {tokenResult.ErrorMessage}");
+            throw new UnauthorizedAccessException($"Token validation failed for storage {storage.UriSchema}: {tokenResult.ErrorMessage}");
+        }
+        
+        if (tokenResult.WasRefreshed)
+        {
+            _logger.LogInformation($"Tokens were refreshed for storage {storage.UriSchema}");
+        }
+        
         StorageState ss = await _rcloneStorages.FindStorageState(storage, cancellationToken);
         
         _configManager.AddOrUpdateRemote(storage.UriSchema, ss.RCloneParameters);

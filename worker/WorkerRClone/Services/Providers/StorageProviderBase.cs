@@ -27,6 +27,16 @@ public abstract class StorageProviderBase : IStorageProvider
         => Task.CompletedTask;
 
     /// <inheritdoc />
+    public virtual Task<TokenValidationResult> EnsureTokensValidAsync(
+        StorageState state, 
+        TimeSpan? bufferTime = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Non-OAuth providers don't have tokens to validate
+        return Task.FromResult(TokenValidationResult.NotApplicable());
+    }
+
+    /// <inheritdoc />
     public abstract Task<Dictionary<string, string>> BuildRCloneParametersAsync(
         StorageState state, 
         CancellationToken cancellationToken);
