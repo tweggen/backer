@@ -9,6 +9,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using Microsoft.AspNetCore.SignalR.Client;
 using WorkerRClone.Models;
+using YourBacker.Platform;
 
 namespace YourBacker;
 
@@ -18,6 +19,10 @@ public partial class App : Application
     private NativeMenu? _trayMenu;
     private NativeMenuItem? _statusItem;
     private NativeMenuItem? _startStopItem;
+    private NativeMenuItem? _quitLaunchItem;
+    
+    private readonly IServiceLauncher _serviceLauncher = ServiceLauncherFactory.Create();
+    private bool _serviceAvailable = true;
     
     private ConfigWindow? _configWindow;
     private TransferWindow? _transferWindow;
@@ -88,8 +93,8 @@ public partial class App : Application
         var restartItem = new NativeMenuItem("Restart Service");
         restartItem.Click += async (s, e) => await _http.PostAsync("/restart", null);
 
-        var quitServiceItem = new NativeMenuItem("Quit Service");
-        quitServiceItem.Click += async (s, e) => await _http.PostAsync("/quit", null);
+        _quitLaunchItem = new NativeMenuItem("Quit Service");
+        _quitLaunchItem.Click += OnQuitLaunchClicked;
 
         var configItem = new NativeMenuItem("Configure...");
         configItem.Click += (s, e) => ShowConfigWindow();
@@ -113,7 +118,7 @@ public partial class App : Application
             _startStopItem,
             new NativeMenuItemSeparator(),
             restartItem,
-            quitServiceItem,
+            _quitLaunchItem,
             new NativeMenuItemSeparator(),
             configItem,
             transfersItem,
@@ -254,6 +259,47 @@ public partial class App : Application
         }
     }
 
+    private async void OnQuitLaunchClicked(object? sender, EventArgs e)
+    {
+        if (_serviceAvailable)
+        {
+            // Service is running — quit it
+            try
+            {
+                await _http.PostAsync("/quit", null);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to quit service: {ex.Message}");
+            }
+        }
+        else if (_serviceLauncher.IsSupported)
+        {
+            // Service is not running — try to launch it
+            if (_quitLaunchItem != null)
+            {
+                _quitLaunchItem.Header = "Launching...";
+                _quitLaunchItem.IsEnabled = false;
+            }
+
+            var success = await _serviceLauncher.TryLaunchAsync();
+
+            if (!success)
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (_quitLaunchItem != null)
+                    {
+                        _quitLaunchItem.Header = "Launch Service";
+                        _quitLaunchItem.IsEnabled = true;
+                    }
+                });
+            }
+            // On success the polling / SignalR reconnection will pick up
+            // the new state and update the UI automatically.
+        }
+    }
+
     private async Task SetupSignalRConnectionAsync()
     {
         try
@@ -358,11 +404,25 @@ public partial class App : Application
         {
             Dispatcher.UIThread.Post(() =>
             {
+                _serviceAvailable = false;
                 if (_statusItem != null) _statusItem.Header = "Service unavailable";
                 if (_startStopItem != null)
                 {
                     _startStopItem.Header = "Service unavailable";
                     _startStopItem.IsEnabled = false;
+                }
+                if (_quitLaunchItem != null)
+                {
+                    if (_serviceLauncher.IsSupported)
+                    {
+                        _quitLaunchItem.Header = "Launch Service";
+                        _quitLaunchItem.IsEnabled = true;
+                    }
+                    else
+                    {
+                        _quitLaunchItem.Header = "Service unavailable";
+                        _quitLaunchItem.IsEnabled = false;
+                    }
                 }
             });
         }
@@ -370,9 +430,18 @@ public partial class App : Application
 
     private void UpdateUIWithState(RCloneServiceState status)
     {
+        // Service is responding — mark as available and restore quit item
+        _serviceAvailable = true;
+        
         if (_statusItem != null)
         {
             _statusItem.Header = status.StateString;
+        }
+        
+        if (_quitLaunchItem != null)
+        {
+            _quitLaunchItem.Header = "Quit Service";
+            _quitLaunchItem.IsEnabled = true;
         }
         
         if (_startStopItem != null)
