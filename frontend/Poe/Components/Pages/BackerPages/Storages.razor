@@ -23,12 +23,13 @@
         <p class="mb-0"><strong>How to use:</strong></p>
         <ul class="mb-0 mt-2">
             <li><strong>Cloud Storage</strong> (OneDrive, Dropbox, Google Drive) — Create a storage entry with your email, then click "Authenticate" to connect your account via OAuth.</li>
+            <li><strong>Nextcloud / ownCloud</strong> — Enter your server URL, username, and an <em>App Password</em> (recommended for security). Go to Settings → Security → Devices & sessions to create one.</li>
             <li><strong>Network Shares</strong> (SMB/CIFS) — Create one Storage entry per server + username combination. The actual share names and folder paths are specified later when creating Endpoints.</li>
             <li><strong>Local Storage</strong> — Access folders directly on the backup agent's machine.</li>
             <li><strong>Networks</strong> — Optionally specify which networks this storage is available on (useful for SMB shares only accessible from certain locations).</li>
         </ul>
         <hr>
-        <p class="mb-0"><small><strong>💡 Tip for SMB:</strong> If you have multiple shares on the same server that require <em>different</em> login credentials, create a separate Storage entry for each username/password combination. The share name (e.g., "DATA", "Backup") and path (e.g., "Documents/Photos") are configured in <strong>Endpoints</strong>, not here.</small></p>
+        <p class="mb-0"><small><strong>💡 Tip:</strong> For SMB shares with <em>different</em> login credentials, create a separate Storage entry for each username/password combination. For Nextcloud, use App Passwords instead of your main password for better security.</small></p>
     }
 </div>
 
@@ -195,36 +196,68 @@ else
 
                             @if (IsCredentialBased(_newStorage.Technology))
                             {
-                                <div class="mb-3">
-                                    <label for="host" class="form-label">Host: <span class="text-danger">*</span></label>
-                                    <InputText id="host" placeholder="server.local or 192.168.1.100" class="form-control" @bind-Value="_newStorage.Host"/>
-                                    <small class="form-text text-muted">Server hostname or IP address</small>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="username" class="form-label">Username: <span class="text-danger">*</span></label>
-                                        <InputText id="username" placeholder="username" class="form-control" @bind-Value="_newStorage.Username"/>
+                                @if (_newStorage.Technology == "nextcloud")
+                                {
+                                    <div class="mb-3">
+                                        <label for="host" class="form-label">Server URL: <span class="text-danger">*</span></label>
+                                        <InputText id="host" placeholder="cloud.example.com or nextcloud.local" class="form-control" @bind-Value="_newStorage.Host"/>
+                                        <small class="form-text text-muted">Your Nextcloud server URL (without https://)</small>
                                     </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="password" class="form-label">Password:</label>
-                                        <InputText id="password" type="password" placeholder="password" class="form-control" @bind-Value="_newStorage.Password"/>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="username" class="form-label">Username: <span class="text-danger">*</span></label>
+                                            <InputText id="username" placeholder="your-username" class="form-control" @bind-Value="_newStorage.Username"/>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="password" class="form-label">App Password: <span class="text-danger">*</span></label>
+                                            <InputText id="password" type="password" placeholder="xxxxx-xxxxx-xxxxx-xxxxx-xxxxx" class="form-control" @bind-Value="_newStorage.Password"/>
+                                            <small class="form-text text-muted">Create one in Settings → Security → Devices</small>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="domain" class="form-label">Domain (optional):</label>
-                                        <InputText id="domain" placeholder="WORKGROUP" class="form-control" @bind-Value="_newStorage.Domain"/>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
+                                    <div class="mb-3">
                                         <label for="port" class="form-label">Port (optional):</label>
-                                        <InputNumber id="port" class="form-control" @bind-Value="_newStorage.Port"/>
+                                        <InputNumber id="port" class="form-control" @bind-Value="_newStorage.Port" placeholder="443"/>
+                                        <small class="form-text text-muted">Only needed if using non-standard port</small>
                                     </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="urischema" class="form-label">Storage Name: <span class="text-danger">*</span></label>
-                                    <InputText id="urischema" placeholder="e.g., nas_admin" class="form-control" @bind-Value="_newStorage.UriSchema"/>
-                                    <small class="form-text text-muted">A unique identifier for this connection</small>
-                                </div>
+                                    <div class="mb-3">
+                                        <label for="urischema" class="form-label">Storage Name: <span class="text-danger">*</span></label>
+                                        <InputText id="urischema" placeholder="e.g., my-nextcloud" class="form-control" @bind-Value="_newStorage.UriSchema"/>
+                                        <small class="form-text text-muted">A unique identifier for this connection</small>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="mb-3">
+                                        <label for="host" class="form-label">Host: <span class="text-danger">*</span></label>
+                                        <InputText id="host" placeholder="server.local or 192.168.1.100" class="form-control" @bind-Value="_newStorage.Host"/>
+                                        <small class="form-text text-muted">Server hostname or IP address</small>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="username" class="form-label">Username: <span class="text-danger">*</span></label>
+                                            <InputText id="username" placeholder="username" class="form-control" @bind-Value="_newStorage.Username"/>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="password" class="form-label">Password:</label>
+                                            <InputText id="password" type="password" placeholder="password" class="form-control" @bind-Value="_newStorage.Password"/>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="domain" class="form-label">Domain (optional):</label>
+                                            <InputText id="domain" placeholder="WORKGROUP" class="form-control" @bind-Value="_newStorage.Domain"/>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="port" class="form-label">Port (optional):</label>
+                                            <InputNumber id="port" class="form-control" @bind-Value="_newStorage.Port"/>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="urischema" class="form-label">Storage Name: <span class="text-danger">*</span></label>
+                                        <InputText id="urischema" placeholder="e.g., nas_admin" class="form-control" @bind-Value="_newStorage.UriSchema"/>
+                                        <small class="form-text text-muted">A unique identifier for this connection</small>
+                                    </div>
+                                }
                             }
                             else if (_newStorage.Technology == "local")
                             {
@@ -304,7 +337,8 @@ else
     /// </summary>
     private static readonly HashSet<string> CredentialTechnologies = new(StringComparer.OrdinalIgnoreCase)
     {
-        "smb"
+        "smb",
+        "nextcloud"
     };
 
     /// <summary>
@@ -333,6 +367,7 @@ else
             "onedrive" => "OneDrive",
             "dropbox" => "Dropbox",
             "googledrive" => "Google Drive",
+            "nextcloud" => "Nextcloud / ownCloud",
             "smb" => "SMB/CIFS Network Share",
             "local" => "Local Filesystem",
             _ => technology ?? "Unknown"
@@ -530,15 +565,17 @@ else
 
             if (IsCredentialBased(_newStorage.Technology))
             {
-                // Validate credential-based storage (SMB)
+                // Validate credential-based storage (SMB, Nextcloud, etc.)
+                var techName = GetTechnologyDisplayName(_newStorage.Technology);
+                
                 if (string.IsNullOrWhiteSpace(_newStorage.Host))
                 {
-                    _customValidator.AddError(nameof(_newStorage.Host), "Host is required for SMB storage");
+                    _customValidator.AddError(nameof(_newStorage.Host), $"Host/Server URL is required for {techName}");
                 }
                 
                 if (string.IsNullOrWhiteSpace(_newStorage.Username))
                 {
-                    _customValidator.AddError(nameof(_newStorage.Username), "Username is required for SMB storage");
+                    _customValidator.AddError(nameof(_newStorage.Username), $"Username is required for {techName}");
                 }
                 
                 if (string.IsNullOrWhiteSpace(_newStorage.UriSchema))

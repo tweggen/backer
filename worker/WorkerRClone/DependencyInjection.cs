@@ -62,6 +62,7 @@ public static class DependencyInjection
         
         // Credential-based / local providers
         services.AddSingleton<IStorageProvider, SmbProvider>();
+        services.AddSingleton<IStorageProvider, NextcloudProvider>();
         services.AddSingleton<IStorageProvider, LocalProvider>();
         
         // Provider factory - collects all registered IStorageProvider instances

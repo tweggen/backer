@@ -7,6 +7,7 @@ public class Technologies
         "onedrive",
         "dropbox",
         "googledrive",
+        "nextcloud",
         "smb",
         "local"
     };
