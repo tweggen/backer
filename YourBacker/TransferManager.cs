@@ -1,25 +1,57 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
+using WorkerRClone.Models;
 
 namespace YourBacker;
 
 /// <summary>
-/// Manages the collection of active file transfers
+/// Manages the collection of active file transfers and overall progress
 /// </summary>
 public partial class TransferManager : ObservableObject
 {
     public ObservableCollection<FileTransferViewModel> Transfers { get; } = new();
 
     /// <summary>
+    /// Overall transfer progress statistics
+    /// </summary>
+    [ObservableProperty]
+    private OverallProgressViewModel _overallProgress = new();
+
+    /// <summary>
     /// True when there are no active transfers
     /// </summary>
-    public bool IsEmpty => Transfers.Count == 0;
+    public bool IsEmpty => Transfers.Count == 0 && !OverallProgress.HasActiveTransfers;
 
     public TransferManager()
     {
         // Update IsEmpty when collection changes
         Transfers.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsEmpty));
+    }
+
+    /// <summary>
+    /// Update overall progress from aggregate stats
+    /// </summary>
+    public void UpdateOverallProgress(OverallTransferStats? stats)
+    {
+        if (stats == null)
+        {
+            OverallProgress.HasActiveTransfers = false;
+            OnPropertyChanged(nameof(IsEmpty));
+            return;
+        }
+
+        OverallProgress.ProgressPercent = stats.ProgressPercent;
+        OverallProgress.BytesTransferred = stats.BytesTransferred;
+        OverallProgress.TotalBytes = stats.TotalBytes;
+        OverallProgress.Speed = stats.Speed;
+        OverallProgress.EtaSeconds = stats.EtaSeconds;
+        OverallProgress.FilesCompleted = stats.FilesCompleted;
+        OverallProgress.TotalFiles = stats.TotalFiles;
+        OverallProgress.Errors = stats.Errors;
+        OverallProgress.HasActiveTransfers = stats.HasActiveTransfers;
+
+        OnPropertyChanged(nameof(IsEmpty));
     }
 
     /// <summary>

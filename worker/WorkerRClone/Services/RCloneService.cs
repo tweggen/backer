@@ -1333,6 +1333,20 @@ public class RCloneService : BackgroundService
 
         TransferStatsResult result = new();
         result.TransferringItems = new();
+
+        // Populate overall aggregate statistics
+        result.OverallStats = new OverallTransferStats
+        {
+            BytesTransferred = rcloneStats.bytes,
+            TotalBytes = rcloneStats.totalBytes,
+            Speed = rcloneStats.speed,
+            EtaSeconds = rcloneStats.eta,
+            ElapsedSeconds = rcloneStats.elapsedTime,
+            FilesCompleted = rcloneStats.transfers,
+            TotalFiles = rcloneStats.totalTransfers,
+            Errors = rcloneStats.errors
+        };
+
         if (rcloneStats.transferring != null)
         {
             foreach (var rcloneStatus in rcloneStats.transferring)

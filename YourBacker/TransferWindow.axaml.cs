@@ -29,11 +29,14 @@ public partial class TransferWindow : Window
     private async void OnTimerTick(object? sender, EventArgs e)
     {
         var listStats = new List<FileTransferStats>();
-        
+
         try
         {
             var transferStatsResult = await _http.GetFromJsonAsync<TransferStatsResult>("/transfers");
-            
+
+            // Update overall progress
+            _manager.UpdateOverallProgress(transferStatsResult?.OverallStats);
+
             if (transferStatsResult?.TransferringItems != null)
             {
                 foreach (var item in transferStatsResult.TransferringItems)
@@ -56,6 +59,7 @@ public partial class TransferWindow : Window
         {
             // Unable to get stats from service - might be disconnected
             // That's ok, SignalR will push updates when available
+            _manager.UpdateOverallProgress(null);
         }
 
         _manager.UpdateTransfers(listStats);
@@ -67,7 +71,10 @@ public partial class TransferWindow : Window
     public void UpdateTransferStats(TransferStatsResult transferStatsResult)
     {
         var listStats = new List<FileTransferStats>();
-        
+
+        // Update overall progress
+        _manager.UpdateOverallProgress(transferStatsResult?.OverallStats);
+
         if (transferStatsResult?.TransferringItems != null)
         {
             foreach (var item in transferStatsResult.TransferringItems)
