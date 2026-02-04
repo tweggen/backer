@@ -214,6 +214,11 @@ public class RCloneService : BackgroundService
 
     private async Task _checkFinishedJobs(CancellationToken cancellationToken)
     {
+        if (_rcloneHttpClient == null)
+        {
+            return;  // Silent return - called frequently, would be noisy
+        }
+
         SortedDictionary<int, Job> mapJobs;
         /*
          * We need to create a list of jobs we already reported back to the caller
@@ -232,14 +237,13 @@ public class RCloneService : BackgroundService
             int rcloneJobId = kvp.Key;
             Job job = kvp.Value;
             int jobId = job.Id;
-            
+
             /*
              * We need to wrap this into try/catch in case the job has ceased to
              * exist.
              */
             try
             {
-
                 var jobStatus = await rcloneClient.GetJobStatusAsync(rcloneJobId, cancellationToken);
                 if (jobStatus.finished)
                 {
@@ -289,11 +293,21 @@ public class RCloneService : BackgroundService
 
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException)
             {
-                /*
-                 * We can igore this exception because the job might have ceased to exist.
-                 */
+                // RClone unavailable - break out, no point trying other jobs
+                _logger.LogDebug("RCloneService: Unable to check jobs - rclone not available");
+                break;
+            }
+            catch (TaskCanceledException ex) when (ex.CancellationToken != cancellationToken)
+            {
+                // Timeout or connection failure (not user cancellation)
+                _logger.LogDebug("RCloneService: Unable to check jobs - request timed out");
+                break;
+            }
+            catch (Exception)
+            {
+                // Job-specific error (e.g., job ceased to exist) - continue to next job
             }
         }
 
@@ -991,23 +1005,41 @@ public class RCloneService : BackgroundService
     internal async Task _stopJobsImpl()
     {
         _logger.LogInformation("RCloneService: Stopping jobs.");
-        
-        var rcloneClient = new RCloneClient(_rcloneHttpClient);
-        var jobList = await rcloneClient.GetJobListAsync(CancellationToken.None);
-        List<int>? list = null;
 
-        if (jobList.running_ids != null)
+        if (_rcloneHttpClient == null)
         {
-            list = jobList.running_ids;
+            _logger.LogInformation("RCloneService: RClone not available, skipping job stop.");
+            await _stateMachine!.TransitionAsync(ServiceEvent.JobsCompleted);
+            return;
         }
 
-        if (list != null)
+        try
         {
-            foreach (var jobid in list)
+            var rcloneClient = new RCloneClient(_rcloneHttpClient);
+            var jobList = await rcloneClient.GetJobListAsync(CancellationToken.None);
+            List<int>? list = null;
+
+            if (jobList.running_ids != null)
             {
-                _logger.LogInformation($"RCloneService: Stopping job {jobid}");
-                await rcloneClient.StopJobAsync(CancellationToken.None);
+                list = jobList.running_ids;
             }
+
+            if (list != null)
+            {
+                foreach (var jobid in list)
+                {
+                    _logger.LogInformation($"RCloneService: Stopping job {jobid}");
+                    await rcloneClient.StopJobAsync(CancellationToken.None);
+                }
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning("RCloneService: Unable to stop jobs - rclone not available: {Message}", ex.Message);
+        }
+        catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning("RCloneService: Unable to stop jobs - request timed out");
         }
 
         await _stateMachine!.TransitionAsync(ServiceEvent.JobsCompleted);
@@ -1326,9 +1358,42 @@ public class RCloneService : BackgroundService
     
     public async Task<TransferStatsResult> GetTransferStatsAsync(CancellationToken cancellationToken)
     {
+        if (_rcloneHttpClient == null)
+        {
+            return new TransferStatsResult
+            {
+                TransferringItems = new(),
+                OverallStats = new OverallTransferStats()
+            };
+        }
+
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
 
-        var rcloneStats = await rcloneClient.GetJobStatsAsync(CancellationToken.None);
+        JobStatsResult rcloneStats;
+        try
+        {
+            rcloneStats = await rcloneClient.GetJobStatsAsync(cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning("RCloneService: Unable to get transfer stats - rclone not available: {Message}", ex.Message);
+            return new TransferStatsResult
+            {
+                TransferringItems = new(),
+                OverallStats = new OverallTransferStats()
+            };
+        }
+        catch (TaskCanceledException ex) when (ex.CancellationToken != cancellationToken)
+        {
+            // Timeout or connection failure (not user cancellation)
+            _logger.LogWarning("RCloneService: Unable to get transfer stats - request timed out or connection failed");
+            return new TransferStatsResult
+            {
+                TransferringItems = new(),
+                OverallStats = new OverallTransferStats()
+            };
+        }
+
         _logger.LogInformation($"RCloneService: Transfer stats: {rcloneStats}");
 
         TransferStatsResult result = new();
