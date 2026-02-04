@@ -1144,35 +1144,51 @@ public class RCloneService : BackgroundService
     private async Task<bool> _doesStorageChangeRequireRestart(string storageUriSchema)
     {
         _logger.LogInformation($"RCloneService: Checking if storage {storageUriSchema} requires restart");
-        
-        // 1. Get the storage object from our list
-        Storage? storage = _listStorages?.FirstOrDefault(s => s.UriSchema == storageUriSchema);
-        if (storage == null)
-        {
-            _logger.LogWarning($"Storage {storageUriSchema} not found in current list");
-            // Unknown storage, safer to restart
-            return true;
-        }
-        
-        // 2. Get current parameters from config manager
+
+        // 1. Get current parameters from config manager (what rclone is using now)
         var currentParams = _configManager?.GetRemote(storageUriSchema);
         if (currentParams == null)
         {
             _logger.LogInformation($"Storage {storageUriSchema} not in current config, restart needed");
             return true;
         }
-        
-        // 3. Get new storage state with fresh tokens
+
+        // 2. Fetch the updated storage from the database (with new tokens from the server)
+        // This is important: we fetch from DB, NOT refresh OAuth tokens again
+        Storage? updatedStorage;
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+            var storages = await hannibalService.GetStoragesAsync(CancellationToken.None);
+            updatedStorage = storages.FirstOrDefault(s => s.UriSchema == storageUriSchema);
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning($"Failed to fetch updated storage {storageUriSchema}: {e.Message}");
+            // Can't check, safer to restart
+            return true;
+        }
+
+        if (updatedStorage == null)
+        {
+            _logger.LogWarning($"Storage {storageUriSchema} not found in database");
+            return true;
+        }
+
+        // 3. Get storage state WITHOUT refreshing OAuth tokens (forceRefresh: false)
+        // This builds the rclone parameters from the storage's current tokens in the database
+        // Using forceRefresh: true would trigger another OAuth refresh cycle causing an infinite loop
         StorageState newState = await _rcloneStorages.FindStorageState(
-            storage, CancellationToken.None, forceRefresh: true);
-        
+            updatedStorage, CancellationToken.None, forceRefresh: false);
+
         // 4. Compare the parameters
         if (_areRCloneParametersEqual(currentParams, newState.RCloneParameters))
         {
             _logger.LogInformation($"Storage {storageUriSchema} parameters unchanged, no restart needed");
             return false;
         }
-        
+
         _logger.LogInformation($"Storage {storageUriSchema} parameters changed, restart required");
         return true;
     }
