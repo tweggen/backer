@@ -47,7 +47,10 @@ public class RCloneService : BackgroundService
     private Process? _processRClone;
     internal HttpClient? _rcloneHttpClient;
 
-    private SortedDictionary<int, Job> _mapRCloneToJob = new();
+    private SortedDictionary<int, MonitoredJob> _mapRCloneToJob = new();
+
+    // Timeout for stalled OAuth2 jobs with no activity (5 minutes)
+    private static readonly TimeSpan _oauth2InactivityTimeout = TimeSpan.FromMinutes(5);
     
     private readonly Channel<RCloneServiceParams> _taskChannel = Channel.CreateUnbounded<RCloneServiceParams>();
     
@@ -219,7 +222,7 @@ public class RCloneService : BackgroundService
             return;  // Silent return - called frequently, would be noisy
         }
 
-        SortedDictionary<int, Job> mapJobs;
+        SortedDictionary<int, MonitoredJob> mapJobs;
         /*
          * We need to create a list of jobs we already reported back to the caller
          * but that still are in rclone's queue.
@@ -227,15 +230,27 @@ public class RCloneService : BackgroundService
         List<int> listDoneJobs = new();
         lock (_lo)
         {
-            mapJobs = new SortedDictionary<int, Job>(_mapRCloneToJob);
+            mapJobs = new SortedDictionary<int, MonitoredJob>(_mapRCloneToJob);
         }
 
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
 
+        // Get current transfer stats to check for activity
+        JobStatsResult? currentStats = null;
+        try
+        {
+            currentStats = await rcloneClient.GetJobStatsAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug($"RCloneService: Unable to get job stats: {ex.Message}");
+        }
+
         foreach (var kvp in mapJobs)
         {
             int rcloneJobId = kvp.Key;
-            Job job = kvp.Value;
+            MonitoredJob monitoredJob = kvp.Value;
+            Job job = monitoredJob.Job;
             int jobId = job.Id;
 
             /*
@@ -284,13 +299,43 @@ public class RCloneService : BackgroundService
                 {
                     _logger.LogInformation($"Job Status for {jobId} is {jobStatus}.");
 
-                    // TXWTODO: Throttle the amount of reportjobasync calls.
-                    using var scope = _serviceScopeFactory.CreateScope();
-                    var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
-                    var reportRes = await hannibalService.ReportJobAsync(new()
-                            { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId },
-                        cancellationToken);
+                    // Check for stalled OAuth2 job timeout
+                    bool shouldTimeout = await _checkOAuth2InactivityTimeoutAsync(
+                        monitoredJob, currentStats, cancellationToken);
 
+                    if (shouldTimeout)
+                    {
+                        _logger.LogWarning(
+                            "Job {jobId} timed out: OAuth2 endpoint with expired token and no activity for {timeout}.",
+                            jobId, _oauth2InactivityTimeout);
+
+                        // Report job as failed due to OAuth2 timeout
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+                        await hannibalService.ReportJobAsync(new()
+                                { JobId = jobId, State = Job.JobState.DoneFailure, Owner = _ownerId },
+                            cancellationToken);
+                        listDoneJobs.Add(rcloneJobId);
+
+                        // Try to stop the rclone job
+                        try
+                        {
+                            await rcloneClient.StopJobAsync(cancellationToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug($"Failed to stop timed-out job {rcloneJobId}: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        // TXWTODO: Throttle the amount of reportjobasync calls.
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+                        var reportRes = await hannibalService.ReportJobAsync(new()
+                                { JobId = jobId, State = Job.JobState.Executing, Owner = _ownerId },
+                            cancellationToken);
+                    }
                 }
             }
             catch (HttpRequestException)
@@ -318,6 +363,76 @@ public class RCloneService : BackgroundService
                 _mapRCloneToJob.Remove(deadRcloneJobId);
             }
         }
+    }
+
+    /// <summary>
+    /// Check if a job should be timed out due to OAuth2 inactivity.
+    /// Timeout conditions (all must be true):
+    /// a) At least one endpoint uses OAuth2 and its token is expired
+    /// b) No active transmission (no bytes being transferred)
+    /// c) No activity for 5 minutes
+    /// </summary>
+    private async Task<bool> _checkOAuth2InactivityTimeoutAsync(
+        MonitoredJob monitoredJob,
+        JobStatsResult? currentStats,
+        CancellationToken cancellationToken)
+    {
+        var job = monitoredJob.Job;
+
+        // Condition a) Check if job has OAuth2 endpoint with expired token
+        if (!monitoredJob.HasOAuth2Endpoint)
+        {
+            return false;  // No OAuth2 endpoints, no timeout needed
+        }
+
+        bool hasExpiredToken = false;
+        if (monitoredJob.SourceIsOAuth2 && _isOAuth2TokenExpired(job.SourceEndpoint.Storage))
+        {
+            hasExpiredToken = true;
+            _logger.LogDebug($"Job {job.Id}: Source OAuth2 token is expired");
+        }
+        if (monitoredJob.DestinationIsOAuth2 && _isOAuth2TokenExpired(job.DestinationEndpoint.Storage))
+        {
+            hasExpiredToken = true;
+            _logger.LogDebug($"Job {job.Id}: Destination OAuth2 token is expired");
+        }
+
+        if (!hasExpiredToken)
+        {
+            // Tokens are still valid, reset activity timer
+            monitoredJob.LastActivityAt = DateTime.UtcNow;
+            return false;
+        }
+
+        // Condition b) Check for active transmission
+        long currentBytes = 0;
+        if (currentStats != null)
+        {
+            currentBytes = currentStats.bytes;
+        }
+
+        if (currentBytes > monitoredJob.LastBytesTransferred)
+        {
+            // Bytes are being transferred, update activity
+            _logger.LogDebug($"Job {job.Id}: Activity detected, bytes transferred: {monitoredJob.LastBytesTransferred} -> {currentBytes}");
+            monitoredJob.LastBytesTransferred = currentBytes;
+            monitoredJob.LastActivityAt = DateTime.UtcNow;
+            return false;
+        }
+
+        // Condition c) Check if inactive for 5 minutes
+        var inactiveDuration = DateTime.UtcNow - monitoredJob.LastActivityAt;
+        if (inactiveDuration < _oauth2InactivityTimeout)
+        {
+            _logger.LogDebug($"Job {job.Id}: Inactive for {inactiveDuration.TotalSeconds:F0}s (timeout at {_oauth2InactivityTimeout.TotalSeconds}s)");
+            return false;
+        }
+
+        // All conditions met - job should be timed out
+        _logger.LogInformation(
+            $"Job {job.Id}: OAuth2 inactivity timeout triggered. " +
+            $"Expired token: true, No activity for: {inactiveDuration.TotalMinutes:F1} minutes");
+        return true;
     }
 
 
@@ -421,9 +536,23 @@ public class RCloneService : BackgroundService
                     break;
 
             }
+            // Check if endpoints use OAuth2
+            bool sourceIsOAuth2 = await _isOAuth2StorageAsync(job.SourceEndpoint.Storage);
+            bool destIsOAuth2 = await _isOAuth2StorageAsync(job.DestinationEndpoint.Storage);
+
+            var monitoredJob = new MonitoredJob
+            {
+                Job = job,
+                StartedAt = DateTime.UtcNow,
+                LastActivityAt = DateTime.UtcNow,
+                LastBytesTransferred = 0,
+                SourceIsOAuth2 = sourceIsOAuth2,
+                DestinationIsOAuth2 = destIsOAuth2
+            };
+
             lock (_lo)
             {
-                _mapRCloneToJob.Add(asyncResult.jobid, job);
+                _mapRCloneToJob.Add(asyncResult.jobid, monitoredJob);
             }
             return asyncResult;
         }
@@ -1197,24 +1326,63 @@ public class RCloneService : BackgroundService
     /// Compare two sets of rclone parameters for equality
     /// </summary>
     private bool _areRCloneParametersEqual(
-        IDictionary<string, string> current, 
+        IDictionary<string, string> current,
         IDictionary<string, string> updated)
     {
         // Check if all keys and values match
         if (current.Count != updated.Count)
             return false;
-        
+
         foreach (var kvp in current)
         {
             if (!updated.TryGetValue(kvp.Key, out var updatedValue))
                 return false;
-                
+
             // Special handling for tokens - compare as case-sensitive
             if (kvp.Value != updatedValue)
                 return false;
         }
-        
+
         return true;
+    }
+
+    /// <summary>
+    /// Check if a storage uses OAuth2 authentication
+    /// </summary>
+    private async Task<bool> _isOAuth2StorageAsync(Storage storage)
+    {
+        try
+        {
+            if (!_rcloneStorages.IsSupported(storage.Technology))
+            {
+                return false;
+            }
+
+            var state = await _rcloneStorages.FindStorageState(storage, CancellationToken.None);
+            // A storage uses OAuth2 if it has an OAuthClient set up
+            return state.OAuthClient != null;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Check if OAuth2 tokens are expired for a storage
+    /// </summary>
+    private bool _isOAuth2TokenExpired(Storage storage)
+    {
+        // If no expiry set or no refresh token, can't determine expiry
+        if (string.IsNullOrEmpty(storage.RefreshToken))
+        {
+            return false;
+        }
+
+        // Check if token has expired (no buffer - we want to know if it's actually expired)
+        var now = DateTime.UtcNow;
+        var expiresAt = storage.ExpiresAt.ToUniversalTime();
+        return now >= expiresAt;
     }
 
 
@@ -1479,7 +1647,7 @@ public class RCloneService : BackgroundService
         List<Job> jobsToReport;
         lock (_lo)
         {
-            jobsToReport = _mapRCloneToJob.Values.ToList();
+            jobsToReport = _mapRCloneToJob.Values.Select(m => m.Job).ToList();
             _mapRCloneToJob.Clear();
         }
 
