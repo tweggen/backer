@@ -1470,9 +1470,47 @@ public class RCloneService : BackgroundService
         {
             return;
         }
-        
+
         _isStarted = false;
-        
+
+        /*
+         * Report all acquired jobs as failed so they can be retried.
+         */
+        List<Job> jobsToReport;
+        lock (_lo)
+        {
+            jobsToReport = _mapRCloneToJob.Values.ToList();
+            _mapRCloneToJob.Clear();
+        }
+
+        if (jobsToReport.Count > 0)
+        {
+            _logger.LogInformation($"Reporting {jobsToReport.Count} acquired job(s) as failed due to shutdown.");
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+                foreach (var job in jobsToReport)
+                {
+                    try
+                    {
+                        _logger.LogInformation($"Reporting job {job.Id} as failed due to shutdown.");
+                        await hannibalService.ReportJobAsync(
+                            new() { JobId = job.Id, State = Job.JobState.DoneFailure, Owner = _ownerId },
+                            cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, $"Failed to report job {job.Id} during shutdown.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to create scope for reporting jobs during shutdown.");
+            }
+        }
+
         if (_processRClone != null)
         {
             var processRClone = _processRClone;

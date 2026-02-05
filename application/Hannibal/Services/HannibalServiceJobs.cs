@@ -27,7 +27,9 @@ public partial class HannibalService
     {
         _logger.LogInformation("Job list requested");
 
-        var list = await _context.Jobs.ToListAsync(cancellationToken);
+        var list = await _context.Jobs
+            .OrderByDescending(j => j.Id)
+            .ToListAsync(cancellationToken);
         return list;
     }
 
