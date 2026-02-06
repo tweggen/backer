@@ -42,14 +42,15 @@ public class ScheduleCalculator
         switch (job.State)
         {
             case Job.JobState.DoneSuccess:
+            case Job.JobState.DoneWithErrors:
                 // Next execution = last completion + MaxDestinationAge
-                var maxAge = rule.MaxDestinationAge > TimeSpan.Zero 
-                    ? rule.MaxDestinationAge 
+                var maxAge = rule.MaxDestinationAge > TimeSpan.Zero
+                    ? rule.MaxDestinationAge
                     : DefaultMaxAge;
                 var nextTime = job.LastReported + maxAge;
                 _logger.LogDebug(
-                    "Rule {RuleId}: Last success at {LastReported}, next execution at {NextTime} (MaxAge: {MaxAge})",
-                    rule.Id, job.LastReported, nextTime, maxAge);
+                    "Rule {RuleId}: Last {State} at {LastReported}, next execution at {NextTime} (MaxAge: {MaxAge})",
+                    rule.Id, job.State, job.LastReported, nextTime, maxAge);
                 return nextTime;
             
             case Job.JobState.DoneFailure:
@@ -97,6 +98,7 @@ public class ScheduleCalculator
         switch (state.RecentJob.State)
         {
             case Job.JobState.DoneSuccess:
+            case Job.JobState.DoneWithErrors:
                 return ScheduleReason.MaxAgeExpired;
             
             case Job.JobState.DoneFailure:

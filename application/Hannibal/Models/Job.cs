@@ -61,7 +61,8 @@ public class Job
         Ready,
         Executing,
         DoneFailure,
-        DoneSuccess
+        DoneSuccess,
+        DoneWithErrors
     };
     
     public JobState State { get; set; }

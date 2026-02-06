@@ -286,11 +286,17 @@ public class RCloneService : BackgroundService
 
                         /*
                          * Report back the error.
+                         * If some transfers completed successfully, report DoneWithErrors
+                         * instead of DoneFailure to avoid immediate retry loops.
                          */
+                        var reportState = currentStats is { transfers: > 0 }
+                            ? Job.JobState.DoneWithErrors
+                            : Job.JobState.DoneFailure;
+
                         using var scope = _serviceScopeFactory.CreateScope();
                         var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
                         var reportRes = await hannibalService.ReportJobAsync(new()
-                                { JobId = jobId, State = Job.JobState.DoneFailure, Owner = _ownerId },
+                                { JobId = jobId, State = reportState, Owner = _ownerId },
                             cancellationToken);
                         listDoneJobs.Add(rcloneJobId);
                     }

@@ -33,6 +33,7 @@
             <li><span class="badge bg-secondary me-1">Ready</span> — Job is ready to be picked up by the agent.</li>
             <li><span class="badge bg-primary me-1">Executing</span> — Backup is currently in progress.</li>
             <li><span class="badge bg-success me-1">DoneSuccess</span> — Backup completed successfully.</li>
+            <li><span class="badge bg-warning me-1">DoneWithErrors</span> — Backup completed but some files could not be synced.</li>
             <li><span class="badge bg-danger me-1">DoneFailure</span> — Backup failed (check logs for details).</li>
         </ul>
         <p class="mt-2 mb-0"><em>This page auto-refreshes when jobs are updated. Use "Clear" to remove completed jobs from the list.</em></p>
@@ -59,6 +60,7 @@ else
                             Job.JobState.Ready => "bg-secondary",
                             Job.JobState.Executing => "bg-primary",
                             Job.JobState.DoneSuccess => "bg-success",
+                            Job.JobState.DoneWithErrors => "bg-warning",
                             Job.JobState.DoneFailure => "bg-danger",
                             _ => "bg-secondary"
                         };
@@ -129,7 +131,7 @@ else
             listJobs = new List<Job>(
                 await HannibalServiceClient.GetJobsAsync(
                     new ResultPage() { Offset = 0, Length = 20 },
-                    new JobFilter() { MaxState = Job.JobState.DoneSuccess, MinState = Job.JobState.Preparing },
+                    new JobFilter() { MaxState = Job.JobState.DoneWithErrors, MinState = Job.JobState.Preparing },
                     CancellationToken.None
                 ));
             await InvokeAsync(StateHasChanged);

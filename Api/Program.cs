@@ -481,7 +481,7 @@ app.MapGet("/api/hannibal/v1/jobs", async (
         new JobFilter
         {
             MinState = (Job.JobState) (minState ?? (int)Job.JobState.Preparing),
-            MaxState = (Job.JobState) (maxState ?? (int)Job.JobState.DoneSuccess)
+            MaxState = (Job.JobState) (maxState ?? (int)Job.JobState.DoneWithErrors)
         }, 
         cancellationToken);
     return jobs is not null ? Results.Ok(jobs) : Results.Ok(new List<Job>());

@@ -340,6 +340,14 @@ public partial class HannibalService
                     hasFinished = true;
                     finalState = Job.JobState.DoneSuccess;
                     break;
+
+                case Job.JobState.DoneWithErrors:
+                    _logger.LogInformation("job {jobId} is done with errors", jobStatus.JobId);
+                    job.State = Job.JobState.DoneWithErrors;
+                    job.Owner = "";
+                    hasFinished = true;
+                    finalState = Job.JobState.DoneWithErrors;
+                    break;
             }
             
             await _context.SaveChangesAsync(cancellationToken);
