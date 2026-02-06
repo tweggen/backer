@@ -13,4 +13,5 @@ public class Config
     public List<string> Exclude { get; set;} = new();
     public bool CheckSum { get; set; } = true;
     public int verbose { get; set; } = 2;
+    public int Retries { get; set; } = 3;
 }
