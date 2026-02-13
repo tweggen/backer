@@ -166,8 +166,8 @@ builder.Services.AddSingleton(sp =>
     
     rcloneService.OnTransferStatsChanged = (stats) =>
     {
-        // Broadcast transfer stats to all connected BackerControl clients
-        _ = hubContext.Clients.All.SendAsync("TransferStatsUpdated", stats);
+        // Broadcast job transfer stats to all connected BackerControl clients
+        _ = hubContext.Clients.All.SendAsync("JobTransferStatsUpdated", stats);
     };
     
     return rcloneService;
@@ -255,13 +255,24 @@ app.MapGet("/config", async (
 });
 
 
-app.MapGet("/transfers", async (
+app.MapGet("/jobtransfers", async (
     RCloneService rcloneService,
     HttpContext ctx,
     CancellationToken cancellationToken
 ) =>
 {
-    return Results.Ok(await rcloneService.GetTransferStatsAsync(cancellationToken));
+    return Results.Ok(await rcloneService.GetJobTransferStatsAsync(cancellationToken));
+});
+
+
+app.MapPost("/jobs/{jobId}/abort", async (
+    int jobId,
+    RCloneService rcloneService,
+    CancellationToken cancellationToken
+) =>
+{
+    await rcloneService.AbortJobAsync(jobId, cancellationToken);
+    return Results.Ok();
 });
 
 

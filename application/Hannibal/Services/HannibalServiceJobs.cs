@@ -348,6 +348,14 @@ public partial class HannibalService
                     hasFinished = true;
                     finalState = Job.JobState.DoneWithErrors;
                     break;
+
+                case Job.JobState.Cancelled:
+                    _logger.LogInformation("job {jobId} was cancelled", jobStatus.JobId);
+                    job.State = Job.JobState.Cancelled;
+                    job.Owner = "";
+                    hasFinished = true;
+                    finalState = Job.JobState.Cancelled;
+                    break;
             }
             
             await _context.SaveChangesAsync(cancellationToken);

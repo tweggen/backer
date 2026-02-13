@@ -7,7 +7,7 @@
         x:Class="YourBacker.TransferWindow"
         x:DataType="local:TransferManager"
         Title="File Transfers"
-        Height="450" Width="600"
+        Height="500" Width="650"
         WindowStartupLocation="CenterScreen">
 
     <Grid>
@@ -38,7 +38,6 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Top row: ETA and Speed -->
                 <Grid Grid.Row="0" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -58,7 +57,6 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Middle row: Progress bar -->
                 <ProgressBar Grid.Row="1"
                              Minimum="0"
                              Maximum="100"
@@ -67,7 +65,6 @@
                              CornerRadius="6"
                              Margin="0,0,0,8"/>
 
-                <!-- Bottom row: Bytes and Files -->
                 <Grid Grid.Row="2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -86,7 +83,6 @@
                                FontSize="12"
                                Margin="0,0,10,0"/>
 
-                    <!-- Error indicator (only shown when errors > 0) -->
                     <TextBlock Grid.Column="2"
                                Text="{Binding OverallProgress.Errors, StringFormat={}{0} errors}"
                                Foreground="#FF6B6B"
@@ -96,24 +92,27 @@
             </Grid>
         </Border>
 
-        <!-- Transfer list -->
+        <!-- Job list -->
         <ScrollViewer Grid.Row="2"
                       VerticalScrollBarVisibility="Auto"
                       Margin="10,0,10,10">
-            <ItemsControl ItemsSource="{Binding Transfers}">
+            <ItemsControl ItemsSource="{Binding Jobs}">
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="local:FileTransferViewModel">
-                        <Border Margin="0,2"
+                    <DataTemplate x:DataType="local:JobViewModel">
+                        <Border Margin="0,4"
                                 Background="#20808080"
-                                CornerRadius="4"
-                                Padding="8">
+                                CornerRadius="6"
+                                Padding="10">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- File name and progress percentage -->
+                                <!-- Row 0: Job header + Abort button -->
                                 <Grid Grid.Row="0" Margin="0,0,0,4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -121,26 +120,113 @@
                                     </Grid.ColumnDefinitions>
 
                                     <TextBlock Grid.Column="0"
-                                               Text="{Binding SourcePath}"
+                                               Text="{Binding HeaderText}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
                                                TextTrimming="CharacterEllipsis"
-                                               ToolTip.Tip="{Binding SourcePath}"/>
+                                               ToolTip.Tip="{Binding HeaderText}"/>
 
-                                    <StackPanel Grid.Column="1"
-                                                Orientation="Horizontal"
-                                                Margin="10,0,0,0">
-                                        <TextBlock Text="{Binding Progress, StringFormat={}{0:F1}%}"/>
-                                        <TextBlock Text=" - " Opacity="0.6"/>
-                                        <TextBlock Text="{Binding SpeedFormatted}" Opacity="0.6"/>
-                                    </StackPanel>
+                                    <Button Grid.Column="1"
+                                            Content="Abort"
+                                            Click="OnAbortClicked"
+                                            Tag="{Binding HannibalJobId}"
+                                            Padding="8,2"
+                                            FontSize="11"
+                                            Foreground="#FF6B6B"
+                                            Background="Transparent"
+                                            BorderBrush="#FF6B6B"
+                                            BorderThickness="1"
+                                            CornerRadius="3"/>
                                 </Grid>
 
-                                <!-- Progress bar -->
-                                <ProgressBar Grid.Row="1"
+                                <!-- Row 1: Status text (when no active transfers) -->
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding StatusText}"
+                                           FontStyle="Italic"
+                                           Opacity="0.6"
+                                           FontSize="12"
+                                           Margin="0,0,0,4"
+                                           IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                                <!-- Row 2: Per-job progress bar -->
+                                <ProgressBar Grid.Row="2"
                                              Minimum="0"
                                              Maximum="100"
-                                             Value="{Binding Progress}"
-                                             Height="8"
-                                             CornerRadius="4"/>
+                                             Value="{Binding Progress.ProgressPercent}"
+                                             Height="6"
+                                             CornerRadius="3"
+                                             Margin="0,0,0,4"
+                                             IsVisible="{Binding Progress.HasActiveTransfers}"/>
+
+                                <!-- Row 3: Nested file transfers -->
+                                <ItemsControl Grid.Row="3"
+                                              ItemsSource="{Binding Transfers}"
+                                              Margin="0,0,0,2">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:FileTransferViewModel">
+                                            <Border Margin="0,1"
+                                                    Padding="6,3">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <Grid Grid.Row="0" Margin="0,0,0,2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding SourcePath}"
+                                                                   FontSize="11"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ToolTip.Tip="{Binding SourcePath}"/>
+
+                                                        <StackPanel Grid.Column="1"
+                                                                    Orientation="Horizontal"
+                                                                    Margin="10,0,0,0">
+                                                            <TextBlock Text="{Binding Progress, StringFormat={}{0:F1}%}"
+                                                                       FontSize="11"/>
+                                                            <TextBlock Text=" - " Opacity="0.6" FontSize="11"/>
+                                                            <TextBlock Text="{Binding SpeedFormatted}" Opacity="0.6" FontSize="11"/>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <ProgressBar Grid.Row="1"
+                                                                 Minimum="0"
+                                                                 Maximum="100"
+                                                                 Value="{Binding Progress}"
+                                                                 Height="4"
+                                                                 CornerRadius="2"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Row 4: Errors section -->
+                                <StackPanel Grid.Row="4"
+                                            Margin="0,4,0,0"
+                                            IsVisible="{Binding ErrorCount}">
+                                    <TextBlock Text="{Binding ErrorCount, StringFormat={}{0} error(s)}"
+                                               Foreground="#FF6B6B"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,2"/>
+                                    <ItemsControl ItemsSource="{Binding Errors}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           Foreground="#FF6B6B"
+                                                           FontSize="11"
+                                                           TextWrapping="Wrap"
+                                                           Margin="8,1,0,1"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
                             </Grid>
                         </Border>
                     </DataTemplate>
@@ -150,7 +236,7 @@
 
         <!-- Empty state message -->
         <TextBlock Grid.Row="2"
-                   Text="No active transfers"
+                   Text="No active jobs"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"
                    Opacity="0.5"

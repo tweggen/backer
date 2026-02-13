@@ -62,7 +62,8 @@ public class Job
         Executing,
         DoneFailure,
         DoneSuccess,
-        DoneWithErrors
+        DoneWithErrors,
+        Cancelled
     };
     
     public JobState State { get; set; }

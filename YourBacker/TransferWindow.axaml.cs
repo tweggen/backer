@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using WorkerRClone.Models;
 
@@ -28,72 +29,43 @@ public partial class TransferWindow : Window
 
     private async void OnTimerTick(object? sender, EventArgs e)
     {
-        var listStats = new List<FileTransferStats>();
-
         try
         {
-            var transferStatsResult = await _http.GetFromJsonAsync<TransferStatsResult>("/transfers");
-
-            // Update overall progress
-            _manager.UpdateOverallProgress(transferStatsResult?.OverallStats);
-
-            if (transferStatsResult?.TransferringItems != null)
+            var result = await _http.GetFromJsonAsync<JobTransferStatsResult>("/jobtransfers");
+            if (result != null)
             {
-                foreach (var item in transferStatsResult.TransferringItems)
-                {
-                    var fts = new FileTransferStats
-                    {
-                        Id = item.Name,
-                        Speed = item.Speed,
-                        Progress = item.PercentDone,
-                        State = "transferring",
-                        Size = item.TotalSize,
-                        DestinationPath = item.Name,
-                        SourcePath = item.Name
-                    };
-                    listStats.Insert(0, fts);
-                }
+                _manager.UpdateOverallProgress(result.OverallStats);
+                _manager.UpdateJobTransfers(result);
             }
         }
         catch
         {
-            // Unable to get stats from service - might be disconnected
-            // That's ok, SignalR will push updates when available
             _manager.UpdateOverallProgress(null);
         }
-
-        _manager.UpdateTransfers(listStats);
     }
 
     /// <summary>
-    /// Called by SignalR when transfer stats are pushed from BackerAgent
+    /// Called by SignalR when job transfer stats are pushed from BackerAgent
     /// </summary>
-    public void UpdateTransferStats(TransferStatsResult transferStatsResult)
+    public void UpdateJobTransferStats(JobTransferStatsResult result)
     {
-        var listStats = new List<FileTransferStats>();
+        _manager.UpdateOverallProgress(result.OverallStats);
+        _manager.UpdateJobTransfers(result);
+    }
 
-        // Update overall progress
-        _manager.UpdateOverallProgress(transferStatsResult?.OverallStats);
-
-        if (transferStatsResult?.TransferringItems != null)
+    private async void OnAbortClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is int jobId)
         {
-            foreach (var item in transferStatsResult.TransferringItems)
+            try
             {
-                var fts = new FileTransferStats
-                {
-                    Id = item.Name,
-                    Speed = item.Speed,
-                    Progress = item.PercentDone,
-                    State = "transferring",
-                    Size = item.TotalSize,
-                    DestinationPath = item.Name,
-                    SourcePath = item.Name
-                };
-                listStats.Insert(0, fts);
+                await _http.PostAsync($"/jobs/{jobId}/abort", null);
+            }
+            catch
+            {
+                // Best effort — job may have already finished
             }
         }
-
-        _manager.UpdateTransfers(listStats);
     }
 
     protected override void OnClosed(EventArgs e)

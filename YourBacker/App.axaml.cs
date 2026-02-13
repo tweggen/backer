@@ -321,10 +321,10 @@ public partial class App : Application
                 Dispatcher.UIThread.Post(() => UpdateUIWithState(state));
             });
 
-            // Subscribe to transfer stats updates  
-            _backerAgentConnection.On<TransferStatsResult>("TransferStatsUpdated", stats =>
+            // Subscribe to job transfer stats updates
+            _backerAgentConnection.On<JobTransferStatsResult>("JobTransferStatsUpdated", stats =>
             {
-                Dispatcher.UIThread.Post(() => _transferWindow?.UpdateTransferStats(stats));
+                Dispatcher.UIThread.Post(() => _transferWindow?.UpdateJobTransferStats(stats));
             });
 
             // Handle reconnection events

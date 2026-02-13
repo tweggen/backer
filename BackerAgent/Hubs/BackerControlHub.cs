@@ -49,18 +49,33 @@ public class BackerControlHub : Hub
     }
 
     /// <summary>
-    /// Client can request current transfer stats at any time
+    /// Client can request current job transfer stats at any time
     /// </summary>
-    public async Task RequestTransferStats()
+    public async Task RequestJobTransferStats()
     {
         try
         {
-            var stats = await _rcloneService.GetTransferStatsAsync(CancellationToken.None);
-            await Clients.Caller.SendAsync("TransferStatsUpdated", stats);
+            var stats = await _rcloneService.GetJobTransferStatsAsync(CancellationToken.None);
+            await Clients.Caller.SendAsync("JobTransferStatsUpdated", stats);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting transfer stats");
+            _logger.LogError(ex, "Error getting job transfer stats");
+        }
+    }
+
+    /// <summary>
+    /// Client can abort a specific job by its Hannibal job ID
+    /// </summary>
+    public async Task AbortJob(int hannibalJobId)
+    {
+        try
+        {
+            await _rcloneService.AbortJobAsync(hannibalJobId, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error aborting job {JobId}", hannibalJobId);
         }
     }
 }

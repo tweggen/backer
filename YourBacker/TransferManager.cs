@@ -1,37 +1,26 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using WorkerRClone.Models;
 
 namespace YourBacker;
 
 /// <summary>
-/// Manages the collection of active file transfers and overall progress
+/// Manages the collection of active jobs and their transfers, plus overall progress
 /// </summary>
 public partial class TransferManager : ObservableObject
 {
-    public ObservableCollection<FileTransferViewModel> Transfers { get; } = new();
+    public ObservableCollection<JobViewModel> Jobs { get; } = new();
 
-    /// <summary>
-    /// Overall transfer progress statistics
-    /// </summary>
     [ObservableProperty]
     private OverallProgressViewModel _overallProgress = new();
 
-    /// <summary>
-    /// True when there are no active transfers
-    /// </summary>
-    public bool IsEmpty => Transfers.Count == 0 && !OverallProgress.HasActiveTransfers;
+    public bool IsEmpty => Jobs.Count == 0 && !OverallProgress.HasActiveTransfers;
 
     public TransferManager()
     {
-        // Update IsEmpty when collection changes
-        Transfers.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsEmpty));
+        Jobs.CollectionChanged += (s, e) => OnPropertyChanged(nameof(IsEmpty));
     }
 
-    /// <summary>
-    /// Update overall progress from aggregate stats
-    /// </summary>
     public void UpdateOverallProgress(OverallTransferStats? stats)
     {
         if (stats == null)
@@ -54,70 +43,142 @@ public partial class TransferManager : ObservableObject
         OnPropertyChanged(nameof(IsEmpty));
     }
 
-    /// <summary>
-    /// Called periodically with fresh stats from the service
-    /// </summary>
-    public void UpdateTransfers(IEnumerable<FileTransferStats> stats)
+    public void UpdateJobTransfers(JobTransferStatsResult result)
     {
         var now = DateTime.UtcNow;
+        var seenIds = new HashSet<int>();
 
-        // 1. Update or add items
-        foreach (var stat in stats)
+        foreach (var jobInfo in result.Jobs)
         {
-            Debug.WriteLine($"TransferManager: Updating transfer {stat.Id} with state {stat.State}");
-            
-            var existing = Transfers.FirstOrDefault(t => t.Id == stat.Id);
+            seenIds.Add(jobInfo.HannibalJobId);
+
+            var jobVm = Jobs.FirstOrDefault(j => j.HannibalJobId == jobInfo.HannibalJobId);
+            if (jobVm == null)
+            {
+                jobVm = new JobViewModel { HannibalJobId = jobInfo.HannibalJobId };
+                Jobs.Add(jobVm);
+            }
+
+            jobVm.Tag = jobInfo.Tag;
+            jobVm.SourcePath = jobInfo.SourcePath;
+            jobVm.DestinationPath = jobInfo.DestinationPath;
+            jobVm.StartedAt = jobInfo.StartedAt;
+            jobVm.LastTransferActivity = jobInfo.LastTransferActivity;
+            jobVm.ErrorCount = jobInfo.ErrorCount;
+
+            // Compute status text
+            if (jobInfo.Transfers.Count == 0)
+            {
+                if (jobInfo.LastTransferActivity == null)
+                {
+                    jobVm.StatusText = $"Started at {jobInfo.StartedAt.ToLocalTime():HH:mm}, preparing...";
+                }
+                else
+                {
+                    var idle = now - jobInfo.LastTransferActivity.Value;
+                    jobVm.StatusText = $"No transfer for {FormatDuration(idle)}";
+                }
+            }
+            else
+            {
+                jobVm.StatusText = "";
+            }
+
+            // Update per-job progress
+            if (jobInfo.Stats != null)
+            {
+                jobVm.Progress.ProgressPercent = jobInfo.Stats.ProgressPercent;
+                jobVm.Progress.BytesTransferred = jobInfo.Stats.BytesTransferred;
+                jobVm.Progress.TotalBytes = jobInfo.Stats.TotalBytes;
+                jobVm.Progress.Speed = jobInfo.Stats.Speed;
+                jobVm.Progress.EtaSeconds = jobInfo.Stats.EtaSeconds;
+                jobVm.Progress.FilesCompleted = jobInfo.Stats.FilesCompleted;
+                jobVm.Progress.TotalFiles = jobInfo.Stats.TotalFiles;
+                jobVm.Progress.Errors = jobInfo.Stats.Errors;
+                jobVm.Progress.HasActiveTransfers = jobInfo.Stats.HasActiveTransfers;
+            }
+
+            // Update transfers within job
+            UpdateTransfersForJob(jobVm, jobInfo.Transfers, now);
+
+            // Update errors
+            jobVm.Errors.Clear();
+            foreach (var err in jobInfo.Errors)
+            {
+                jobVm.Errors.Add(err);
+            }
+        }
+
+        // Remove jobs no longer present
+        for (int i = Jobs.Count - 1; i >= 0; i--)
+        {
+            if (!seenIds.Contains(Jobs[i].HannibalJobId))
+            {
+                Jobs.RemoveAt(i);
+            }
+        }
+
+        OnPropertyChanged(nameof(IsEmpty));
+    }
+
+    private void UpdateTransfersForJob(JobViewModel jobVm, List<ItemTransferStatus> transfers, DateTime now)
+    {
+        var seenNames = new HashSet<string>();
+
+        foreach (var item in transfers)
+        {
+            seenNames.Add(item.Name);
+            var existing = jobVm.Transfers.FirstOrDefault(t => t.Id == item.Name);
             if (existing != null)
             {
-                // Update properties
-                existing.Progress = stat.Progress;
-                existing.Speed = stat.Speed;
-                existing.State = stat.State;
-                existing.Size = stat.Size;
-                existing.SourcePath = stat.SourcePath;
-                existing.DestinationPath = stat.DestinationPath;
+                existing.Progress = item.PercentDone;
+                existing.Speed = item.Speed;
+                existing.State = "transferring";
+                existing.Size = item.TotalSize;
+                existing.SourcePath = item.Name;
+                existing.DestinationPath = item.Name;
                 existing.LastUpdated = now;
             }
             else
             {
-                // Add new item
-                Transfers.Add(new FileTransferViewModel
+                jobVm.Transfers.Add(new FileTransferViewModel
                 {
-                    Id = stat.Id,
-                    Progress = stat.Progress,
-                    Speed = stat.Speed,
-                    State = stat.State,
-                    Size = stat.Size,
-                    SourcePath = stat.SourcePath,
-                    DestinationPath = stat.DestinationPath,
+                    Id = item.Name,
+                    Progress = item.PercentDone,
+                    Speed = item.Speed,
+                    State = "transferring",
+                    Size = item.TotalSize,
+                    SourcePath = item.Name,
+                    DestinationPath = item.Name,
                     LastUpdated = now
                 });
             }
         }
 
-        // 2. Mark items not in current stats as done
-        for (int i = 0; i < Transfers.Count; ++i)
+        // Mark missing transfers as done, remove old done items
+        for (int i = jobVm.Transfers.Count - 1; i >= 0; i--)
         {
-            var item = Transfers[i];
-            if (now != item.LastUpdated && item.State == "transferring")
+            var t = jobVm.Transfers[i];
+            if (!seenNames.Contains(t.Id))
             {
-                var newItem = new FileTransferViewModel(item)
+                if (t.State == "transferring")
                 {
-                    Progress = 100f,
-                    State = "done"
-                };
-                Transfers[i] = newItem;
+                    jobVm.Transfers[i] = new FileTransferViewModel(t) { Progress = 100f, State = "done" };
+                }
+                else if (t.State == "done" && (now - t.LastUpdated).TotalSeconds > 10)
+                {
+                    jobVm.Transfers.RemoveAt(i);
+                }
             }
         }
+    }
 
-        // 3. Remove completed items after 10 seconds
-        var toRemove = Transfers
-            .Where(item => item.State == "done" && (now - item.LastUpdated).TotalSeconds > 10)
-            .ToList();
-        
-        foreach (var item in toRemove)
-        {
-            Transfers.Remove(item);
-        }
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalHours >= 1)
+            return $"{(int)duration.TotalHours}h {duration.Minutes}m";
+        if (duration.TotalMinutes >= 1)
+            return $"{(int)duration.TotalMinutes}m";
+        return $"{(int)duration.TotalSeconds}s";
     }
 }

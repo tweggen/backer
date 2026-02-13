@@ -47,7 +47,7 @@ public class RCloneService : BackgroundService
     private Process? _processRClone;
     internal HttpClient? _rcloneHttpClient;
 
-    private SortedDictionary<int, MonitoredJob> _mapRCloneToJob = new();
+    private SortedDictionary<int, RunningJobInfo> _runningJobs = new();
 
     // Timeout for stalled OAuth2 jobs with no activity (5 minutes)
     private static readonly TimeSpan _oauth2InactivityTimeout = TimeSpan.FromMinutes(5);
@@ -67,7 +67,7 @@ public class RCloneService : BackgroundService
     
     // Callbacks for external notification (used by BackerControlHub)
     public Action<RCloneServiceState>? OnStateChanged { get; set; }
-    public Action<TransferStatsResult>? OnTransferStatsChanged { get; set; }
+    public Action<JobTransferStatsResult>? OnTransferStatsChanged { get; set; }
 
     public RCloneService(
         ILogger<RCloneService> logger,
@@ -222,7 +222,7 @@ public class RCloneService : BackgroundService
             return;  // Silent return - called frequently, would be noisy
         }
 
-        SortedDictionary<int, MonitoredJob> mapJobs;
+        SortedDictionary<int, RunningJobInfo> mapJobs;
         /*
          * We need to create a list of jobs we already reported back to the caller
          * but that still are in rclone's queue.
@@ -230,7 +230,7 @@ public class RCloneService : BackgroundService
         List<int> listDoneJobs = new();
         lock (_lo)
         {
-            mapJobs = new SortedDictionary<int, MonitoredJob>(_mapRCloneToJob);
+            mapJobs = new SortedDictionary<int, RunningJobInfo>(_runningJobs);
         }
 
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
@@ -249,8 +249,8 @@ public class RCloneService : BackgroundService
         foreach (var kvp in mapJobs)
         {
             int rcloneJobId = kvp.Key;
-            MonitoredJob monitoredJob = kvp.Value;
-            Job job = monitoredJob.Job;
+            RunningJobInfo runningJobInfo = kvp.Value;
+            Job job = runningJobInfo.Job;
             int jobId = job.Id;
 
             /*
@@ -307,7 +307,7 @@ public class RCloneService : BackgroundService
 
                     // Check for stalled OAuth2 job timeout
                     bool shouldTimeout = await _checkOAuth2InactivityTimeoutAsync(
-                        monitoredJob, currentStats, cancellationToken);
+                        runningJobInfo, currentStats, cancellationToken);
 
                     if (shouldTimeout)
                     {
@@ -326,7 +326,7 @@ public class RCloneService : BackgroundService
                         // Try to stop the rclone job
                         try
                         {
-                            await rcloneClient.StopJobAsync(cancellationToken);
+                            await rcloneClient.StopJobAsync(rcloneJobId, cancellationToken);
                         }
                         catch (Exception ex)
                         {
@@ -366,7 +366,7 @@ public class RCloneService : BackgroundService
         {
             foreach (int deadRcloneJobId in listDoneJobs)
             {
-                _mapRCloneToJob.Remove(deadRcloneJobId);
+                _runningJobs.Remove(deadRcloneJobId);
             }
         }
     }
@@ -379,25 +379,25 @@ public class RCloneService : BackgroundService
     /// c) No activity for 5 minutes
     /// </summary>
     private async Task<bool> _checkOAuth2InactivityTimeoutAsync(
-        MonitoredJob monitoredJob,
+        RunningJobInfo runningJobInfo,
         JobStatsResult? currentStats,
         CancellationToken cancellationToken)
     {
-        var job = monitoredJob.Job;
+        var job = runningJobInfo.Job;
 
         // Condition a) Check if job has OAuth2 endpoint with expired token
-        if (!monitoredJob.HasOAuth2Endpoint)
+        if (!runningJobInfo.HasOAuth2Endpoint)
         {
             return false;  // No OAuth2 endpoints, no timeout needed
         }
 
         bool hasExpiredToken = false;
-        if (monitoredJob.SourceIsOAuth2 && _isOAuth2TokenExpired(job.SourceEndpoint.Storage))
+        if (runningJobInfo.SourceIsOAuth2 && _isOAuth2TokenExpired(job.SourceEndpoint.Storage))
         {
             hasExpiredToken = true;
             _logger.LogDebug($"Job {job.Id}: Source OAuth2 token is expired");
         }
-        if (monitoredJob.DestinationIsOAuth2 && _isOAuth2TokenExpired(job.DestinationEndpoint.Storage))
+        if (runningJobInfo.DestinationIsOAuth2 && _isOAuth2TokenExpired(job.DestinationEndpoint.Storage))
         {
             hasExpiredToken = true;
             _logger.LogDebug($"Job {job.Id}: Destination OAuth2 token is expired");
@@ -406,7 +406,7 @@ public class RCloneService : BackgroundService
         if (!hasExpiredToken)
         {
             // Tokens are still valid, reset activity timer
-            monitoredJob.LastActivityAt = DateTime.UtcNow;
+            runningJobInfo.LastActivityAt = DateTime.UtcNow;
             return false;
         }
 
@@ -417,17 +417,17 @@ public class RCloneService : BackgroundService
             currentBytes = currentStats.bytes;
         }
 
-        if (currentBytes > monitoredJob.LastBytesTransferred)
+        if (currentBytes > runningJobInfo.LastBytesTransferred)
         {
             // Bytes are being transferred, update activity
-            _logger.LogDebug($"Job {job.Id}: Activity detected, bytes transferred: {monitoredJob.LastBytesTransferred} -> {currentBytes}");
-            monitoredJob.LastBytesTransferred = currentBytes;
-            monitoredJob.LastActivityAt = DateTime.UtcNow;
+            _logger.LogDebug($"Job {job.Id}: Activity detected, bytes transferred: {runningJobInfo.LastBytesTransferred} -> {currentBytes}");
+            runningJobInfo.LastBytesTransferred = currentBytes;
+            runningJobInfo.LastActivityAt = DateTime.UtcNow;
             return false;
         }
 
         // Condition c) Check if inactive for 5 minutes
-        var inactiveDuration = DateTime.UtcNow - monitoredJob.LastActivityAt;
+        var inactiveDuration = DateTime.UtcNow - runningJobInfo.LastActivityAt;
         if (inactiveDuration < _oauth2InactivityTimeout)
         {
             _logger.LogDebug($"Job {job.Id}: Inactive for {inactiveDuration.TotalSeconds:F0}s (timeout at {_oauth2InactivityTimeout.TotalSeconds}s)");
@@ -546,19 +546,15 @@ public class RCloneService : BackgroundService
             bool sourceIsOAuth2 = await _isOAuth2StorageAsync(job.SourceEndpoint.Storage);
             bool destIsOAuth2 = await _isOAuth2StorageAsync(job.DestinationEndpoint.Storage);
 
-            var monitoredJob = new MonitoredJob
-            {
-                Job = job,
-                StartedAt = DateTime.UtcNow,
-                LastActivityAt = DateTime.UtcNow,
-                LastBytesTransferred = 0,
-                SourceIsOAuth2 = sourceIsOAuth2,
-                DestinationIsOAuth2 = destIsOAuth2
-            };
-
             lock (_lo)
             {
-                _mapRCloneToJob.Add(asyncResult.jobid, monitoredJob);
+                _runningJobs[asyncResult.jobid] = new RunningJobInfo
+                {
+                    Job = job,
+                    RCloneJobId = asyncResult.jobid,
+                    SourceIsOAuth2 = sourceIsOAuth2,
+                    DestinationIsOAuth2 = destIsOAuth2
+                };
             }
             return asyncResult;
         }
@@ -1164,7 +1160,7 @@ public class RCloneService : BackgroundService
                 foreach (var jobid in list)
                 {
                     _logger.LogInformation($"RCloneService: Stopping job {jobid}");
-                    await rcloneClient.StopJobAsync(CancellationToken.None);
+                    await rcloneClient.StopJobAsync(jobid, CancellationToken.None);
                 }
             }
         }
@@ -1202,7 +1198,7 @@ public class RCloneService : BackgroundService
                         foreach (var jobid in jobList.running_ids)
                         {
                             _logger.LogInformation($"RCloneService: Stopping job {jobid} for reauth");
-                            await rcloneClient.StopJobAsync(CancellationToken.None);
+                            await rcloneClient.StopJobAsync(jobid, CancellationToken.None);
                         }
                     }
                 }
@@ -1211,7 +1207,7 @@ public class RCloneService : BackgroundService
                     _logger.LogWarning($"Failed to stop jobs gracefully: {e.Message}");
                 }
             }
-            
+
             // 2. Kill rclone process
             if (_processRClone != null && !_processRClone.HasExited)
             {
@@ -1231,7 +1227,7 @@ public class RCloneService : BackgroundService
             // 4. Clear job mappings
             lock (_lo)
             {
-                _mapRCloneToJob.Clear();
+                _runningJobs.Clear();
             }
             
             // 5. Clear/reset config manager (will be regenerated with new tokens)
@@ -1546,81 +1542,194 @@ public class RCloneService : BackgroundService
     }
     
     
-    public async Task<TransferStatsResult> GetTransferStatsAsync(CancellationToken cancellationToken)
+    public async Task<JobTransferStatsResult> GetJobTransferStatsAsync(CancellationToken cancellationToken)
     {
         if (_rcloneHttpClient == null)
         {
-            return new TransferStatsResult
+            return new JobTransferStatsResult
             {
-                TransferringItems = new(),
+                Jobs = new(),
                 OverallStats = new OverallTransferStats()
             };
         }
 
         var rcloneClient = new RCloneClient(_rcloneHttpClient);
 
-        JobStatsResult rcloneStats;
+        // 1. Get global stats for overall progress
+        JobStatsResult globalStats;
         try
         {
-            rcloneStats = await rcloneClient.GetJobStatsAsync(cancellationToken);
+            globalStats = await rcloneClient.GetJobStatsAsync(cancellationToken);
         }
         catch (HttpRequestException ex)
         {
             _logger.LogWarning("RCloneService: Unable to get transfer stats - rclone not available: {Message}", ex.Message);
-            return new TransferStatsResult
+            return new JobTransferStatsResult
             {
-                TransferringItems = new(),
+                Jobs = new(),
                 OverallStats = new OverallTransferStats()
             };
         }
         catch (TaskCanceledException ex) when (ex.CancellationToken != cancellationToken)
         {
-            // Timeout or connection failure (not user cancellation)
             _logger.LogWarning("RCloneService: Unable to get transfer stats - request timed out or connection failed");
-            return new TransferStatsResult
+            return new JobTransferStatsResult
             {
-                TransferringItems = new(),
+                Jobs = new(),
                 OverallStats = new OverallTransferStats()
             };
         }
 
-        _logger.LogInformation($"RCloneService: Transfer stats: {rcloneStats}");
+        var result = new JobTransferStatsResult();
 
-        TransferStatsResult result = new();
-        result.TransferringItems = new();
-
-        // Populate overall aggregate statistics
+        // 2. Build overall stats
         result.OverallStats = new OverallTransferStats
         {
-            BytesTransferred = rcloneStats.bytes,
-            TotalBytes = rcloneStats.totalBytes,
-            Speed = rcloneStats.speed,
-            EtaSeconds = rcloneStats.eta,
-            ElapsedSeconds = rcloneStats.elapsedTime,
-            FilesCompleted = rcloneStats.transfers,
-            TotalFiles = rcloneStats.totalTransfers,
-            Errors = rcloneStats.errors
+            BytesTransferred = globalStats.bytes,
+            TotalBytes = globalStats.totalBytes,
+            Speed = globalStats.speed,
+            EtaSeconds = globalStats.eta,
+            ElapsedSeconds = globalStats.elapsedTime,
+            FilesCompleted = globalStats.transfers,
+            TotalFiles = globalStats.totalTransfers,
+            Errors = globalStats.errors
         };
 
-        if (rcloneStats.transferring != null)
+        // 3. Snapshot running jobs
+        SortedDictionary<int, RunningJobInfo> snapshot;
+        lock (_lo)
         {
-            foreach (var rcloneStatus in rcloneStats.transferring)
+            snapshot = new SortedDictionary<int, RunningJobInfo>(_runningJobs);
+        }
+
+        // 4. For each running job, get per-job stats
+        foreach (var (rcloneJobId, runningJob) in snapshot)
+        {
+            var jobInfo = new JobTransferInfo
             {
-                ItemTransferStatus stat = new()
+                HannibalJobId = runningJob.Job.Id,
+                RCloneJobId = rcloneJobId,
+                Tag = runningJob.Job.Tag ?? "",
+                SourcePath = runningJob.Job.SourceEndpoint?.Path ?? "",
+                DestinationPath = runningJob.Job.DestinationEndpoint?.Path ?? "",
+                StartedAt = runningJob.StartedAt,
+                LastTransferActivity = runningJob.LastTransferActivity
+            };
+
+            try
+            {
+                var perJobStats = await rcloneClient.GetJobStatsAsync($"job/{rcloneJobId}", cancellationToken);
+
+                // Error tracking
+                if (!string.IsNullOrEmpty(perJobStats.lastError) && perJobStats.lastError != runningJob.LastSeenError)
                 {
-                    Speed = (float)rcloneStatus.speed,
-                    AverageSpeed = (float)rcloneStatus.speedAvg,
-                    BytesTransferred = rcloneStatus.bytes,
-                    ETA = (rcloneStatus.eta!=null)?rcloneStatus.eta.Value!:0,
-                    Name = (rcloneStatus.name!=null)?rcloneStatus.name:"",
-                    PercentDone = (float)rcloneStatus.percentage,
-                    TotalSize = rcloneStatus.size
+                    runningJob.LastSeenError = perJobStats.lastError;
+                    if (runningJob.Errors.Count < 10)
+                    {
+                        runningJob.Errors.Add(perJobStats.lastError);
+                    }
+                }
+
+                // Transfer activity tracking
+                if (perJobStats.transferring != null && perJobStats.transferring.Count > 0)
+                {
+                    runningJob.LastTransferActivity = DateTime.UtcNow;
+                    jobInfo.LastTransferActivity = runningJob.LastTransferActivity;
+                }
+
+                // Map transferring items
+                if (perJobStats.transferring != null)
+                {
+                    foreach (var t in perJobStats.transferring)
+                    {
+                        jobInfo.Transfers.Add(new ItemTransferStatus
+                        {
+                            Speed = (float)t.speed,
+                            AverageSpeed = (float)t.speedAvg,
+                            BytesTransferred = t.bytes,
+                            ETA = t.eta ?? 0,
+                            Name = t.name ?? "",
+                            PercentDone = (float)t.percentage,
+                            TotalSize = t.size
+                        });
+                    }
+                }
+
+                // Per-job stats
+                jobInfo.Stats = new OverallTransferStats
+                {
+                    BytesTransferred = perJobStats.bytes,
+                    TotalBytes = perJobStats.totalBytes,
+                    Speed = perJobStats.speed,
+                    EtaSeconds = perJobStats.eta,
+                    ElapsedSeconds = perJobStats.elapsedTime,
+                    FilesCompleted = perJobStats.transfers,
+                    TotalFiles = perJobStats.totalTransfers,
+                    Errors = perJobStats.errors
                 };
-                result.TransferringItems.Add(stat);
+
+                jobInfo.ErrorCount = perJobStats.errors;
             }
+            catch (Exception ex)
+            {
+                _logger.LogDebug("Failed to get per-job stats for rclone job {JobId}: {Message}", rcloneJobId, ex.Message);
+            }
+
+            jobInfo.Errors = runningJob.Errors.ToList();
+            result.Jobs.Add(jobInfo);
         }
 
         return result;
+    }
+
+
+    public async Task AbortJobAsync(int hannibalJobId, CancellationToken cancellationToken)
+    {
+        int rcloneJobId;
+        lock (_lo)
+        {
+            var entry = _runningJobs.FirstOrDefault(kvp => kvp.Value.Job.Id == hannibalJobId);
+            if (entry.Value == null)
+            {
+                _logger.LogInformation("AbortJobAsync: job {JobId} not found (already finished?)", hannibalJobId);
+                return;
+            }
+            rcloneJobId = entry.Key;
+        }
+
+        // Stop the rclone job
+        if (_rcloneHttpClient != null)
+        {
+            try
+            {
+                var rcloneClient = new RCloneClient(_rcloneHttpClient);
+                await rcloneClient.StopJobAsync(rcloneJobId, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to stop rclone job {RCloneJobId}: {Message}", rcloneJobId, ex.Message);
+            }
+        }
+
+        // Report as cancelled to Hannibal
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+            await hannibalService.ReportJobAsync(
+                new() { JobId = hannibalJobId, State = Job.JobState.Cancelled, Owner = _ownerId },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Failed to report job {JobId} as cancelled: {Message}", hannibalJobId, ex.Message);
+        }
+
+        // Remove from running jobs
+        lock (_lo)
+        {
+            _runningJobs.Remove(rcloneJobId);
+        }
     }
 
 
@@ -1653,8 +1762,8 @@ public class RCloneService : BackgroundService
         List<Job> jobsToReport;
         lock (_lo)
         {
-            jobsToReport = _mapRCloneToJob.Values.Select(m => m.Job).ToList();
-            _mapRCloneToJob.Clear();
+            jobsToReport = _runningJobs.Values.Select(r => r.Job).ToList();
+            _runningJobs.Clear();
         }
 
         if (jobsToReport.Count > 0)
