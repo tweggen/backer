@@ -19,6 +19,7 @@ public partial class App : Application
     private NativeMenu? _trayMenu;
     private NativeMenuItem? _statusItem;
     private NativeMenuItem? _startStopItem;
+    private NativeMenuItem? _restartItem;
     private NativeMenuItem? _quitLaunchItem;
     
     private readonly IServiceLauncher _serviceLauncher = ServiceLauncherFactory.Create();
@@ -90,8 +91,8 @@ public partial class App : Application
             }
         };
 
-        var restartItem = new NativeMenuItem("Restart Service");
-        restartItem.Click += async (s, e) => await _http.PostAsync("/restart", null);
+        _restartItem = new NativeMenuItem("Restart Service");
+        _restartItem.Click += async (s, e) => await _http.PostAsync("/restart", null);
 
         _quitLaunchItem = new NativeMenuItem("Quit Service");
         _quitLaunchItem.Click += OnQuitLaunchClicked;
@@ -117,7 +118,7 @@ public partial class App : Application
             _statusItem,
             _startStopItem,
             new NativeMenuItemSeparator(),
-            restartItem,
+            _restartItem,
             _quitLaunchItem,
             new NativeMenuItemSeparator(),
             configItem,
@@ -349,11 +350,7 @@ public partial class App : Application
 
             _backerAgentConnection.Closed += async error =>
             {
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (_statusItem != null) _statusItem.Header = "Disconnected";
-                    if (_startStopItem != null) _startStopItem.IsEnabled = false;
-                });
+                Dispatcher.UIThread.Post(() => SetServiceUnavailable("Disconnected"));
 
                 // Try to reconnect after 5 seconds
                 await Task.Delay(5000);
@@ -402,48 +399,52 @@ public partial class App : Application
         }
         catch
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                _serviceAvailable = false;
-                if (_statusItem != null) _statusItem.Header = "Service unavailable";
-                if (_startStopItem != null)
-                {
-                    _startStopItem.Header = "Service unavailable";
-                    _startStopItem.IsEnabled = false;
-                }
-                if (_quitLaunchItem != null)
-                {
-                    if (_serviceLauncher.IsSupported)
-                    {
-                        _quitLaunchItem.Header = "Launch Service";
-                        _quitLaunchItem.IsEnabled = true;
-                    }
-                    else
-                    {
-                        _quitLaunchItem.Header = "Service unavailable";
-                        _quitLaunchItem.IsEnabled = false;
-                    }
-                }
-            });
+            Dispatcher.UIThread.Post(() => SetServiceUnavailable("Service unavailable"));
         }
+    }
+
+    private void SetServiceUnavailable(string statusText)
+    {
+        _serviceAvailable = false;
+        if (_statusItem != null) _statusItem.Header = statusText;
+        if (_startStopItem != null)
+        {
+            _startStopItem.Header = statusText;
+            _startStopItem.IsEnabled = false;
+        }
+        if (_restartItem != null) _restartItem.IsEnabled = false;
+        if (_quitLaunchItem != null)
+        {
+            if (_serviceLauncher.IsSupported)
+            {
+                _quitLaunchItem.Header = "Launch Service";
+                _quitLaunchItem.IsEnabled = true;
+            }
+            else
+            {
+                _quitLaunchItem.Header = statusText;
+                _quitLaunchItem.IsEnabled = false;
+            }
+        }
+        if (_trayIcon != null) _trayIcon.ToolTipText = $"YourBacker - {statusText}";
     }
 
     private void UpdateUIWithState(RCloneServiceState status)
     {
         // Service is responding — mark as available and restore quit item
         _serviceAvailable = true;
-        
+
         if (_statusItem != null)
         {
             _statusItem.Header = status.StateString;
         }
-        
+
         if (_quitLaunchItem != null)
         {
             _quitLaunchItem.Header = "Quit Service";
             _quitLaunchItem.IsEnabled = true;
         }
-        
+
         if (_startStopItem != null)
         {
             switch (status.State)
@@ -457,7 +458,7 @@ public partial class App : Application
                 case RCloneServiceState.ServiceState.CheckOnline:
                 case RCloneServiceState.ServiceState.BackendsLoggingIn:
                 case RCloneServiceState.ServiceState.RestartingForReauth:
-                    _startStopItem.Header = "";
+                    _startStopItem.Header = status.StateString + "...";
                     _startStopItem.IsEnabled = false;
                     break;
 
@@ -471,6 +472,17 @@ public partial class App : Application
                     _startStopItem.IsEnabled = true;
                     break;
             }
+        }
+
+        if (_restartItem != null)
+        {
+            _restartItem.IsEnabled = status.State == RCloneServiceState.ServiceState.Running
+                                  || status.State == RCloneServiceState.ServiceState.WaitStart;
+        }
+
+        if (_trayIcon != null)
+        {
+            _trayIcon.ToolTipText = $"YourBacker - {status.StateString}";
         }
     }
 }
