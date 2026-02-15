@@ -49,6 +49,10 @@ public class RCloneService : BackgroundService
 
     private SortedDictionary<int, RunningJobInfo> _runningJobs = new();
 
+    // Stderr error lines parsed from rclone output (includes file paths)
+    private readonly object _stderrErrorsLock = new();
+    private readonly List<string> _stderrErrors = new();
+
     // Timeout for stalled OAuth2 jobs with no activity (5 minutes)
     private static readonly TimeSpan _oauth2InactivityTimeout = TimeSpan.FromMinutes(5);
     
@@ -713,6 +717,25 @@ public class RCloneService : BackgroundService
                 break;
             }
             _logger.LogInformation($"rclone: {message}");
+
+            // Parse ERROR lines to capture file paths for error reporting.
+            // rclone stderr format: "ERROR : <filepath>: <error message>"
+            // The API's lastError only contains the error message without the filepath,
+            // so we capture the full line here to enrich error reports.
+            const string errorPrefix = "ERROR : ";
+            int errorIdx = message.IndexOf(errorPrefix);
+            if (errorIdx >= 0)
+            {
+                string errorDetail = message[(errorIdx + errorPrefix.Length)..];
+                lock (_stderrErrorsLock)
+                {
+                    _stderrErrors.Add(errorDetail);
+                    while (_stderrErrors.Count > 200)
+                    {
+                        _stderrErrors.RemoveAt(0);
+                    }
+                }
+            }
         }
         _logger.LogInformation("rclone terminates.");
     }
@@ -1620,13 +1643,25 @@ public class RCloneService : BackgroundService
             {
                 var perJobStats = await rcloneClient.GetJobStatsAsync($"job/{rcloneJobId}", cancellationToken);
 
-                // Error tracking
+                // Error tracking: enrich with file path from stderr if available
                 if (!string.IsNullOrEmpty(perJobStats.lastError) && perJobStats.lastError != runningJob.LastSeenError)
                 {
                     runningJob.LastSeenError = perJobStats.lastError;
                     if (runningJob.Errors.Count < 10)
                     {
-                        runningJob.Errors.Add(perJobStats.lastError);
+                        // Try to find a matching stderr error that includes the file path.
+                        // The API's lastError lacks the filepath, but stderr has it.
+                        string errorToAdd = perJobStats.lastError;
+                        lock (_stderrErrorsLock)
+                        {
+                            var match = _stderrErrors.FirstOrDefault(e => e.Contains(perJobStats.lastError));
+                            if (match != null)
+                            {
+                                errorToAdd = match;
+                                _stderrErrors.Remove(match);
+                            }
+                        }
+                        runningJob.Errors.Add(errorToAdd);
                     }
                 }
 
