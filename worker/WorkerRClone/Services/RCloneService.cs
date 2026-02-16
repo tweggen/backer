@@ -55,6 +55,12 @@ public class RCloneService : BackgroundService
 
     // Timeout for stalled OAuth2 jobs with no activity (5 minutes)
     private static readonly TimeSpan _oauth2InactivityTimeout = TimeSpan.FromMinutes(5);
+
+    // Rate limiting for mid-job token refresh restarts
+    private DateTime _lastTokenRefreshRestart = DateTime.MinValue;
+    private int _tokenRefreshRestartCount = 0;
+    private const int _maxTokenRefreshRestarts = 3;
+    private static readonly TimeSpan _tokenRefreshRestartCooldown = TimeSpan.FromMinutes(5);
     
     private readonly Channel<RCloneServiceParams> _taskChannel = Channel.CreateUnbounded<RCloneServiceParams>();
     
@@ -281,6 +287,9 @@ public class RCloneService : BackgroundService
                                 { JobId = jobId, State = Job.JobState.DoneSuccess, Owner = _ownerId },
                             cancellationToken);
                         listDoneJobs.Add(rcloneJobId);
+
+                        // Reset token refresh restart count after successful job completion
+                        _tokenRefreshRestartCount = 0;
                     }
                     else
                     {
@@ -315,6 +324,16 @@ public class RCloneService : BackgroundService
 
                     if (shouldTimeout)
                     {
+                        // Attempt mid-job token refresh before giving up
+                        bool didRestart = await _tryMidJobTokenRefreshAsync(runningJobInfo, cancellationToken);
+                        if (didRestart)
+                        {
+                            // State machine is transitioning to RestartingForReauth,
+                            // all jobs have been reported — stop checking
+                            return;
+                        }
+
+                        // Token refresh not possible or failed — fall through to existing timeout behavior
                         _logger.LogWarning(
                             "Job {jobId} timed out: OAuth2 endpoint with expired token and no activity for {timeout}.",
                             jobId, _oauth2InactivityTimeout);
@@ -445,6 +464,146 @@ public class RCloneService : BackgroundService
         return true;
     }
 
+
+    /// <summary>
+    /// Attempt to refresh expired OAuth2 tokens mid-job and trigger a restart.
+    /// Rate-limited to prevent restart loops.
+    /// Returns true if a restart was triggered (caller should return immediately).
+    /// </summary>
+    private async Task<bool> _tryMidJobTokenRefreshAsync(
+        RunningJobInfo runningJobInfo,
+        CancellationToken cancellationToken)
+    {
+        var job = runningJobInfo.Job;
+
+        // Rate limiting: not within cooldown of last restart
+        var timeSinceLastRestart = DateTime.UtcNow - _lastTokenRefreshRestart;
+        if (timeSinceLastRestart < _tokenRefreshRestartCooldown)
+        {
+            _logger.LogDebug(
+                "Job {jobId}: Token refresh restart rate-limited (last restart {seconds}s ago, cooldown {cooldown}s)",
+                job.Id, timeSinceLastRestart.TotalSeconds, _tokenRefreshRestartCooldown.TotalSeconds);
+            return false;
+        }
+
+        // Rate limiting: consecutive restart count
+        if (_tokenRefreshRestartCount >= _maxTokenRefreshRestarts)
+        {
+            _logger.LogWarning(
+                "Job {jobId}: Token refresh restart limit reached ({count}/{max} consecutive restarts)",
+                job.Id, _tokenRefreshRestartCount, _maxTokenRefreshRestarts);
+            return false;
+        }
+
+        // Identify expired endpoint(s) and try to refresh tokens
+        bool anyRefreshed = false;
+
+        if (runningJobInfo.SourceIsOAuth2 && _isOAuth2TokenExpired(job.SourceEndpoint.Storage))
+        {
+            try
+            {
+                var result = await _rcloneStorages.EnsureTokensValidAsync(
+                    job.SourceEndpoint.Storage, cancellationToken: cancellationToken);
+                if (result.IsNowValid)
+                {
+                    _logger.LogInformation("Job {jobId}: Source OAuth2 token refreshed for {storage}",
+                        job.Id, job.SourceEndpoint.Storage.UriSchema);
+                    anyRefreshed = true;
+                }
+                else
+                {
+                    _logger.LogWarning("Job {jobId}: Source token refresh failed: {error}",
+                        job.Id, result.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Job {jobId}: Source token refresh threw: {error}", job.Id, ex.Message);
+            }
+        }
+
+        if (runningJobInfo.DestinationIsOAuth2 && _isOAuth2TokenExpired(job.DestinationEndpoint.Storage))
+        {
+            try
+            {
+                var result = await _rcloneStorages.EnsureTokensValidAsync(
+                    job.DestinationEndpoint.Storage, cancellationToken: cancellationToken);
+                if (result.IsNowValid)
+                {
+                    _logger.LogInformation("Job {jobId}: Destination OAuth2 token refreshed for {storage}",
+                        job.Id, job.DestinationEndpoint.Storage.UriSchema);
+                    anyRefreshed = true;
+                }
+                else
+                {
+                    _logger.LogWarning("Job {jobId}: Destination token refresh failed: {error}",
+                        job.Id, result.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Job {jobId}: Destination token refresh threw: {error}", job.Id, ex.Message);
+            }
+        }
+
+        if (!anyRefreshed)
+        {
+            _logger.LogInformation("Job {jobId}: No tokens could be refreshed, falling through to timeout", job.Id);
+            return false;
+        }
+
+        // Token refresh succeeded — report ALL running jobs as DoneFailure before restart
+        _logger.LogInformation("Token refresh succeeded, reporting all running jobs and triggering restart");
+
+        SortedDictionary<int, RunningJobInfo> snapshot;
+        lock (_lo)
+        {
+            snapshot = new SortedDictionary<int, RunningJobInfo>(_runningJobs);
+        }
+
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+            foreach (var kvp in snapshot)
+            {
+                try
+                {
+                    await hannibalService.ReportJobAsync(new()
+                        { JobId = kvp.Value.Job.Id, State = Job.JobState.DoneFailure, Owner = _ownerId },
+                        cancellationToken);
+                    _logger.LogInformation("Reported job {jobId} as DoneFailure for token refresh restart",
+                        kvp.Value.Job.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Failed to report job {jobId} during token refresh restart: {error}",
+                        kvp.Value.Job.Id, ex.Message);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Failed to create scope for reporting jobs during token refresh: {error}", ex.Message);
+        }
+
+        // Update rate-limit fields
+        _lastTokenRefreshRestart = DateTime.UtcNow;
+        _tokenRefreshRestartCount++;
+
+        // Trigger state machine transition to restart rclone with new tokens
+        if (_stateMachine!.CanHandle(ServiceEvent.StorageReauthenticationRequired))
+        {
+            await _stateMachine.TransitionAsync(ServiceEvent.StorageReauthenticationRequired);
+        }
+        else
+        {
+            _logger.LogInformation("Queueing StorageReauthenticationRequired (current state: {state})", _state.State);
+            _stateMachine.QueueEvent(ServiceEvent.StorageReauthenticationRequired);
+        }
+
+        return true;
+    }
 
     /**
      * Take care we have all remotes that we need for this endpoint in the configuration.
@@ -1247,7 +1406,46 @@ public class RCloneService : BackgroundService
                 _rcloneHttpClient = null;
             }
             
-            // 4. Clear job mappings
+            // 4. Report interrupted jobs to Hannibal before clearing
+            {
+                List<Job> jobsToReport;
+                lock (_lo)
+                {
+                    jobsToReport = _runningJobs.Values.Select(r => r.Job).ToList();
+                }
+
+                if (jobsToReport.Count > 0)
+                {
+                    _logger.LogInformation("Reporting {count} interrupted job(s) as DoneFailure for reauth restart",
+                        jobsToReport.Count);
+                    try
+                    {
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
+                        foreach (var job in jobsToReport)
+                        {
+                            try
+                            {
+                                await hannibalService.ReportJobAsync(
+                                    new() { JobId = job.Id, State = Job.JobState.DoneFailure, Owner = _ownerId },
+                                    CancellationToken.None);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning("Failed to report job {jobId} during reauth: {error}",
+                                    job.Id, ex.Message);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning("Failed to create scope for reporting jobs during reauth: {error}",
+                            ex.Message);
+                    }
+                }
+            }
+
+            // 5. Clear job mappings
             lock (_lo)
             {
                 _runningJobs.Clear();
