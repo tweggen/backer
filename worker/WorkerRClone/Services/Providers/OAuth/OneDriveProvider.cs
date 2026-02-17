@@ -39,6 +39,8 @@ public class OneDriveProvider : OAuthStorageProviderBase
             ["type"] = "onedrive",
             ["client_id"] = storage.ClientId,
             ["client_secret"] = storage.ClientSecret,
+            ["auth_url"] = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+            ["token_url"] = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
             ["drive_id"] = driveId,
             ["drive_type"] = driveType,
             ["token"] = BuildTokenJson(storage)
