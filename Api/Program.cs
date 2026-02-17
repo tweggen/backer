@@ -787,7 +787,10 @@ using (var scope = app.Services.CreateScope())
 {
     {
         var hannibalContext = scope.ServiceProvider.GetRequiredService<HannibalContext>();
-        hannibalContext.Database.Migrate();
+        if (hannibalContext.Database.IsRelational())
+        {
+            hannibalContext.Database.Migrate();
+        }
         await hannibalContext.InitializeDatabaseAsync();
     }
 }
@@ -795,3 +798,6 @@ using (var scope = app.Services.CreateScope())
 
 await app.StartAsync();
 await app.WaitForShutdownAsync();
+
+// Make Program accessible for WebApplicationFactory in integration tests
+public partial class Program { }
