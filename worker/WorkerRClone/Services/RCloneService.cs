@@ -27,6 +27,7 @@ public class RCloneService : BackgroundService
     private RCloneStateMachine? _stateMachine;
     
     internal bool _wasUserStop = false;
+    private bool _restartAfterReauth = false;
     
     private static object _classLock = new();
     private static int _nextId;
@@ -1229,7 +1230,13 @@ public class RCloneService : BackgroundService
             return;
         }
         
-        if (_options.Autostart && !_wasUserStop)
+        if (_restartAfterReauth)
+        {
+            _restartAfterReauth = false;
+            _logger.LogInformation("RCloneService: Restarting after reauthentication, transitioning to Running.");
+            await _stateMachine.TransitionAsync(ServiceEvent.StartRequested);
+        }
+        else if (_options.Autostart && !_wasUserStop)
         {
             _logger.LogInformation("RCloneService: Autostart enabled, transitioning to Running.");
             await _stateMachine.TransitionAsync(ServiceEvent.StartRequested);
@@ -1364,7 +1371,12 @@ public class RCloneService : BackgroundService
     internal async Task _handleStorageReauthImpl()
     {
         _logger.LogInformation("RCloneService: Handling storage reauthentication - cleaning up...");
-        
+
+        // The service was running when the token expired, so ensure we
+        // auto-restart after reauth rather than getting stuck in WaitStart.
+        _wasUserStop = false;
+        _restartAfterReauth = true;
+
         try
         {
             // 1. Stop all running jobs
