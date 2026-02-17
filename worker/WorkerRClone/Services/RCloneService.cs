@@ -54,6 +54,11 @@ public class RCloneService : BackgroundService
     private readonly object _stderrErrorsLock = new();
     private readonly List<string> _stderrErrors = new();
 
+    // Count of consecutive token-related errors detected on rclone stderr.
+    // Set by _readPrintLog, read and reset by the polling loop.
+    private volatile int _stderrTokenErrorCount = 0;
+    private const int _stderrTokenErrorThreshold = 3;
+
     // Timeout for stalled OAuth2 jobs with no activity (5 minutes)
     private static readonly TimeSpan _oauth2InactivityTimeout = TimeSpan.FromMinutes(5);
 
@@ -231,6 +236,29 @@ public class RCloneService : BackgroundService
         if (_rcloneHttpClient == null)
         {
             return;  // Silent return - called frequently, would be noisy
+        }
+
+        // Fast path: if rclone stderr shows repeated token errors, trigger
+        // reauth immediately instead of waiting for the inactivity timeout.
+        if (_stderrTokenErrorCount >= _stderrTokenErrorThreshold)
+        {
+            _logger.LogWarning(
+                "Detected {count} token-related errors on rclone stderr, triggering early token refresh.",
+                _stderrTokenErrorCount);
+            _stderrTokenErrorCount = 0;
+
+            // Find the first running job with an OAuth2 endpoint to drive the refresh.
+            RunningJobInfo? oauthJob = null;
+            lock (_lo)
+            {
+                oauthJob = _runningJobs.Values.FirstOrDefault(r => r.HasOAuth2Endpoint);
+            }
+
+            if (oauthJob != null)
+            {
+                bool didRestart = await _tryMidJobTokenRefreshAsync(oauthJob, cancellationToken);
+                if (didRestart) return;
+            }
         }
 
         SortedDictionary<int, RunningJobInfo> mapJobs;
@@ -895,6 +923,14 @@ public class RCloneService : BackgroundService
                         _stderrErrors.RemoveAt(0);
                     }
                 }
+
+                // Detect token expiry errors early so the polling loop can trigger
+                // a reauth restart without waiting for the full inactivity timeout.
+                if (errorDetail.Contains("couldn't fetch token")
+                    || errorDetail.Contains("maybe token expired"))
+                {
+                    Interlocked.Increment(ref _stderrTokenErrorCount);
+                }
             }
         }
         _logger.LogInformation("rclone terminates.");
@@ -1376,6 +1412,7 @@ public class RCloneService : BackgroundService
         // auto-restart after reauth rather than getting stuck in WaitStart.
         _wasUserStop = false;
         _restartAfterReauth = true;
+        _stderrTokenErrorCount = 0;
 
         try
         {
