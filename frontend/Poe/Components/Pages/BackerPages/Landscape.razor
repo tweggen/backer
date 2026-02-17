@@ -1,0 +1,310 @@
+@page "/backer/landscape"
+@using Hannibal.Client
+@using Hannibal.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Poe.Services
+@inject IHannibalServiceClient HannibalServiceClient
+@inject NavigationManager Navigation
+@inject Tools.AppBasePath BasePath
+@inject AuthState AuthState
+@implements IDisposable
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+
+<h3>Data Landscape</h3>
+
+<div class="alert alert-info mb-4" role="alert">
+    <p class="mb-0">
+        <strong>Green</strong> = safe to work on (your source data).
+        <strong>Red</strong> = hands off (backup destinations — modifying these can corrupt your backups).
+        <button type="button" class="info-toggle" @onclick="() => _showDetails = !_showDetails">@(_showDetails ? "less details..." : "more details...")</button>
+    </p>
+    @if (_showDetails)
+    {
+        <hr>
+        <p class="mb-0">
+            This page shows your backup topology. Source storages where your original data lives appear on the left.
+            Backup destinations flow to the right through stages. Never modify red destinations directly — changes propagate
+            downstream and can corrupt your entire backup chain.
+        </p>
+    }
+</div>
+
+@if (!_dataLoaded)
+{
+    <p><em>Loading landscape...</em></p>
+}
+else if (!_chains.Any() && !_unconfiguredStorages.Any())
+{
+    <div class="alert alert-secondary">
+        <p class="mb-0">No storages or backup rules configured yet. Create storages and rules to see your data landscape.</p>
+    </div>
+}
+else
+{
+    @if (_chains.Any())
+    {
+        <div class="landscape-grid">
+            @foreach (var chain in _chains)
+            {
+                <div class="chain-row">
+                    @* Safe root *@
+                    <div class="stage-column">
+                        <div class="storage-card safe">
+                            <div class="storage-card-icon">@GetTechIcon(chain.Source.Technology)</div>
+                            <div class="storage-card-name">@chain.Source.UriSchema</div>
+                            <div class="storage-card-tech">@chain.Source.Technology</div>
+                            @if (chain.SourcePaths.Any())
+                            {
+                                <div class="storage-card-paths">
+                                    @foreach (var path in chain.SourcePaths)
+                                    {
+                                        <div class="storage-card-path">@path</div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    @foreach (var stage in chain.Stages)
+                    {
+                        <div class="chain-arrow" title="@string.Join(", ", stage.RuleNames)">&#x2192;</div>
+                        <div class="stage-column">
+                            @foreach (var dest in stage.Storages)
+                            {
+                                <div class="storage-card taboo">
+                                    <div class="storage-card-icon">@GetTechIcon(dest.Storage.Technology)</div>
+                                    <div class="storage-card-name">@dest.Storage.UriSchema</div>
+                                    <div class="storage-card-tech">@dest.Storage.Technology</div>
+                                    @if (dest.Paths.Any())
+                                    {
+                                        <div class="storage-card-paths">
+                                            @foreach (var path in dest.Paths)
+                                            {
+                                                <div class="storage-card-path">@path</div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    @if (_unconfiguredStorages.Any())
+    {
+        <h4 class="mt-4">Unconfigured Storages</h4>
+        <p class="text-muted">These storages are not used in any backup rule.</p>
+        <div class="unconfigured-list">
+            @foreach (var sto in _unconfiguredStorages)
+            {
+                <div class="storage-card unconfigured">
+                    <div class="storage-card-icon">@GetTechIcon(sto.Technology)</div>
+                    <div class="storage-card-name">@sto.UriSchema</div>
+                    <div class="storage-card-tech">@sto.Technology</div>
+                </div>
+            }
+        </div>
+    }
+}
+
+
+@code {
+    private bool _dataLoaded = false;
+    private bool _showDetails = false;
+    private IdentityUser? _user = null;
+    private List<BackupChain> _chains = new();
+    private List<Storage> _unconfiguredStorages = new();
+
+    private record StageDestination(Storage Storage, List<string> Paths);
+
+    private class BackupStage
+    {
+        public List<StageDestination> Storages { get; set; } = new();
+        public List<string> RuleNames { get; set; } = new();
+    }
+
+    private class BackupChain
+    {
+        public Storage Source { get; set; } = null!;
+        public List<string> SourcePaths { get; set; } = new();
+        public List<BackupStage> Stages { get; set; } = new();
+    }
+
+    private string GetTechIcon(string technology) => technology?.ToLower() switch
+    {
+        "onedrive" => "\ud83d\udcab",
+        "dropbox" => "\ud83d\udce6",
+        "googledrive" => "\ud83d\udcc1",
+        "nextcloud" => "\u2601\ufe0f",
+        "smb" => "\ud83d\udcbe",
+        "local" => "\ud83d\udcbb",
+        _ => "\ud83d\udcc0"
+    };
+
+    public void Dispose()
+    {
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (AuthState.ReadResetRedirectToLogin())
+        {
+            await InvokeAsync(() =>
+            {
+                Task.Delay(200);
+                Navigation.NavigateTo("/login");
+            });
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _user = await HannibalServiceClient.GetUserAsync(-1, CancellationToken.None);
+            if (null == _user)
+            {
+                AuthState.TriggerRedirectToLogin();
+                return;
+            }
+
+            var rules = new List<Rule>(
+                await HannibalServiceClient.GetRulesAsync(
+                    new ResultPage { Length = 200, Offset = 0 },
+                    new RuleFilter {},
+                    CancellationToken.None)
+            );
+
+            var storages = new List<Storage>(
+                await HannibalServiceClient.GetStoragesAsync(CancellationToken.None)
+            );
+
+            BuildLandscape(rules, storages);
+            _dataLoaded = true;
+        }
+        catch (Exception e)
+        {
+        }
+    }
+
+    private void BuildLandscape(List<Rule> rules, List<Storage> storages)
+    {
+        var storageMap = storages.ToDictionary(s => s.Id);
+
+        // Build adjacency list: sourceStorageId -> list of (destStorageId, ruleName, sourcePath, destPath)
+        var edges = new Dictionary<int, List<(int DestStorageId, string RuleName, string SourcePath, string DestPath)>>();
+        var isDestination = new HashSet<int>();
+        var referencedStorages = new HashSet<int>();
+
+        foreach (var rule in rules)
+        {
+            if (rule.SourceEndpoint?.Storage == null || rule.DestinationEndpoint?.Storage == null)
+                continue;
+
+            var srcStorageId = rule.SourceEndpoint.StorageId;
+            var dstStorageId = rule.DestinationEndpoint.StorageId;
+
+            // Ensure the storages from rules are in our map
+            if (!storageMap.ContainsKey(srcStorageId))
+                storageMap[srcStorageId] = rule.SourceEndpoint.Storage;
+            if (!storageMap.ContainsKey(dstStorageId))
+                storageMap[dstStorageId] = rule.DestinationEndpoint.Storage;
+
+            if (!edges.ContainsKey(srcStorageId))
+                edges[srcStorageId] = new();
+
+            edges[srcStorageId].Add((dstStorageId, rule.Name, rule.SourceEndpoint.Path ?? "", rule.DestinationEndpoint.Path ?? ""));
+            isDestination.Add(dstStorageId);
+            referencedStorages.Add(srcStorageId);
+            referencedStorages.Add(dstStorageId);
+        }
+
+        // Safe roots: appear as sources but never as destinations
+        var safeRoots = edges.Keys.Where(id => !isDestination.Contains(id)).OrderBy(id => storageMap[id].UriSchema).ToList();
+
+        // Handle self-referencing: if a storage is both source and destination (A->A), treat it as taboo
+        // It won't be in safeRoots since it's in isDestination
+
+        // BFS from each safe root to build chains
+        foreach (var rootId in safeRoots)
+        {
+            var chain = new BackupChain { Source = storageMap[rootId] };
+
+            // Collect source paths from rules where this storage is the source
+            if (edges.TryGetValue(rootId, out var rootEdges))
+            {
+                chain.SourcePaths = rootEdges
+                    .Select(e => e.SourcePath)
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .Distinct()
+                    .ToList();
+            }
+
+            // BFS by stage
+            var visited = new HashSet<int> { rootId };
+            var currentStageIds = new List<int> { rootId };
+
+            while (true)
+            {
+                var stage = new BackupStage();
+                var nextStageIds = new List<int>();
+
+                foreach (var srcId in currentStageIds)
+                {
+                    if (!edges.TryGetValue(srcId, out var srcEdges))
+                        continue;
+
+                    foreach (var edge in srcEdges)
+                    {
+                        if (visited.Contains(edge.DestStorageId))
+                            continue;
+
+                        visited.Add(edge.DestStorageId);
+                        nextStageIds.Add(edge.DestStorageId);
+
+                        if (!stage.RuleNames.Contains(edge.RuleName))
+                            stage.RuleNames.Add(edge.RuleName);
+
+                        // Check if this storage already exists in this stage
+                        var existing = stage.Storages.FirstOrDefault(s => s.Storage.Id == edge.DestStorageId);
+                        if (existing != null)
+                        {
+                            if (!string.IsNullOrEmpty(edge.DestPath) && !existing.Paths.Contains(edge.DestPath))
+                                existing.Paths.Add(edge.DestPath);
+                        }
+                        else
+                        {
+                            var paths = new List<string>();
+                            if (!string.IsNullOrEmpty(edge.DestPath))
+                                paths.Add(edge.DestPath);
+                            stage.Storages.Add(new StageDestination(storageMap[edge.DestStorageId], paths));
+                        }
+                    }
+                }
+
+                if (!stage.Storages.Any())
+                    break;
+
+                chain.Stages.Add(stage);
+                currentStageIds = nextStageIds;
+            }
+
+            _chains.Add(chain);
+        }
+
+        // Storages that are destinations only (never sources) and not reachable from safe roots
+        // are shown as standalone taboo entries — handled by chains naturally via BFS
+
+        // Unconfigured storages: not referenced in any rule
+        _unconfiguredStorages = storages
+            .Where(s => !referencedStorages.Contains(s.Id))
+            .OrderBy(s => s.UriSchema)
+            .ToList();
+    }
+}

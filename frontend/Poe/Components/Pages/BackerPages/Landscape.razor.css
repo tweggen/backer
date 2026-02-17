@@ -1,0 +1,131 @@
+/* Landscape.razor.css - Data landscape visualization */
+
+.landscape-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.chain-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    flex-wrap: wrap;
+}
+
+.stage-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.chain-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 0.75rem;
+    font-size: 1.5rem;
+    color: #6c757d;
+    min-height: 80px;
+    cursor: default;
+}
+
+/* === STORAGE CARDS === */
+.storage-card {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    min-width: 160px;
+    max-width: 220px;
+}
+
+.storage-card.safe {
+    background-color: rgba(40, 167, 69, 0.1);
+    border-left: 4px solid #28a745;
+}
+
+.storage-card.taboo {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left: 4px solid #dc3545;
+}
+
+.storage-card.unconfigured {
+    background-color: rgba(108, 117, 125, 0.08);
+    border-left: 4px solid #adb5bd;
+}
+
+.storage-card-icon {
+    font-size: 1.3rem;
+    margin-bottom: 0.25rem;
+}
+
+.storage-card-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #1a3a4a;
+    word-break: break-all;
+}
+
+.storage-card-tech {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: #666;
+    background: #e9ecef;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.2rem;
+    margin-top: 0.25rem;
+}
+
+.storage-card-paths {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    color: #555;
+}
+
+.storage-card-path {
+    font-family: monospace;
+    word-break: break-all;
+}
+
+/* === UNCONFIGURED SECTION === */
+.unconfigured-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 600px) {
+    .chain-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .chain-arrow {
+        justify-content: center;
+        min-height: auto;
+        padding: 0.25rem 0;
+        font-size: 1.2rem;
+        transform: rotate(90deg);
+    }
+
+    .storage-card {
+        max-width: none;
+    }
+}
+
+/* === INFO TOGGLE (shared pattern) === */
+.info-toggle {
+    background: none;
+    border: none;
+    color: #1b6ec2;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    text-decoration: underline;
+}
+
+.info-toggle:hover {
+    color: #0d4ea6;
+}
