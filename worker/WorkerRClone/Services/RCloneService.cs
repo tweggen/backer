@@ -59,6 +59,10 @@ public class RCloneService : BackgroundService
     private volatile int _stderrTokenErrorCount = 0;
     private const int _stderrTokenErrorThreshold = 3;
 
+    // Safety-net polling: re-fetch jobs periodically in case SignalR events were missed.
+    private DateTime _lastJobPollUtc = DateTime.MinValue;
+    private static readonly TimeSpan _jobPollInterval = TimeSpan.FromSeconds(120);
+
     // Timeout for stalled OAuth2 jobs with no activity (5 minutes)
     private static readonly TimeSpan _oauth2InactivityTimeout = TimeSpan.FromMinutes(5);
 
@@ -206,12 +210,22 @@ public class RCloneService : BackgroundService
                              * If we have nothing, we sleep until receiving an signalr update.
                              */
                             _triggerFetchJobAsync(cancellationToken);
+                            _lastJobPollUtc = DateTime.UtcNow;
                         }
                         catch (Exception e)
                         {
                             wasStart = false;
                             _logger.LogError($"Exception while Startup in Execute Async: {e}");
                         }
+                    }
+                    else if (DateTime.UtcNow - _lastJobPollUtc >= _jobPollInterval)
+                    {
+                        /*
+                         * Safety-net: periodically poll for jobs in case SignalR
+                         * events were missed (e.g. during a brief disconnection).
+                         */
+                        _lastJobPollUtc = DateTime.UtcNow;
+                        _triggerFetchJobAsync(cancellationToken);
                     }
 
                     break;
