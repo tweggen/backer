@@ -10,8 +10,8 @@
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         
-        <!-- Windows icon - uncomment when you have an icon file -->
-        <!-- <ApplicationIcon>Assets/YourBacker.ico</ApplicationIcon> -->
+        <!-- Windows icon -->
+        <ApplicationIcon>Assets/YourBacker.ico</ApplicationIcon>
         
         <!-- macOS bundle settings -->
         <CFBundleName>YourBacker</CFBundleName>

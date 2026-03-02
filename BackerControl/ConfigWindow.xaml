@@ -16,6 +16,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -38,9 +39,13 @@
 
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Autostart:" VerticalAlignment="Center"/>
         <CheckBox Grid.Row="3" Grid.Column="1" Name="AutostartCheckBox" Content="Enable Autostart" Margin="5"/>
-        
+
+        <!-- Git Version -->
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Version:" VerticalAlignment="Top"/>
+        <TextBlock Grid.Row="4" Grid.Column="1" Name="VersionTextBlock" Margin="5" TextWrapping="Wrap" Foreground="Gray" FontSize="10" VerticalAlignment="Top"/>
+
         <!-- Buttons -->
-        <StackPanel Grid.Row="5" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5">
+        <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="5">
             <Button Content="Save" Width="80" Margin="5" Click="OnSaveClicked"/>
             <Button Content="Cancel" Width="80" Margin="5" Click="OnCancelClicked"/>
         </StackPanel>

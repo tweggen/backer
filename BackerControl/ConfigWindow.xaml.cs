@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Windows;
 using WorkerRClone.Configuration;
+using Tools;
 
 namespace BackerControl;
 
@@ -28,6 +29,23 @@ public partial class ConfigWindow : Window
             EmailTextBox.Text = options?.BackerUsername ?? "your@email.com";
             PasswordBox.Password = options?.BackerPassword ?? "secret";
             AutostartCheckBox.IsChecked = options?.Autostart ?? false;
+
+            // Load version information
+            try
+            {
+                var version = await http.GetFromJsonAsync<VersionInfo>("/version");
+                if (version != null)
+                {
+                    var versionText = $"{version.GitCommitShort}";
+                    if (!string.IsNullOrEmpty(version.GitBranch))
+                        versionText += $" ({version.GitBranch})";
+                    VersionTextBlock.Text = versionText;
+                }
+            }
+            catch
+            {
+                VersionTextBlock.Text = "Unknown";
+            }
         }
         catch (HttpRequestException ex)
         {
