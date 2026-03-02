@@ -1260,9 +1260,9 @@ public class RCloneService : BackgroundService
         /*
          * Check if we should immediately transition to running
          */
-        if (_stateMachine!.CanHandle(ServiceEvent.StopRequested))
+        if (_stateMachine!.HasPendingEvents())
         {
-            // There's a queued stop request, let it be processed
+            // There are queued events, let them be processed
             return;
         }
         

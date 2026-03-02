@@ -217,7 +217,15 @@ public class RCloneStateMachine
             return _stateConfigs[_currentState].Transitions.ContainsKey(evt);
         }
     }
-    
+
+    public bool HasPendingEvents()
+    {
+        lock (_lock)
+        {
+            return _pendingEvents.Count > 0;
+        }
+    }
+
     public RCloneServiceState.ServiceState CurrentState
     {
         get

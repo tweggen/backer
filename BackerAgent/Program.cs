@@ -255,6 +255,16 @@ app.MapGet("/config", async (
 });
 
 
+app.MapGet("/version", async (
+    HttpContext ctx,
+    CancellationToken cancellationToken
+) =>
+{
+    var version = Tools.VersionInfo.GetCurrent();
+    return Results.Ok(version);
+});
+
+
 app.MapGet("/jobtransfers", async (
     RCloneService rcloneService,
     HttpContext ctx,
