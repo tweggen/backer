@@ -382,6 +382,16 @@ else
         try
         {
             await HannibalServiceClient.UpdateJobsOperationAsync(Hannibal.Models.Rule.RuleOperation.Nop, CancellationToken.None);
+            await _reloadRulePage(CancellationToken.None);
+
+            // Reload rule states
+            var states = await HannibalServiceClient.GetRuleStatesAsync(CancellationToken.None);
+            _ruleStates.Clear();
+            foreach (var state in states)
+            {
+                _ruleStates[state.RuleId] = state;
+            }
+
             _showSuspendModal = false;
         }
         catch (Exception e)
