@@ -34,7 +34,7 @@ public partial class HannibalService
     }
 
 
-    
+
     public async Task DeleteJobsAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Delete jobs requested.");
@@ -44,14 +44,14 @@ public partial class HannibalService
             .Where(j => j.UserId == _currentUser!.Id)
             .Include(j => j.FromRule)
             .ToListAsync(cancellationToken);
-        
+
         // Collect affected rule IDs before deletion
         var affectedRuleIds = jobsToDelete
             .Where(j => j.FromRule != null)
             .Select(j => j.FromRule!.Id)
             .Distinct()
             .ToList();
-        
+
         _context.Jobs.RemoveRange(jobsToDelete);
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -63,6 +63,26 @@ public partial class HannibalService
                 AffectedRuleIds = affectedRuleIds
             });
         }
+    }
+
+
+    public async Task UpdateJobsOperationAsync(Rule.RuleOperation operation, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Update all jobs operation to {operation} requested.", operation);
+        await _obtainUser();
+
+        var jobsToUpdate = await _context.Jobs
+            .Where(j => j.UserId == _currentUser!.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var job in jobsToUpdate)
+        {
+            job.Operation = operation;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Updated {count} jobs to operation {operation}.", jobsToUpdate.Count, operation);
     }
 
     

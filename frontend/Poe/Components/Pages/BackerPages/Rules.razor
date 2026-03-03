@@ -155,7 +155,10 @@ else
         }
     </div>
     
-    <button @onclick="() => _onFlush()" class="btn btn-outline-warning btn-sm mt-3" title="Force the backup agent to re-evaluate all rules immediately. Use this after making changes to trigger backups sooner.">🔄 Re-evaluate Rules</button>
+    <div class="mt-3">
+        <button @onclick="() => _onFlush()" class="btn btn-outline-warning btn-sm" title="Force the backup agent to re-evaluate all rules immediately. Use this after making changes to trigger backups sooner.">🔄 Re-evaluate Rules</button>
+        <button @onclick="() => _showSuspendModal = true" class="btn btn-outline-danger btn-sm" title="Suspend all backup jobs by setting their operation to no-op. This will prevent all backups from running immediately.">⏸️ Suspend all rules</button>
+    </div>
 }
 
 @if (_listEndpoints == null)
@@ -272,6 +275,33 @@ else
     </div>
 }
 
+@* Suspend all rules modal *@
+@if (_showSuspendModal)
+{
+    <div class="modal-overlay" @onclick="() => _showSuspendModal = false">
+        <div class="modal-dialog" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Suspend all rules?</h5>
+                    <button type="button" class="btn-close" @onclick="() => _showSuspendModal = false" title="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to suspend all backup rules? This will set all jobs to no-op, preventing any backups from running immediately.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _showSuspendModal = false" disabled="@_isSuspending">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="_onSuspendAllRules" disabled="@_isSuspending">
+                        @if (_isSuspending)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        Suspend All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     private List<Hannibal.Models.Rule>? _listRules = null;
@@ -281,6 +311,8 @@ else
     private bool _showRulesDetails = false;
     private bool _showCreateForm = false;
     private bool _isCreating = false;
+    private bool _showSuspendModal = false;
+    private bool _isSuspending = false;
 
     [SupplyParameterFromForm] private Hannibal.Models.Rule _editRule { get; set; } = new() { Id = -1 };
     [SupplyParameterFromForm] private Hannibal.Models.Rule? _newRule { get; set; } = null;
@@ -339,6 +371,27 @@ else
         }
         catch (Exception e)
         {
+        }
+    }
+
+    private async Task _onSuspendAllRules()
+    {
+        _isSuspending = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await HannibalServiceClient.UpdateJobsOperationAsync(Hannibal.Models.Rule.RuleOperation.Nop, CancellationToken.None);
+            _showSuspendModal = false;
+        }
+        catch (Exception e)
+        {
+            // Error handling could be improved here
+        }
+        finally
+        {
+            _isSuspending = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 

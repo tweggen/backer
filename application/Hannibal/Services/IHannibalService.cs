@@ -128,7 +128,9 @@ public interface IHannibalService
     public Task<Job> AcquireNextJobAsync(AcquireParams acquireParams, CancellationToken cancellationToken);
 
     public Task DeleteJobsAsync(CancellationToken cancellationToken);
-    
+
+    public Task UpdateJobsOperationAsync(Rule.RuleOperation operation, CancellationToken cancellationToken);
+
     /**
      * Report the current state of the job.
      *

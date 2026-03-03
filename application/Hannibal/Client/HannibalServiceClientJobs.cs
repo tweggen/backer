@@ -69,4 +69,15 @@ public partial class HannibalServiceClient
         response.EnsureSuccessStatusCode();
         return;
     }
+
+
+    public async Task UpdateJobsOperationAsync(Rule.RuleOperation operation, CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.PutAsync(
+            $"/api/hannibal/v1/jobs/operation?operation={operation}",
+            null,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return;
+    }
 }

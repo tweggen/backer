@@ -499,6 +499,19 @@ app.MapDelete("/api/hannibal/v1/jobs", async (
 });
 
 
+app.MapPut("/api/hannibal/v1/jobs/operation", async (
+    IHannibalService hannibalService,
+    [FromQuery] Rule.RuleOperation operation,
+    CancellationToken cancellationToken) =>
+{
+    await hannibalService.UpdateJobsOperationAsync(operation, cancellationToken);
+    return Results.Ok();
+})
+.RequireAuthorization()
+.WithName("UpdateJobsOperation")
+.WithOpenApi();
+
+
 app.MapPost("/api/hannibal/v1/acquireNextJob", async (
     IHannibalService hannibalService,
     AcquireParams acquireParams,
