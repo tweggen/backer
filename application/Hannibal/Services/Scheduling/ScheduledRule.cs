@@ -14,6 +14,25 @@ public class ScheduledRule
     /// Lower value = higher priority
     /// </summary>
     public int Priority { get; set; } = 0;
+
+    /// <summary>
+    /// Rule IDs that must have no active jobs before this rule can create a job.
+    /// Computed from endpoint path overlap: this rule's source overlaps their destination.
+    /// </summary>
+    public HashSet<int> PrerequisiteRuleIds { get; set; } = new();
+
+    /// <summary>
+    /// Rule IDs that depend on this rule (reverse of PrerequisiteRuleIds).
+    /// When this rule's job completes, these rules should be re-evaluated.
+    /// </summary>
+    public HashSet<int> DependentRuleIds { get; set; } = new();
+
+    /// <summary>
+    /// When this rule was first deferred due to unsatisfied dependencies.
+    /// Used for anti-starvation: if deferred too long, upstream rules are temporarily blocked.
+    /// Null means not currently deferred.
+    /// </summary>
+    public DateTime? DependencyDeferredSince { get; set; }
 }
 
 /// <summary>

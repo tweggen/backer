@@ -86,7 +86,25 @@ public partial class HannibalService
     }
 
     
-    private string _endpointKey(Endpoint endpoint) => $"{endpoint.StorageId}:{endpoint.Path}";
+    internal static string EndpointKey(Endpoint endpoint) => EndpointKey(endpoint.StorageId, endpoint.Path);
+
+    internal static string EndpointKey(int storageId, string path)
+    {
+        // Normalize: trim, ensure trailing slash for consistent prefix matching
+        var normalized = path.Trim().TrimEnd('/') + "/";
+        return $"{storageId}:{normalized}";
+    }
+
+    private string _endpointKey(Endpoint endpoint) => EndpointKey(endpoint);
+
+    /// <summary>
+    /// Check if two normalized endpoint keys overlap (one is a prefix of the other, or equal).
+    /// Both keys must already have trailing slashes from EndpointKey().
+    /// </summary>
+    internal static bool PathsOverlap(string keyA, string keyB)
+    {
+        return keyA.StartsWith(keyB) || keyB.StartsWith(keyA);
+    }
     
 
     /**
@@ -278,7 +296,7 @@ public partial class HannibalService
             bool isWriting = kvp.Value == EndpointState.AccessState.Writing;
             if (isWriting)
             {
-                bool isShared = endpointKey.StartsWith(kvp.Key) || kvp.Key.StartsWith(endpointKey);
+                bool isShared = PathsOverlap(endpointKey, kvp.Key);
                 if (isShared)
                 {
                     _logger.LogInformation($"Cannot use source endpoint {endpointKey} because it already is in use.");
@@ -305,7 +323,7 @@ public partial class HannibalService
         string endpointKey = _endpointKey(endpoint);
         foreach (var kvp in mapStates)
         {
-            bool isShared = endpointKey.StartsWith(kvp.Key) || kvp.Key.StartsWith(endpointKey);
+            bool isShared = PathsOverlap(endpointKey, kvp.Key);
             if (isShared)
             {
                 _logger.LogInformation($"Cannot use destination endpoint {endpointKey} because it already is in use.");
