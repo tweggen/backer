@@ -276,7 +276,7 @@ public class RCloneClient
             },
             _filter = new Filter()
             {
-                ExcludeRule = new () { "_backer", "desktop.ini", "Desktop.ini", ".DS_Store" }
+                ExcludeRule = new () { "_backer", "desktop.ini", "Desktop.ini", ".DS_Store", "[tT]humbs.db" }
             }
         };
         
@@ -316,7 +316,7 @@ public class RCloneClient
             },
             _filter = new Filter()
             {
-                ExcludeRule = new () { "_backer", "desktop.ini", "Desktop.ini", ".DS_Store" }
+                ExcludeRule = new () { "_backer", "desktop.ini", "Desktop.ini", ".DS_Store", "[tT]humbs.db" }
             }
         };
         
