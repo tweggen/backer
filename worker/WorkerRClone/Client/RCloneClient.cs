@@ -273,13 +273,14 @@ public class RCloneClient
             dstFs = uriDest,
             _config = new Config()
             {
+                TPSLimit = 2
             },
             _filter = new Filter()
             {
                 ExcludeRule = new () { "_backer", "desktop.ini", "Desktop.ini", ".DS_Store", "[tT]humbs.db" }
             }
         };
-        
+
         JsonContent content = JsonContent.Create(syncParams, typeof(SyncParams), new MediaTypeHeaderValue("application/json"));
         var response = await _httpClient.PostAsync("/sync/sync", content, cancellationToken);
         if (response.IsSuccessStatusCode)
@@ -312,7 +313,7 @@ public class RCloneClient
             createEmptySrcDirs = true,
             _config = new Config()
             {
-                //CheckSum = true
+                TPSLimit = 2
             },
             _filter = new Filter()
             {

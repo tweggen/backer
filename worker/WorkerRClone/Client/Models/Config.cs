@@ -14,4 +14,5 @@ public class Config
     public bool CheckSum { get; set; } = false;
     public int verbose { get; set; } = 2;
     public int Retries { get; set; } = 3;
+    public double TPSLimit { get; set; } = 0;
 }
