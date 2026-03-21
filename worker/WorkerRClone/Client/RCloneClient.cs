@@ -312,7 +312,7 @@ public class RCloneClient
             createEmptySrcDirs = true,
             _config = new Config()
             {
-                CheckSum = true
+                //CheckSum = true
             },
             _filter = new Filter()
             {

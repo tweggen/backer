@@ -11,7 +11,7 @@ public class Config
     // Patterns are matched relative to the root of the transfer
     // Multiple patterns can be specified in the array
     public List<string> Exclude { get; set;} = new();
-    public bool CheckSum { get; set; } = true;
+    public bool CheckSum { get; set; } = false;
     public int verbose { get; set; } = 2;
     public int Retries { get; set; } = 3;
 }
