@@ -114,15 +114,20 @@ builder.Services.AddSingleton<ConfigHelper<RCloneServiceOptions>>(sp =>
     var helper = new ConfigHelper<RCloneServiceOptions>(logger,
         b =>
             b
-                .AddUserSecrets<Program>(optional: true)
+                /*
+                 * Baked-in defaults first, so that user-secrets (and later
+                 * environment variables) can override them, e.g. after a
+                 * client secret rotation.
+                 */
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     [$"RCloneService:oauth2:Providers:onedrive:Client{""}Id"] = "d9b13a4a-f0bd-4793-b638-93fc1b941662",
-                    [$"RCloneService:oauth2:Providers:onedrive:Client{""}Secret"] = RClonePasswordObscurer.Reveal("TrBZ6QUdn4TJqv-x0fb7Mdb4WXHcAia8-3mjt5z4RxPY4owBV7UuLUw2ihchFX08zj0JibsW3r4"),
+                    [$"RCloneService:oauth2:Providers:onedrive:Client{""}Secret"] = RClonePasswordObscurer.Reveal("uSLyjf5XSidvp_6ZeuyqYGoa1aqTZvZdSQGnUzu4ZvJEZhnzqnXi_6hS3ak0ucDB9ezFy1Hh2Y4"),
                     [$"RCloneService:oauth2:Providers:dropbox:Client{""}Id"] = "4bpfjazat4ruy39",
                     [$"RCloneService:oauth2:Providers:dropbox:Client{""}Secret"] = RClonePasswordObscurer.Reveal("5BTX7BJ0B9lMoTeSC65QiVCM1GzYGGxm7OtrlXcuBg"),
-                    
-                }));
+
+                })
+                .AddUserSecrets<Program>(optional: true));
 
     builder.Configuration.AddConfiguration(helper.Configuration);
 
@@ -347,10 +352,25 @@ app.MapGet("/status", async (
 app.MapGet("/", async (
     HttpRequest httpRequest,
     IHannibalServiceClient hannibalServiceClient,
+    ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
+    /*
+     * Carry the reason the authentication failed along to the frontend, so that it
+     * is able to display it instead of silently keeping the old state.
+     */
+    string _withOAuthError(string uri, string error)
+    {
+        string separator = uri.Contains('?') ? "&" : "?";
+        return $"{uri}{separator}oauthError={Uri.EscapeDataString(error)}";
+    }
+
+    string? afterAuthUri = null;
+
     try
     {
+        Hannibal.Models.ProcessOAuth2Result result;
+
         if (httpRequest.Query.ContainsKey("error"))
         {
             /*
@@ -358,13 +378,11 @@ app.MapGet("/", async (
              */
             string? errorString = httpRequest.Query["error"];
             string? errorDescriptionString = httpRequest.Query["error_description"];
-            
-            var result = await hannibalServiceClient.ProcessOAuth2ResultAsync(httpRequest, 
+
+            result = await hannibalServiceClient.ProcessOAuth2ResultAsync(httpRequest,
                 null, null,
                 errorString, errorDescriptionString,
                 cancellationToken);
-
-            return Results.Redirect(result.AfterAuthUri, permanent: false);
         }
         else
         {
@@ -384,20 +402,48 @@ app.MapGet("/", async (
                 throw new UnauthorizedAccessException("No state returned.");
             }
 
-            var result = await hannibalServiceClient.ProcessOAuth2ResultAsync(
+            result = await hannibalServiceClient.ProcessOAuth2ResultAsync(
                 httpRequest, code, state, null, null, cancellationToken);
-
-            /*
-             * After return, we need to have a redirect to the original url.
-             */
-            return Results.Redirect(result.AfterAuthUri, permanent: false);
         }
+
+        afterAuthUri = result.AfterAuthUri;
+
+        /*
+         * If the server was unable to process the result, report the reason back
+         * to the page the authentication was triggered from.
+         */
+        if (!string.IsNullOrWhiteSpace(result.Error))
+        {
+            logger.LogError("OAuth2 result reported error \"{Error}\": {ErrorDescription}",
+                result.Error, result.ErrorDescription);
+
+            if (string.IsNullOrWhiteSpace(afterAuthUri))
+            {
+                /*
+                 * Without a return url there is nothing we could redirect to.
+                 */
+                return Results.BadRequest($"OAuth2 authentication failed: {result.Error}");
+            }
+
+            return Results.Redirect(_withOAuthError(afterAuthUri, result.Error), permanent: false);
+        }
+
+        /*
+         * After return, we need to have a redirect to the original url.
+         */
+        return Results.Redirect(result.AfterAuthUri, permanent: false);
     }
     catch (Exception e)
     {
-            
+        logger.LogError(e, "Unable to process the OAuth2 callback: {Message}", e.Message);
+
+        if (!string.IsNullOrWhiteSpace(afterAuthUri))
+        {
+            return Results.Redirect(_withOAuthError(afterAuthUri, e.Message), permanent: false);
+        }
+
+        return Results.BadRequest($"OAuth2 authentication failed: {e.Message}");
     }
-    return Results.Ok();
 })
 .WithName("DropboxOAuthCallback")
 .RequireHost("*:53682");

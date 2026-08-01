@@ -215,10 +215,18 @@ public partial class HannibalService : IHannibalService
             }
             catch(Exception ex)
             {
-                string afterAuthUri = oauth2Client.State;
+                /*
+                 * The code for token exchange or the subsequent user info read failed.
+                 * Log it with enough context to be able to tell apart e.g. an invalid_client
+                 * (expired client secret) from a malformed user info response.
+                 */
+                _logger.LogError(ex,
+                    "Unable to process OAuth2 result for provider {Provider}, state {StateId}, user {UserId}: {Message}",
+                    callbackProvider, stateEntry.Id, stateEntry.UserId, ex.Message);
+
                 return new ProcessOAuth2Result()
                 {
-                    Error = "Unable to read user info",
+                    Error = $"Unable to read user info: {ex.Message}",
                     ErrorDescription = $"Exception: {ex}",
                     AfterAuthUri = stateEntry?.ReturnUrl
                 };

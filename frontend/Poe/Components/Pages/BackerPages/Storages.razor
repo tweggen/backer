@@ -2,6 +2,7 @@
 @using Hannibal.Client
 @using Hannibal.Models
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
 @using Poe.Services
 @inject IHannibalServiceClient HigginsServiceClient
 @inject NavigationManager Navigation
@@ -32,6 +33,16 @@
         <p class="mb-0"><small><strong>💡 Tip:</strong> For SMB shares with <em>different</em> login credentials, create a separate Storage entry for each username/password combination. For Nextcloud, use App Passwords instead of your main password for better security.</small></p>
     }
 </div>
+
+@if (!string.IsNullOrEmpty(_oauthError))
+{
+    <div class="alert alert-danger mb-4" role="alert">
+        <p class="mb-0">
+            <strong>Authentication failed:</strong> @_oauthError
+        </p>
+        <p class="mb-0 mt-2"><small>Please try to authenticate again. If the problem persists, check the agent and server logs.</small></p>
+    </div>
+}
 
 @if (_listStorages == null)
 {
@@ -315,6 +326,7 @@ else
     private bool _showStoragesDetails = false;
     private bool _showCreateForm = false;
     private bool _isCreating = false;
+    private string? _oauthError = null;
 
     private int _editingStorageId { get; set; } = -1;
 
@@ -695,14 +707,47 @@ else
     }
 
 
+    /// <summary>
+    /// Read the oauthError query parameter the agent's oauth2 callback appends to
+    /// the return url in case the authentication did not succeed.
+    /// </summary>
+    private string? _readOAuthError()
+    {
+        try
+        {
+            var query = QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+            if (query.TryGetValue("oauthError", out var oauthError))
+            {
+                string? error = oauthError.FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(error))
+                {
+                    return error;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error reading oauth error: {e}");
+        }
+
+        return null;
+    }
+
+
     protected override async Task OnInitializedAsync()
     {
+        /*
+         * If we just returned from a failed oauth2 authentication, display the reason.
+         */
+        _oauthError = _readOAuthError();
+
         try
         {
             _user = await HigginsServiceClient.GetUserAsync(-1, CancellationToken.None);
             if (null == _user)
             {
-                Navigation.NavigateTo($"{BasePath.Value}/login");
+                AuthState.TriggerRedirectToLogin();
+                return;
             }
 
             await _rereadStorages();

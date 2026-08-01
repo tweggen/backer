@@ -415,7 +415,8 @@ else
             _user = await HigginsServiceClient.GetUserAsync(-1, CancellationToken.None);
             if (null == _user)
             {
-                Navigation.NavigateTo($"{BasePath.Value}/login");
+                AuthState.TriggerRedirectToLogin();
+                return;
             }
 
             _newEndpoint = new() { UserId = _user.Id, IsActive = true };

@@ -57,6 +57,22 @@ public partial class HannibalService
     }
 
     
+    /**
+     * Compare an old and a new token value, treating null and empty as
+     * equivalent. Setting, replacing and clearing a token all count as a
+     * change, having no token before and after does not.
+     */
+    private static bool _isTokenChanged(string? oldToken, string? newToken)
+    {
+        if (string.IsNullOrEmpty(oldToken) && string.IsNullOrEmpty(newToken))
+        {
+            return false;
+        }
+
+        return oldToken != newToken;
+    }
+
+
     public async Task<Storage> UpdateStorageAsync(
         int id,
         Storage updatedStorage,
@@ -69,29 +85,38 @@ public partial class HannibalService
         {
             throw new KeyNotFoundException($"No storage found for id {id}");
         }
-        
+
+        /*
+         * Callers inside this service may hand us the very entity instance that
+         * already is tracked by our context, after having modified it in place
+         * (that is what the OAuth2 result handler does). In that case the query
+         * above returns that same instance, so every old-vs-new comparison below
+         * would compare the object with itself and could never detect anything.
+         */
+        bool isSelfUpdate = ReferenceEquals(storage, updatedStorage);
+
         // Verify the new user exists if it's being changed
         if (updatedStorage.UserId != storage.UserId)
         {
             throw new InvalidDataException($"Unable to change user id");
         }
 
-        // Track if tokens changed for reauthentication notification
+        // Track if tokens changed for reauthentication notification.
+        // Note that clearing a previously set token (OAuth2 disconnect) counts
+        // as a change as well.
         bool tokensChanged = false;
-        if (!string.IsNullOrEmpty(updatedStorage.AccessToken) && 
-            storage.AccessToken != updatedStorage.AccessToken)
+        if (_isTokenChanged(storage.AccessToken, updatedStorage.AccessToken))
         {
             tokensChanged = true;
         }
-        if (!string.IsNullOrEmpty(updatedStorage.RefreshToken) && 
-            storage.RefreshToken != updatedStorage.RefreshToken)
+        if (_isTokenChanged(storage.RefreshToken, updatedStorage.RefreshToken))
         {
             tokensChanged = true;
         }
 
         // Track if credentials changed for notification
         bool credentialsChanged = tokensChanged;
-        
+
         // Check credential-based fields for changes
         if (storage.Host != updatedStorage.Host ||
             storage.Username != updatedStorage.Username ||
@@ -99,6 +124,16 @@ public partial class HannibalService
             storage.Domain != updatedStorage.Domain ||
             storage.Port != updatedStorage.Port)
         {
+            credentialsChanged = true;
+        }
+
+        if (isSelfUpdate)
+        {
+            /*
+             * We cannot tell what has been modified in place, so we have to
+             * assume the credentials did change - this code path exists for
+             * writing freshly obtained OAuth2 tokens.
+             */
             credentialsChanged = true;
         }
 

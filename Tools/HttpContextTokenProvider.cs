@@ -18,8 +18,10 @@ public class HttpContextTokenProvider : IStaticTokenProvider
         {
             HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.Strict
-        });   
+            // Lax (not Strict) so the cookie is still sent on the top-level
+            // navigation back from an external OAuth2 provider (cross-site GET).
+            SameSite = SameSiteMode.Lax
+        });
     }
     
     
