@@ -13,7 +13,7 @@ public class GoogleDriveProvider : OAuthStorageProviderBase
 
     public GoogleDriveProvider(
         ILogger<GoogleDriveProvider> logger,
-        OAuth2ClientFactory oauth2ClientFactory,
+        IOAuth2ClientFactory oauth2ClientFactory,
         IServiceScopeFactory serviceScopeFactory)
         : base(logger, oauth2ClientFactory, serviceScopeFactory) 
     { 

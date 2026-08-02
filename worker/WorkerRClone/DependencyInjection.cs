@@ -20,8 +20,9 @@ public static class DependencyInjection
         services.Configure<RCloneServiceOptions>(
             configuration.GetSection("RCloneService"));
 
-        // Register OAuth2ClientFactory with options from configuration
-        services.AddSingleton<OAuth2ClientFactory>(sp =>
+        // Register the OAuth2 client factory (behind IOAuth2ClientFactory) with
+        // options from configuration
+        services.AddSingleton<IOAuth2ClientFactory>(sp =>
         {
             var options = sp.GetRequiredService<IOptionsMonitor<RCloneServiceOptions>>();
             var oauthOptions = options.CurrentValue.OAuth2 ?? new OAuthOptions();
@@ -55,6 +56,11 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddStorageProviders(this IServiceCollection services)
     {
+        // Named HttpClient used by OneDriveProvider for its read-only Microsoft Graph calls
+        services.AddHttpClient(
+            OneDriveProvider.GraphHttpClientName,
+            client => client.BaseAddress = OneDriveProvider.GraphBaseAddress);
+
         // OAuth-based providers
         services.AddSingleton<IStorageProvider, DropboxProvider>();
         services.AddSingleton<IStorageProvider, OneDriveProvider>();

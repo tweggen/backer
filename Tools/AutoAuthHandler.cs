@@ -1,43 +1,58 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Tools;
 
 public class AutoAuthHandler : DelegatingHandler
 {
-    private readonly HttpClient _authClient;
-    private readonly string _authEndpoint;
-    private readonly string _username;
-    private readonly string _password;
     private readonly Func<IServiceProvider, CancellationToken, Task<string>> _obtainTokenAsync;
     private readonly IServiceProvider _serviceProvider;
     private readonly IStaticTokenProvider _staticTokenProvider;
+    private readonly ILogger<AutoAuthHandler> _logger;
 
-    
+
     public AutoAuthHandler(
-        IServiceProvider serviceProvider, 
+        IServiceProvider serviceProvider,
         IStaticTokenProvider staticTokenProvider,
-        HttpClient authClient, 
-        Func<IServiceProvider, 
-            CancellationToken, 
-            Task<string>> obtainTokenAsync)
+        Func<IServiceProvider,
+            CancellationToken,
+            Task<string>> obtainTokenAsync,
+        ILogger<AutoAuthHandler>? logger = null)
     {
         _serviceProvider = serviceProvider;
         _obtainTokenAsync = obtainTokenAsync;
         _staticTokenProvider = staticTokenProvider;
+        _logger = logger ?? NullLogger<AutoAuthHandler>.Instance;
     }
 
-    
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        /*
+         * A 401 makes us re-send the request. The content of the original request
+         * can only be serialized to the wire once (anything stream backed is
+         * forward-only), so buffer it up front and rebuild it for the retry.
+         */
+        byte[]? bufferedContent = null;
+        if (request.Content is not null)
+        {
+            await request.Content.LoadIntoBufferAsync();
+            bufferedContent = await request.Content.ReadAsByteArrayAsync(cancellationToken);
+        }
+
         var token = await _staticTokenProvider.GetToken();
         if (!string.IsNullOrEmpty(token))
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _logger.LogDebug(
+                "Attached bearer token to {Method} request, token length {Length}.",
+                request.Method, token.Length);
+        }
+        else
+        {
+            _logger.LogDebug("No bearer token available for {Method} request.", request.Method);
         }
 
         var response = await base.SendAsync(request, cancellationToken);
@@ -50,24 +65,19 @@ public class AutoAuthHandler : DelegatingHandler
                 /*
                  * If we could not login and acquire a token, we unfortunately need to pass through the auth problem.
                  */
-                return new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized) { RequestMessage = request };
-                 
+                _logger.LogDebug("Token refresh after 401 yielded no token, passing the 401 through.");
+                response.Dispose();
+                return new HttpResponseMessage(HttpStatusCode.Unauthorized) { RequestMessage = request };
             }
             _staticTokenProvider.SetToken(newToken);
-            
-            System.Console.WriteLine($"Set new jwt token: {newToken}");
-            
-            var originalUri = request.RequestUri;
 
-            // Build domain-level Uri (scheme + host + optional port)
-            var domainUri = new Uri($"{originalUri!.Scheme}://{originalUri.Host}" +
-                                    (originalUri.IsDefaultPort ? "" : $":{originalUri.Port}"));
-            
-            
+            _logger.LogDebug("Obtained a new jwt token after 401, token length {Length}.", newToken.Length);
+
             /*
              * Clone request and retry
              */
-            var newRequest = await CloneHttpRequestMessageAsync(request);
+            response.Dispose();
+            var newRequest = CloneHttpRequestMessage(request, bufferedContent);
             newRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", newToken);
 
             return await base.SendAsync(newRequest, cancellationToken);
@@ -76,17 +86,32 @@ public class AutoAuthHandler : DelegatingHandler
         return response;
     }
 
-    
-    private async Task<HttpRequestMessage> CloneHttpRequestMessageAsync(HttpRequestMessage request)
+
+    private static HttpRequestMessage CloneHttpRequestMessage(HttpRequestMessage request, byte[]? bufferedContent)
     {
         var newRequest = new HttpRequestMessage(request.Method, request.RequestUri)
         {
-            Content = request.Content,
-            Version = request.Version
+            Version = request.Version,
+            VersionPolicy = request.VersionPolicy
         };
+
+        if (bufferedContent is not null)
+        {
+            var newContent = new ByteArrayContent(bufferedContent);
+            if (request.Content is not null)
+            {
+                foreach (var header in request.Content.Headers)
+                    newContent.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            newRequest.Content = newContent;
+        }
 
         foreach (var header in request.Headers)
             newRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
+
+        foreach (var option in (IDictionary<string, object?>)request.Options)
+            ((IDictionary<string, object?>)newRequest.Options)[option.Key] = option.Value;
 
         return newRequest;
     }

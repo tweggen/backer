@@ -36,8 +36,8 @@ public partial class HannibalService : IHannibalService
 
     private readonly IServiceProvider _serviceProvider;
 
-    private readonly OAuth2ClientFactory _oAuth2ClientFactory;
-    
+    private readonly IOAuth2ClientFactory _oAuth2ClientFactory;
+
     public HannibalService(
         HannibalContext context,
         ILogger<HannibalService> logger,
@@ -48,6 +48,7 @@ public partial class HannibalService : IHannibalService
         IOAuthStateService oauthStateService,
         IHttpContextAccessor httpContextAccessor,
         IServiceProvider serviceProvider,
+        IOAuth2ClientFactory oAuth2ClientFactory,
         ISchedulerEventPublisher? schedulerEventPublisher = null)
     {
         _context = context;
@@ -59,7 +60,7 @@ public partial class HannibalService : IHannibalService
         _oauthStateService = oauthStateService;
         _httpContextAccessor = httpContextAccessor;
         _serviceProvider = serviceProvider;
-        _oAuth2ClientFactory = new OAuth2ClientFactory(oauthOptions.Value);
+        _oAuth2ClientFactory = oAuth2ClientFactory;
         _schedulerEventPublisher = schedulerEventPublisher ?? new NullSchedulerEventPublisher();
     }
 

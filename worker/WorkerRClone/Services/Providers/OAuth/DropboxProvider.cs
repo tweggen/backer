@@ -13,7 +13,7 @@ public class DropboxProvider : OAuthStorageProviderBase
 
     public DropboxProvider(
         ILogger<DropboxProvider> logger,
-        OAuth2ClientFactory oauth2ClientFactory,
+        IOAuth2ClientFactory oauth2ClientFactory,
         IServiceScopeFactory serviceScopeFactory)
         : base(logger, oauth2ClientFactory, serviceScopeFactory) 
     { 

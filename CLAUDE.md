@@ -15,11 +15,14 @@ dotnet build Backer.sln
 # Build for release
 dotnet build Backer.sln -c Release
 
-# Run tests
-dotnet test tests/WorkerRClone.Tests/
+# Run all tests (see docs/TESTING.md)
+dotnet test Backer.sln
+
+# Run unit tests only - no database needed
+dotnet test tests/Hannibal.Tests/ tests/WorkerRClone.Tests/ tests/Tools.Tests/
 
 # Run a single test
-dotnet test tests/WorkerRClone.Tests/ --filter "FullyQualifiedName~TestMethodName"
+dotnet test tests/Hannibal.Tests/ --filter "FullyQualifiedName~TestMethodName"
 
 # Apply database migrations (from Hannibal project)
 dotnet ef database update --project application/Hannibal/
@@ -85,6 +88,10 @@ docker-compose up
 | Poe | `frontend/Poe/` | Blazor web frontend |
 | YourBacker | `YourBacker/` | Avalonia cross-platform desktop control app |
 | Tools | `Tools/` | Shared utilities (auth handlers, token services) |
+| Hannibal.Tests | `tests/Hannibal.Tests/` | Unit tests: scheduling, path overlap, OAuth2 client |
+| WorkerRClone.Tests | `tests/WorkerRClone.Tests/` | Unit tests: password obscurer, Graph provider |
+| Tools.Tests | `tests/Tools.Tests/` | Unit tests: HTTP auth handlers |
+| Hannibal.IntegrationTests | `tests/Hannibal.IntegrationTests/` | API + DB integration (needs PostgreSQL) |
 
 ## Key Domain Concepts
 
@@ -113,5 +120,16 @@ Located in `worker/WorkerRClone/Services/Providers/`:
 - `appsettings.json` - base configuration
 - `appsettings.{Environment}.json` - environment overrides
 - `appsettings.{MachineName}.json` - machine-specific
-- Database connection string: `ConnectionStrings:DefaultConnection`
+- Database connection string: `ConnectionStrings:DefaultConnection`, else the
+  `HANNIBAL_DB_CONNECTION` environment variable (what the live deployment uses),
+  else a localhost fallback
+- `Hannibal:SkipStartupMigration` - skip migrate/seed at startup (default false)
+- `OAuth2:RedirectUri` - OAuth2 callback, defaults to `http://localhost:53682/`
+  (the BackerAgent's local listener)
 - BackerAgent credentials: `RCloneService:BackerUsername/BackerPassword`
+
+## Testing
+
+See `docs/TESTING.md`. Four test projects; `tests/Hannibal.IntegrationTests`
+needs a local PostgreSQL and skips cleanly without one. No test touches live
+backup data or starts rclone.

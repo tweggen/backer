@@ -795,16 +795,29 @@ app.Use(async (context, next) =>
 });
 
 
-// Initialize database right after building the application
-using (var scope = app.Services.CreateScope())
+// Initialize database right after building the application.
+// A test host (or any deployment that manages migrations out of band) can opt
+// out via the Hannibal:SkipStartupMigration configuration flag.
+if (!app.Configuration.GetValue<bool>("Hannibal:SkipStartupMigration"))
 {
+    using (var scope = app.Services.CreateScope())
     {
-        var hannibalContext = scope.ServiceProvider.GetRequiredService<HannibalContext>();
-        hannibalContext.Database.Migrate();
-        await hannibalContext.InitializeDatabaseAsync();
+        {
+            var hannibalContext = scope.ServiceProvider.GetRequiredService<HannibalContext>();
+            hannibalContext.Database.Migrate();
+            await hannibalContext.InitializeDatabaseAsync();
+        }
     }
 }
 
 
-await app.StartAsync();
-await app.WaitForShutdownAsync();
+app.Run();
+
+
+/// <summary>
+/// Required so that Microsoft.AspNetCore.Mvc.Testing's WebApplicationFactory&lt;Program&gt;
+/// can reference the implicitly generated Program class of these top-level statements.
+/// </summary>
+public partial class Program
+{
+}

@@ -8,6 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <InternalsVisibleTo Include="WorkerRClone.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\..\application\Hannibal\Hannibal.csproj" />
       <ProjectReference Include="..\..\Tools\Tools.csproj" />
     </ItemGroup>

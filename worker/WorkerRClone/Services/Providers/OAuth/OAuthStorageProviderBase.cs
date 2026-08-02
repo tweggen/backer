@@ -12,14 +12,14 @@ namespace WorkerRClone.Services.Providers.OAuth;
 /// </summary>
 public abstract class OAuthStorageProviderBase : StorageProviderBase
 {
-    protected readonly OAuth2ClientFactory OAuth2ClientFactory;
+    protected readonly IOAuth2ClientFactory OAuth2ClientFactory;
     protected readonly IServiceScopeFactory ServiceScopeFactory;
 
     public override bool RequiresOAuth => true;
 
     protected OAuthStorageProviderBase(
         ILogger logger,
-        OAuth2ClientFactory oauth2ClientFactory,
+        IOAuth2ClientFactory oauth2ClientFactory,
         IServiceScopeFactory serviceScopeFactory) 
         : base(logger)
     {
@@ -82,8 +82,18 @@ public abstract class OAuthStorageProviderBase : StorageProviderBase
             tokensChanged = true;
         }
 
-        Logger.LogDebug($"Storage {storage.UriSchema} oldRefreshToken = {oldRefreshToken}, oldExpiresAt = {oldExpiresAt} newRefreshToken = {newRefreshToken}, newExpiresAt = {newExpiresAt}");
-        
+        // Never log token values - only their presence/length and the expiry timestamps.
+        Logger.LogDebug(
+            "Storage {UriSchema} token refresh: oldRefreshToken present = {OldRefreshTokenPresent} (length {OldRefreshTokenLength}), oldExpiresAt = {OldExpiresAt}, newRefreshToken present = {NewRefreshTokenPresent} (length {NewRefreshTokenLength}), refreshToken rotated = {RefreshTokenRotated}, newExpiresAt = {NewExpiresAt}",
+            storage.UriSchema,
+            !string.IsNullOrEmpty(oldRefreshToken),
+            oldRefreshToken?.Length ?? 0,
+            oldExpiresAt,
+            !string.IsNullOrEmpty(newRefreshToken),
+            newRefreshToken?.Length ?? 0,
+            !string.IsNullOrEmpty(newRefreshToken) && oldRefreshToken != newRefreshToken,
+            newExpiresAt);
+
         if (tokensChanged)
         {
             await UpdateStorageInDatabaseAsync(storage, cancellationToken);

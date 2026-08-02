@@ -1,6 +1,6 @@
 # OneDrive OAuth2 Re-Auth — Analysis & Remediation Plan
 
-Status: **Phase 1 implemented 2026-08-01 (uncommitted); Phases 2–3 pending.** Root cause CONFIRMED (2026-08-01): the Azure app-registration **client secret had expired** (~2026-07-16). This broke both token refresh and re-authentication (`invalid_client` on every token exchange), and a stack of code defects made the failure completely silent in the UI and logs.
+Status: **Phase 1 committed 2026-08-01 (`4314499`). Phase 2 implemented 2026-08-02 (uncommitted) — see `docs/plan-phase2-gates.md` for gates, acceptance criteria and the verification log. Phase 3 pending.** Phase 0 (rotating the Azure client secret) is the operator's action and is not tracked here. Root cause CONFIRMED (2026-08-01): the Azure app-registration **client secret had expired** (~2026-07-16). This broke both token refresh and re-authentication (`invalid_client` on every token exchange), and a stack of code defects made the failure completely silent in the UI and logs.
 
 ## Context
 
@@ -43,7 +43,12 @@ Each is small and independent:
 4. **Dead broadcast** — in `HannibalServiceStorages.UpdateStorageAsync`, detect self-update (`ReferenceEquals(storage, updatedStorage)`) and treat OAuth-path token writes as `credentialsChanged = true` (or snapshot old values before mutation in `ProcessOAuth2ResultAsync`); this also fixes `_onOAuthDisconnect` never notifying agents (the `:81` guard skips empty tokens).
 5. **Guard `ParseUserInfo`** — null-safe `givenName`/`surname` access in `external/OAuth2/OAuth2/Client/Impl/MicrosoftGraphClient.cs:171-194` (submodule fork — commit there and bump the pin).
 
-### Phase 2 — Test harness (safe, no live backup data)
+### Phase 2 — Test harness (safe, no live backup data) — **DONE 2026-08-02**
+
+Delivered: 36 tests → **104** (103 passing, 1 opt-in live check skipped) across
+four projects. Details, acceptance criteria and evidence in
+`docs/plan-phase2-gates.md`; how to run them in `docs/TESTING.md`.
+
 
 1. **DB fixture**: xUnit `ICollectionFixture` in a new `tests/Hannibal.IntegrationTests` project — connects to local Postgres, creates a throwaway DB per run, runs `Database.Migrate()`, drops on dispose.
 2. **API host**: add `Microsoft.AspNetCore.Mvc.Testing`; expose `public partial class Program` in `Api/Program.cs`; `WebApplicationFactory<Program>` wired to the fixture DB. Integration tests: `/api/authb/v1/token`, `triggerOAuth2` (state row created), `processOAuth2Result` (state validation, token persistence, broadcast fired — regression test for Phase 1 fix 4).
