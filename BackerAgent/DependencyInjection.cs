@@ -33,11 +33,9 @@ public static class DependencyInjection
             })
             .AddHttpMessageHandler(sp0 =>
             {
-                var authClient = new HttpClient();
                 return new Tools.AutoAuthHandler(
                     sp0,
                     sp0.GetRequiredService<IStaticTokenProvider>(),
-                    authClient,
                     async (sp, cancellationToken) =>
                     {
                         /*
@@ -60,7 +58,8 @@ public static class DependencyInjection
                         {
                             return "";
                         }
-                    });
+                    },
+                    sp0.GetRequiredService<ILogger<Tools.AutoAuthHandler>>());
             });
             ;
 

@@ -31,11 +31,26 @@ public class HannibalContext : IdentityDbContext
 
 
     
+    /// <summary>
+    /// Total time we keep retrying to reach the database before giving up.
+    /// Bounded on purpose: an unreachable or misconfigured database must fail
+    /// with a clear exception instead of hanging the host forever.
+    /// </summary>
+    private static readonly TimeSpan _initializeTimeout = TimeSpan.FromSeconds(60);
+
+    private static readonly TimeSpan _initializeRetryDelay = TimeSpan.FromSeconds(5);
+
+
     public async Task InitializeDatabaseAsync()
     {
         bool haveDatabase = false;
+        Exception? lastError = null;
+        var deadline = DateTime.UtcNow + _initializeTimeout;
+        var attempt = 0;
+
         while (!haveDatabase)
         {
+            attempt++;
             try
             {
                 await Database.EnsureCreatedAsync();
@@ -44,10 +59,19 @@ public class HannibalContext : IdentityDbContext
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine($"Unable to create DB: {e}");
+                lastError = e;
+                Console.Error.WriteLine($"Unable to create DB (attempt {attempt}): {e}");
             }
 
-            Thread.Sleep(5000);
+            if (DateTime.UtcNow + _initializeRetryDelay >= deadline)
+            {
+                throw new TimeoutException(
+                    $"Unable to initialize the database after {attempt} attempt(s) within "
+                    + $"{_initializeTimeout.TotalSeconds:F0}s. See inner exception for the last failure.",
+                    lastError);
+            }
+
+            await Task.Delay(_initializeRetryDelay);
         }
 
         if (!!await Rules.AnyAsync())
