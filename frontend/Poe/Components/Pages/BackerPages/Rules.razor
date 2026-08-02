@@ -491,6 +491,7 @@ else
             _editRule.MinRetryTime = TimeSpan.FromSeconds(_editMinRetryTime);
             _editRule.DailyTriggerTime = TimeSpan.FromSeconds(_editDailyTriggerTime);
             await HannibalServiceClient.UpdateRuleAsync(_editRule.Id, _editRule, CancellationToken.None);
+            await _reloadRulePage(CancellationToken.None);
         }
 
         _editRuleId = -1;
@@ -504,7 +505,23 @@ else
         if (ru != null || _listEndpoints != null)
         {
             _editRuleId = ru.Id;
-            _editRule = ru;
+            // Edit a copy so Cancel or a failed save does not alter the rule shown in the list.
+            _editRule = new()
+            {
+                Id = ru.Id,
+                Name = ru.Name,
+                Comment = ru.Comment,
+                UserId = ru.UserId,
+                SourceEndpoint = ru.SourceEndpoint,
+                SourceEndpointId = ru.SourceEndpointId,
+                DestinationEndpoint = ru.DestinationEndpoint,
+                DestinationEndpointId = ru.DestinationEndpointId,
+                Operation = ru.Operation,
+                MaxDestinationAge = ru.MaxDestinationAge,
+                MinRetryTime = ru.MinRetryTime,
+                MaxTimeAfterSourceModification = ru.MaxTimeAfterSourceModification,
+                DailyTriggerTime = ru.DailyTriggerTime
+            };
             _editSourceEndpoint = ru.SourceEndpoint;
             _editSourceEndpointId = ru.SourceEndpointId;
             _editDestinationEndpoint = ru.DestinationEndpoint;

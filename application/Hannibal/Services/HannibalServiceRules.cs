@@ -56,8 +56,8 @@ public partial class HannibalService
     {
         await _obtainUser();
         
-        var rule = await _context.Rules.FirstAsync(r => r.Id == id, cancellationToken);
-                
+        var rule = await _context.Rules.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+
         if (rule == null)
         {
             throw new KeyNotFoundException($"No rule found for id {id}");
@@ -65,25 +65,22 @@ public partial class HannibalService
 
         rule.UserId = _currentUser.Id;
 
-        var sourceEndpoint = await _context.Endpoints.FirstAsync(e => e.Id == rule.SourceEndpointId, cancellationToken);
+        var sourceEndpoint = await _context.Endpoints.FirstOrDefaultAsync(
+            e => e.Id == updatedRule.SourceEndpointId, cancellationToken);
         if (null == sourceEndpoint)
         {
-            throw new KeyNotFoundException($"No source endpoint found for endpointid {sourceEndpoint.Id}");
+            throw new KeyNotFoundException($"No source endpoint found for endpointid {updatedRule.SourceEndpointId}");
         }
 
-        rule.SourceEndpoint = sourceEndpoint;
-        
-        var destinationEndpoint =
-            await _context.Endpoints.FirstAsync(e => e.Id == rule.DestinationEndpointId, cancellationToken);
+        var destinationEndpoint = await _context.Endpoints.FirstOrDefaultAsync(
+            e => e.Id == updatedRule.DestinationEndpointId, cancellationToken);
         if (null == destinationEndpoint)
         {
-            throw new KeyNotFoundException($"No destination endpoint found for endpointid {destinationEndpoint.Id}");
+            throw new KeyNotFoundException($"No destination endpoint found for endpointid {updatedRule.DestinationEndpointId}");
         }
 
-        rule.DestinationEndpoint = destinationEndpoint;
-        
         // Check if scheduling-relevant fields changed BEFORE updating
-        bool hasSchedulingChanges = 
+        bool hasSchedulingChanges =
             rule.SourceEndpointId != updatedRule.SourceEndpointId ||
             rule.DestinationEndpointId != updatedRule.DestinationEndpointId ||
             rule.Operation != updatedRule.Operation ||
