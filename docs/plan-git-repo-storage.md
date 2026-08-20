@@ -670,6 +670,15 @@ environment variables supply real credentials, skips cleanly otherwise.
 
 ## Verification
 
+**Prerequisite.** Several acceptance criteria below need a harness that does
+not exist yet — most sharply Gate D AC8 (heartbeat against the real 120 s
+server timeout), AC13 (abort routing) and AC14 (shutdown reporting), none of
+which can be reached without an in-process agent host.
+`docs/plan-e2e-test-harness.md` builds that harness; its Gates 1–3 should land
+before this plan's Gate D, and its Gate 4 before this plan's Gate F. The
+sequencing is spelled out in that document's §"Sequencing against the git
+work".
+
 Per-project, because `dotnet test` with several project paths in one
 invocation fails with `MSB1008` on SDK 9.0.308 (the multi-project form in
 `CLAUDE.md` does not work here):
