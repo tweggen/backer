@@ -192,6 +192,16 @@ Small, named, and each one gated. Nothing else in production code changes.
 5. `RuleScheduler`: inject `TimeProvider` (built into .NET 9) and replace the
    ten `DateTime.UtcNow` reads. `ScheduleCalculator` needs no change — it
    already receives `now`. Deferred to Gate 4, where it is actually needed.
+6. `ConfigHelper<TOptions>`: optional `configDirectory` parameter, defaulting
+   to today's resolution. Without it a hosted agent loads the machine's own
+   `appsettings`/`config.json` **and** the user secrets that
+   `BackerAgent/Program.cs:111-135` layers in — so a test run would pick up
+   the real OneDrive and Dropbox client secrets of whoever ran it.
+7. `RCloneServiceOptions.ConfigDirectory`: where `backer-rclone.conf` lives,
+   defaulting to the machine's Backer config directory. **Found the hard way**
+   — see Gate 2's result note. `RCloneService` rewrites that file on every
+   `StartAsync` (`RCloneService.cs:2196-2199`) and after every backend login
+   (`:1201`), with no way to redirect it.
 
 ### Wiring the agent to the in-memory Api (L3/L4)
 
@@ -231,8 +241,11 @@ Non-negotiable, because a flaky end-to-end suite gets muted and then deleted:
 
 Each gate is independently verifiable and independently committable. A gate is
 **met** only when every criterion is demonstrably true from command output.
-Baseline for every gate: `dotnet build Backer.sln` clean, and the existing
-78 unit tests plus 28 integration tests still green.
+Baseline for every gate: `dotnet build Backer.sln` clean, and the suite still
+green. Measured on `3d9d354` before any of this work: `Hannibal.Tests` 37,
+`WorkerRClone.Tests` 31 passed + 1 skipped, `Tools.Tests` 9 — **77 passed, 1
+skipped, 78 total** — plus `Hannibal.IntegrationTests` **26**, which need a
+local PostgreSQL and skip cleanly without one.
 
 ### Gate 1 — Stub rclone — **MET (2026-08-20)**
 
@@ -268,35 +281,79 @@ than a new test project, because that project already references
 32 total. 22 new tests. No new build warnings (the warnings emitted by
 `worker/WorkerRClone` predate this work).
 
-### Gate 2 — The agent is hostable in a test
+### Gate 2 — The agent is hostable in a test — **MET (2026-08-20), one item open**
 
-Seams 1–3 from §"Production seams required", plus
+Seams 1–3, 6 and 7 from §"Production seams required", plus
 `tests/BackerAgent.IntegrationTests/` with an `AgentHostFactory` that starts
-`BackerAgent` in-memory pointed at a Gate 1 stub and a fake Hannibal client.
+`BackerAgent` in-memory pointed at a Gate 1 stub and a substitute Hannibal
+client.
+
+Hosting uses `WebApplicationFactory<BackerAgentHost>`, not
+`WebApplicationFactory<Program>`: `Api/Program.cs:821` already exports a public
+`Program` in the global namespace, and a second one would leave the Gate 3
+project — which references both — unable to name either without an extern
+alias. `BackerAgent` therefore exports a purpose-named marker type instead.
 
 **Acceptance**
-1. `BackerAgent` starts under `WebApplicationFactory<Program>` and reaches its
+1. `BackerAgent` starts under `WebApplicationFactory` and reaches its
    `Running` state against the stub, with **no rclone process spawned** —
-   asserted by process enumeration before and after.
-2. With `RCloneUrl` unset, the agent still uses `http://localhost:5572`;
-   existing behaviour is unchanged for production configs.
-3. `_startRCloneProcess` now uses the URL it parses: a unit test feeds a
-   stderr line advertising a non-default port and asserts the agent connects
-   there. (This is the dead-assignment bug at `RCloneService.cs:1017-1025`.)
-4. `SkipProcessStart = true` prevents any process start attempt even if
-   `RClonePath` points at a real executable.
-5. The agent shuts down cleanly within the test's timeout; no orphan threads
-   or processes remain.
-6. Manual smoke recorded here: `dotnet run --project BackerAgent/` against a
-   real rclone still works after the `app.Run()` change.
-7. **Stderr classification becomes testable** (deferred here from Gate 1).
-   `_readPrintLog` (`RCloneService.cs:911`) currently loops on
-   `_processRClone.HasExited`, so with no process it cannot be called at all.
-   Extract the per-line handling into an `internal` method and cover it
-   directly: an `ERROR : ` line is appended to `_stderrErrors`; the buffer
-   stays capped at 200; a line containing `couldn't fetch token` or
-   `maybe token expired` increments `_stderrTokenErrorCount`; an unrelated
-   line does neither. This is re-auth-triggering logic with no test today.
+   asserted by process enumeration before and after. ✔
+2. With `RCloneUrl` unset the resolution still yields `http://localhost:5572`,
+   and a blank or whitespace value is ignored rather than used. ✔ —
+   asserted on the pure `_resolveRCloneUrl`, deliberately *not* by hosting an
+   agent against the default port: such a test could contact a real rclone on
+   the developer's machine and rewrite its configuration.
+3. The address rclone prints is turned into a usable absolute URL and
+   remembered. ✔ for the conversion (`_toRCloneUrl`, including rejection of
+   unusable input) — and note the original dead assignment
+   (`RCloneService.cs:1017-1025`) was **doubly** broken: the captured group is
+   `host:port` with no scheme, so even had it been kept it would have thrown
+   when used as an `HttpClient` base address. ⚠ **Gap:** the regex that
+   extracts the address is inline in `_startRCloneProcess` and still has no
+   test; covering it needs a fake child process, which no gate currently owns.
+4. `SkipProcessStart = true` prevents the spawn even when `RClonePath` points
+   at a real executable — asserted on `_processRClone` remaining null. ✔
+   A non-existent path would have proved nothing: a failed spawn leaves that
+   field null exactly as a skipped one does.
+5. The agent shuts down cleanly within the test's timeout; no orphan
+   processes remain. ✔
+6. ⏳ **Open:** manual smoke, `dotnet run --project BackerAgent/` against a
+   real rclone, confirming the `app.Run()` change did not affect service
+   startup. Not run — it would start rclone and could execute real backup
+   jobs on live data, so it needs an explicit go-ahead and a moment when that
+   is safe.
+7. **Stderr classification is testable.** `_readPrintLog`
+   (`RCloneService.cs:911`) loops on `_processRClone.HasExited`, so it cannot
+   be called without a process; the per-line handling is now
+   `_handleStderrLine`. Covered: an `ERROR : ` line is collected without its
+   prefix; the buffer caps at 200 and drops oldest first; `couldn't fetch
+   token` and `maybe token expired` each increment `_stderrTokenErrorCount`;
+   an ordinary error and a non-error line do not. ✔ This is the trigger for
+   early re-authentication and had no test at all.
+8. **The agent writes `backer-rclone.conf` into the test's own directory**,
+   and the real one's last-write time is unchanged across the run. ✔
+
+**Result.** `dotnet test tests/BackerAgent.IntegrationTests/` — 13 passed, 0
+skipped, in 59 s (the two process-start tests each wait out the agent's ten
+one-second probes). `tests/WorkerRClone.Tests` 63 passed / 1 skipped / 64.
+Suite totals: **122 passed, 1 skipped, 123 total**, up from 77/1/78.
+
+**Two findings worth acting on separately.**
+
+- *The harness rewrote the real `backer-rclone.conf`.* Before seam 7 existed,
+  every hosted agent loaded and saved the machine's actual rclone config, and
+  two hosts in parallel raced on that one file — which is how it surfaced. The
+  file survived (`StartAsync` does load-then-save, so the four existing remotes
+  round-tripped intact and were verified afterwards), but this is exactly the
+  class of accident the standing "no test touches live data" constraint exists
+  to prevent. Seam 7 closes it and Gate 2 AC8 keeps it closed.
+- *`builder.Host.UseSerilog()` (`BackerAgent/Program.cs:59`) replaces the
+  logger factory.* Its parameterless form discards every other logging
+  provider, so no test can capture the agent's logs — assertions here use
+  state and recorded stub requests instead. The same wiring means the
+  Windows `AddEventLog` provider registered at `BackerAgent/Program.cs:26-31`
+  receives nothing in production either. Not fixed here: changing logging
+  wiring is a production behaviour change that deserves its own decision.
 
 ### Gate 3 — Full-loop happy path
 

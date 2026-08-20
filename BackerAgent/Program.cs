@@ -495,5 +495,20 @@ app.Use(async (context, next) =>
 });
 
 
-await app.StartAsync();
-await app.WaitForShutdownAsync();
+app.Run();
+
+
+/// <summary>
+/// Marker type so tests can host this agent with
+/// <c>WebApplicationFactory&lt;BackerAgentHost&gt;</c>, which only needs some
+/// public type from the entry assembly.
+///
+/// Deliberately not <c>public partial class Program</c>, the hook
+/// <c>Api/Program.cs:821</c> uses: both assemblies would then export a
+/// <c>Program</c> in the global namespace, and a test project referencing the
+/// API and the agent together - which the full-loop suite does - could not name
+/// either without an extern alias.
+/// </summary>
+public sealed class BackerAgentHost
+{
+}

@@ -17,22 +17,32 @@ public class ConfigHelper<TOptions> where TOptions : class, new()
 
     private ILogger<ConfigHelper<TOptions>> _logger;
     
+    /// <param name="configDirectory">
+    /// Where to look for appsettings/config.json. Leave null for the usual
+    /// resolution (the working directory in interactive development, the
+    /// machine config directory when running as a service). Tests pass a
+    /// throwaway directory so a host under test cannot pick up the real
+    /// service configuration of the machine it runs on.
+    /// </param>
     public ConfigHelper(
         ILogger<ConfigHelper<TOptions>> logger,
-        Func<IConfigurationBuilder, IConfigurationBuilder> conf,  
-        string appName = "Backer")
+        Func<IConfigurationBuilder, IConfigurationBuilder> conf,
+        string appName = "Backer",
+        string? configDirectory = null)
     {
         _logger = logger;
 
-        string configDirectory;
-        if (EnvironmentDetector.IsInteractiveDev())
+        if (configDirectory is null)
         {
-            configDirectory = Directory.GetCurrentDirectory();
-        }
-        else
-        {
-            configDirectory = EnvironmentDetector.GetConfigDir(appName);
-            EnvironmentDetector.EnsureDirectory(configDirectory, appName);
+            if (EnvironmentDetector.IsInteractiveDev())
+            {
+                configDirectory = Directory.GetCurrentDirectory();
+            }
+            else
+            {
+                configDirectory = EnvironmentDetector.GetConfigDir(appName);
+                EnvironmentDetector.EnsureDirectory(configDirectory, appName);
+            }
         }
 
         _logger.LogInformation($"Using configDirectory {configDirectory},");
