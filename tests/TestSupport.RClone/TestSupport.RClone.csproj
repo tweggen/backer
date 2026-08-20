@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>TestSupport.RClone</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    A library, not a test project: both tests/WorkerRClone.Tests (contract
+    tests) and the later agent/full-loop suites consume it.
+
+    It deliberately does NOT reference WorkerRClone. The stub writes its JSON
+    by hand instead of serialising the client's own model classes, so that a
+    test driving the real RCloneClient against it proves the two agree on the
+    wire format rather than proving a type round-trips to itself.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

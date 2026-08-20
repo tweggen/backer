@@ -45,18 +45,21 @@ public class RCloneService : BackgroundService
     private RCloneServiceOptions? _options = null;
     internal bool _areOptionsValid = true;
 
-    private Process? _processRClone;
+    // internal so a test can prove no process was launched.
+    internal Process? _processRClone;
     internal HttpClient? _rcloneHttpClient;
 
     private SortedDictionary<int, RunningJobInfo> _runningJobs = new();
 
     // Stderr error lines parsed from rclone output (includes file paths)
     private readonly object _stderrErrorsLock = new();
-    private readonly List<string> _stderrErrors = new();
+    // internal so a test can observe what _handleStderrLine collected.
+    internal readonly List<string> _stderrErrors = new();
 
     // Count of consecutive token-related errors detected on rclone stderr.
     // Set by _readPrintLog, read and reset by the polling loop.
-    private volatile int _stderrTokenErrorCount = 0;
+    // internal so a test can observe what _handleStderrLine classified.
+    internal volatile int _stderrTokenErrorCount = 0;
     private const int _stderrTokenErrorThreshold = 3;
 
     // Safety-net polling: re-fetch jobs periodically in case SignalR events were missed.
@@ -78,7 +81,14 @@ public class RCloneService : BackgroundService
     
     private readonly IServiceScopeFactory _serviceScopeFactory;
 
-    private const string _defaultRCloneUrl = "http://localhost:5572";
+    internal const string _defaultRCloneUrl = "http://localhost:5572";
+
+    /**
+     * Where we last learned rclone is listening. Starts at the well-known
+     * default and is replaced by the address a freshly started rclone
+     * advertised on its stderr.
+     */
+    private string _discoveredRCloneUrl = _defaultRCloneUrl;
     private readonly INetworkIdentifier _networkIdentifier;
     
     private RCloneConfigManager? _configManager = null;
@@ -145,18 +155,44 @@ public class RCloneService : BackgroundService
     }
 
 
+    /**
+     * The address to talk to rclone on. An explicitly configured RCloneUrl
+     * wins over everything - that is how a test points us at a stub - and
+     * otherwise we use whatever the running rclone last advertised, falling
+     * back to the well-known local port.
+     */
+    internal string _rcloneUrl() => _resolveRCloneUrl(_options?.RCloneUrl, _discoveredRCloneUrl);
+
+
+    /**
+     * Pure form of the rule above, so it can be tested without building a
+     * service: a configured URL wins, anything blank falls through to what we
+     * discovered (which starts as the well-known default).
+     */
+    internal static string _resolveRCloneUrl(string? configuredUrl, string discoveredUrl)
+        => !string.IsNullOrWhiteSpace(configuredUrl) ? configuredUrl : discoveredUrl;
+
+
     private string _rcloneConfigFile()
     {
-        return Path.Combine(
-            Tools.EnvironmentDetector.GetConfigDir("Backer"),
-            "backer-rclone.conf");
+        return Path.Combine(_rcloneConfigDir(), "backer-rclone.conf");
     }
-    
-    
+
+
+    /**
+     * Where backer-rclone.conf lives: the configured directory when one is
+     * given, otherwise the machine's Backer config directory.
+     *
+     * The override exists because this file is rewritten on every startup and
+     * on every backend login. A hosted agent without it would edit the real
+     * rclone configuration of the machine running the tests.
+     */
     private string _rcloneConfigDir()
     {
-        return Path.Combine(
-            Tools.EnvironmentDetector.GetConfigDir("Backer"));
+        var configured = _options?.ConfigDirectory;
+        return !string.IsNullOrWhiteSpace(configured)
+            ? configured!
+            : Tools.EnvironmentDetector.GetConfigDir("Backer");
     }
     
 
@@ -920,34 +956,49 @@ public class RCloneService : BackgroundService
             }
             _logger.LogInformation($"rclone: {message}");
 
-            // Parse ERROR lines to capture file paths for error reporting.
-            // rclone stderr format: "ERROR : <filepath>: <error message>"
-            // The API's lastError only contains the error message without the filepath,
-            // so we capture the full line here to enrich error reports.
-            const string errorPrefix = "ERROR : ";
-            int errorIdx = message.IndexOf(errorPrefix);
-            if (errorIdx >= 0)
-            {
-                string errorDetail = message[(errorIdx + errorPrefix.Length)..];
-                lock (_stderrErrorsLock)
-                {
-                    _stderrErrors.Add(errorDetail);
-                    while (_stderrErrors.Count > 200)
-                    {
-                        _stderrErrors.RemoveAt(0);
-                    }
-                }
-
-                // Detect token expiry errors early so the polling loop can trigger
-                // a reauth restart without waiting for the full inactivity timeout.
-                if (errorDetail.Contains("couldn't fetch token")
-                    || errorDetail.Contains("maybe token expired"))
-                {
-                    Interlocked.Increment(ref _stderrTokenErrorCount);
-                }
-            }
+            _handleStderrLine(message);
         }
         _logger.LogInformation("rclone terminates.");
+    }
+
+
+    /**
+     * Classify one line of rclone's stderr.
+     *
+     * Split out of _readPrintLog so it can be tested: the loop there is bound
+     * to a live child process, but this - which decides when a reauth is
+     * triggered - is pure.
+     */
+    internal void _handleStderrLine(string message)
+    {
+        // Parse ERROR lines to capture file paths for error reporting.
+        // rclone stderr format: "ERROR : <filepath>: <error message>"
+        // The API's lastError only contains the error message without the filepath,
+        // so we capture the full line here to enrich error reports.
+        const string errorPrefix = "ERROR : ";
+        int errorIdx = message.IndexOf(errorPrefix);
+        if (errorIdx < 0)
+        {
+            return;
+        }
+
+        string errorDetail = message[(errorIdx + errorPrefix.Length)..];
+        lock (_stderrErrorsLock)
+        {
+            _stderrErrors.Add(errorDetail);
+            while (_stderrErrors.Count > 200)
+            {
+                _stderrErrors.RemoveAt(0);
+            }
+        }
+
+        // Detect token expiry errors early so the polling loop can trigger
+        // a reauth restart without waiting for the full inactivity timeout.
+        if (errorDetail.Contains("couldn't fetch token")
+            || errorDetail.Contains("maybe token expired"))
+        {
+            Interlocked.Increment(ref _stderrTokenErrorCount);
+        }
     }
 
 
@@ -1007,7 +1058,12 @@ public class RCloneService : BackgroundService
                 Match match = reUrl.Match(output);
                 if (match.Success)
                 {
-                    urlRClone = match.Groups["url"].Value;
+                    /*
+                     * The capture group is host:port without a scheme, so it
+                     * has to be turned back into an absolute URL before it is
+                     * usable as an HttpClient base address.
+                     */
+                    urlRClone = _toRCloneUrl(match.Groups["url"].Value);
                     _logger.LogInformation($"rclone: {strErrorOutput}");
                     break;
                 }
@@ -1020,9 +1076,28 @@ public class RCloneService : BackgroundService
         if (null == urlRClone)
         {
             _logger.LogWarning("rclone did not start at all, trying to use an already started instance");
-            urlRClone = _defaultRCloneUrl;
+        }
+        else
+        {
+            /*
+             * Remember where rclone actually bound. Previously this was parsed
+             * and then thrown away, so an rclone on any port other than the
+             * default was unreachable.
+             */
+            _discoveredRCloneUrl = urlRClone;
+            _logger.LogInformation($"RCloneService: rclone remote control is at {urlRClone}.");
         }
     }
+
+
+    /**
+     * Turn the "host:port" rclone prints on startup into an absolute URL,
+     * returning null when it is not something we can talk to.
+     */
+    internal static string? _toRCloneUrl(string hostAndPort)
+        => Uri.TryCreate($"http://{hostAndPort}/", UriKind.Absolute, out var uri)
+            ? uri.ToString()
+            : null;
 
 
     /**
@@ -1207,7 +1282,7 @@ public class RCloneService : BackgroundService
     internal async Task _checkRCloneProcessImpl()
     {
         _logger.LogInformation("RCloneService: Checking rclone process.");
-        bool haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);
+        bool haveRCloneProcess = await _haveRCloneProcess(_rcloneUrl());
         
         if (haveRCloneProcess)
         {
@@ -1226,14 +1301,25 @@ public class RCloneService : BackgroundService
         {
             /*
              * Start rclone process, wait until we can access the rest interface.
+             * With SkipProcessStart we only ever attach to an instance that is
+             * already listening - a test's stub, or an rclone someone else runs.
              */
-            await _startRCloneProcess(CancellationToken.None);
+            if (_options is { SkipProcessStart: true })
+            {
+                _logger.LogInformation(
+                    "RCloneService: SkipProcessStart is set, not starting rclone.");
+            }
+            else
+            {
+                await _startRCloneProcess(CancellationToken.None);
+            }
+
             bool haveRCloneProcess = false;
 
             int nTries = 10;
             while (--nTries > 0)
             {
-                haveRCloneProcess = await _haveRCloneProcess(_defaultRCloneUrl);
+                haveRCloneProcess = await _haveRCloneProcess(_rcloneUrl());
                 if (haveRCloneProcess) break;
                 _logger.LogWarning("RCloneService: waiting for rest interface to become available.");
                 await Task.Delay(1000);

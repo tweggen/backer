@@ -18,7 +18,30 @@ public class RCloneServiceOptions
     public string? RClonePath { get; set; }
     
     public string? RCloneOptions { get; set; }
-    
+
+    /**
+     * Where rclone's remote control interface listens, e.g.
+     * "http://localhost:5572". Leave unset for the well-known default; when
+     * set it wins over both the default and whatever a started rclone
+     * advertises, which is how tests point the agent at a stub.
+     */
+    public string? RCloneUrl { get; set; }
+
+    /**
+     * Never try to start an rclone process, only talk to one that is already
+     * listening. Belt to RCloneUrl's braces for tests: with this set, a
+     * misconfigured RClonePath cannot spawn anything.
+     */
+    public bool SkipProcessStart { get; set; }
+
+    /**
+     * Where backer-rclone.conf lives. Leave unset for the machine's Backer
+     * config directory, which is what production uses. Tests must set it:
+     * without it a hosted agent rewrites the real rclone configuration of
+     * whoever runs the suite.
+     */
+    public string? ConfigDirectory { get; set; }
+
     public string? UrlSignalR { get; set; }
 
     /**
@@ -41,6 +64,9 @@ public class RCloneServiceOptions
         BackerPassword = o.BackerPassword;
         RClonePath = o.RClonePath;
         RCloneOptions = o.RCloneOptions;
+        RCloneUrl = o.RCloneUrl;
+        SkipProcessStart = o.SkipProcessStart;
+        ConfigDirectory = o.ConfigDirectory;
         UrlSignalR = o.UrlSignalR;
         Autostart = o.Autostart;
         OAuth2 = OAuth2 != null ? new OAuthOptions(o.OAuth2) : null;
