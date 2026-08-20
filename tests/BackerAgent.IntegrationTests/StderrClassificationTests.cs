@@ -1,4 +1,5 @@
 using FluentAssertions;
+using TestSupport.Agent;
 using Xunit;
 
 namespace BackerAgent.IntegrationTests;

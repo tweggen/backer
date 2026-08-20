@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>TestSupport.Api</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    The API-side harness, extracted from tests/Hannibal.IntegrationTests so the
+    full-loop suite can host the same API the same way. A library rather than a
+    test project: xUnit's [CollectionDefinition] must live in the assembly that
+    holds the tests, so each test project keeps its own PostgresCollection and
+    shares only the fixture and the factory.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.8" />
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+    <!-- PostgresFixture.SkipIfUnavailable calls Skip.If, so the fixture needs this too. -->
+    <PackageReference Include="Xunit.SkippableFact" Version="1.5.23" />
+    <PackageReference Include="xunit.extensibility.core" Version="2.9.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Api\Api.csproj" />
+    <ProjectReference Include="..\..\application\Hannibal\Hannibal.csproj" />
+  </ItemGroup>
+
+</Project>

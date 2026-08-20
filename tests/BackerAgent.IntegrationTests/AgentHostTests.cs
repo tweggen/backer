@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using FluentAssertions;
 using WorkerRClone.Models;
+using TestSupport.Agent;
 using Xunit;
 
 namespace BackerAgent.IntegrationTests;

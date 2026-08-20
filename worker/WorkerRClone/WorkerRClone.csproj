@@ -10,6 +10,8 @@
     <ItemGroup>
       <InternalsVisibleTo Include="WorkerRClone.Tests" />
       <InternalsVisibleTo Include="BackerAgent.IntegrationTests" />
+      <InternalsVisibleTo Include="TestSupport.Agent" />
+      <InternalsVisibleTo Include="Backer.E2ETests" />
     </ItemGroup>
 
     <ItemGroup>

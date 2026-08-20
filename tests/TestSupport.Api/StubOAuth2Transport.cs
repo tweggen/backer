@@ -3,7 +3,7 @@ using NSubstitute;
 using OAuth2.Infrastructure;
 using RestSharp;
 
-namespace Hannibal.IntegrationTests.TestSupport;
+namespace TestSupport.Api;
 
 /// <summary>
 /// An offline RestSharp transport for the OAuth2 clients.

@@ -1,8 +1,8 @@
 using System.Net.Http.Json;
 using System.Text;
+using Hannibal;
 using Hannibal.Configuration;
 using Hannibal.Data;
-using Hannibal.IntegrationTests.TestSupport;
 using Hannibal.Services.Scheduling;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -20,7 +20,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OAuth2.Infrastructure;
 
-namespace Hannibal.IntegrationTests;
+namespace TestSupport.Api;
 
 /// <summary>
 /// Gate C: hosts the real <c>Api</c> application in-memory, wired to the
@@ -49,6 +49,42 @@ namespace Hannibal.IntegrationTests;
 /// <see cref="OAuth2Transport"/>.</item>
 /// </list>
 /// </summary>
+/// <summary>
+/// Whether the <see cref="RuleScheduler"/> background loop runs.
+/// </summary>
+public enum SchedulerMode
+{
+    /// <summary>
+    /// The hosted service is removed, so no <c>Job</c> row can appear on a
+    /// timer. What the endpoint tests need, and the default.
+    /// </summary>
+    Removed,
+
+    /// <summary>
+    /// The real scheduler runs and creates jobs from rules. Only the full-loop
+    /// suite wants this; tests using it must tolerate jobs appearing.
+    /// </summary>
+    Enabled
+}
+
+/// <summary>
+/// Whether SignalR broadcasts are recorded or actually delivered.
+/// </summary>
+public enum HubMode
+{
+    /// <summary>
+    /// <see cref="IHubContext{THub}"/> is a recording fake. Assertions are on
+    /// broadcast intent; no client receives anything. The default.
+    /// </summary>
+    Recording,
+
+    /// <summary>
+    /// The real SignalR hub context, so a connected client genuinely receives
+    /// messages.
+    /// </summary>
+    Real
+}
+
 public sealed class BackerApiFactory : WebApplicationFactory<Program>
 {
     /*
@@ -90,9 +126,24 @@ public sealed class BackerApiFactory : WebApplicationFactory<Program>
     public StubOAuth2Transport? OAuth2Transport { get; set; }
 
 
-    public BackerApiFactory(PostgresFixture fixture)
+    private readonly SchedulerMode _schedulerMode;
+    private readonly HubMode _hubMode;
+
+    /// <param name="schedulerMode">
+    /// Defaults to <see cref="SchedulerMode.Removed"/>, which is what the
+    /// endpoint tests have always had.
+    /// </param>
+    /// <param name="hubMode">
+    /// Defaults to <see cref="HubMode.Recording"/>, likewise.
+    /// </param>
+    public BackerApiFactory(
+        PostgresFixture fixture,
+        SchedulerMode schedulerMode = SchedulerMode.Removed,
+        HubMode hubMode = HubMode.Recording)
     {
         _connectionString = fixture.ConnectionString;
+        _schedulerMode = schedulerMode;
+        _hubMode = hubMode;
     }
 
 
@@ -113,13 +164,21 @@ public sealed class BackerApiFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             _repointDatabase(services);
-            _removeRuleSchedulerHostedService(services);
+
+            if (_schedulerMode == SchedulerMode.Removed)
+            {
+                _removeRuleSchedulerHostedService(services);
+            }
+
             _overrideJwtValidation(services);
             _overrideOAuth2Credentials(services);
             _overrideOAuth2ClientFactory(services);
 
-            services.RemoveAll<IHubContext<HannibalHub>>();
-            services.AddSingleton<IHubContext<HannibalHub>>(Hub);
+            if (_hubMode == HubMode.Recording)
+            {
+                services.RemoveAll<IHubContext<HannibalHub>>();
+                services.AddSingleton<IHubContext<HannibalHub>>(Hub);
+            }
         });
     }
 
@@ -350,8 +409,10 @@ public sealed class BackerApiFactory : WebApplicationFactory<Program>
     /// </summary>
     public async Task ResetAsync(PostgresFixture fixture)
     {
-        await using (var context = fixture.CreateContext())
+        if (_schedulerMode == SchedulerMode.Removed)
         {
+            await using var context = fixture.CreateContext();
+
             var jobs = await context.Jobs.CountAsync();
             if (jobs != 0)
             {
@@ -360,6 +421,12 @@ public sealed class BackerApiFactory : WebApplicationFactory<Program>
                     + "create jobs, and the RuleScheduler background loop must not be running.");
             }
         }
+
+        /*
+         * With SchedulerMode.Enabled the check above would be wrong: jobs
+         * appearing is the point. The full-loop suite asserts on the jobs it
+         * expects instead.
+         */
 
         await fixture.ResetAsync();
         Hub.Clear();

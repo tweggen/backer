@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 
-namespace Hannibal.IntegrationTests.TestSupport;
+namespace TestSupport.Api;
 
 /// <summary>
 /// One recorded SignalR broadcast: which audience it went to, which client

@@ -355,30 +355,67 @@ Suite totals: **122 passed, 1 skipped, 123 total**, up from 77/1/78.
   receives nothing in production either. Not fixed here: changing logging
   wiring is a production behaviour change that deserves its own decision.
 
-### Gate 3 — Full-loop happy path
+### Gate 3 — Full-loop happy path — **MET (2026-08-20)**
 
 Seam 4 (`BackerApiFactory` modes), plus `tests/Backer.E2ETests/` hosting the
 Api factory and the agent factory in one process, joined by `TestServer`
 handlers per §"Wiring the agent".
 
+Both harnesses were first extracted into libraries so two suites can share
+them: `tests/TestSupport.Api/` (`PostgresFixture`, `BackerApiFactory`, the
+recording hub, the OAuth2 transport stub) and `tests/TestSupport.Agent/`
+(`AgentHostFactory`). Each test assembly keeps its own `PostgresCollection`,
+because xUnit only discovers a `[CollectionDefinition]` alongside the tests
+that use it.
+
 **Acceptance**
-1. A test creates a user, two storages, two endpoints and a rule over REST;
-   forces a scheduler pass; and observes: a `Job` row appears, the agent
-   acquires it, the stub receives `sync/copy` with the expected
-   `remote:/path` URIs, the agent reports completion, and the `Job` reaches
-   `DoneSuccess` in PostgreSQL. All assertions are on real rows and real
-   recorded calls.
-2. The rclone remote written for each storage matches the storage's
-   `UriSchema` and the provider's parameters — asserted from the stub's
-   recorded `config/create`, which is the contract at
-   `RCloneService.cs:691`.
-3. The existing 28 integration tests still pass unchanged, proving the mode
-   defaults preserved today's behaviour.
-4. `HubMode.Real`: the agent receives a `JobUpdated`/`NewJobAvailable`
-   notification over a genuine SignalR connection — the first test in the
-   codebase to exercise SignalR end to end rather than a recording fake.
-5. The whole suite runs green three times consecutively (`--filter` on the
-   E2E project) with no flake.
+1. A test creates a user, two storages, two endpoints and a rule over REST and
+   observes: a `Job` row appears, the agent acquires it, the stub receives
+   `sync/copy` with `e2esource:/Documents/Work` → `e2edest:/Backups/Daily`,
+   the agent reports completion, and the `Job` reaches `DoneSuccess` in
+   PostgreSQL. ✔
+2. ⚠ **Amended — the premise was wrong.** The agent does not configure rclone
+   through the RC API at all: it writes `backer-rclone.conf` itself
+   (`_configManager.AddOrUpdateRemote` then `SaveToFile`,
+   `RCloneService.cs:691`), and `RCloneClient.CreateConfigAsync` has **no
+   caller anywhere in the codebase**. The test therefore asserts on the file —
+   a `[e2esource]` section carrying `type = local` — and additionally asserts
+   that no `config/create` request ever reaches the stub, so the day that
+   changes, this fails. ✔ as amended.
+3. The existing 26 API integration tests pass unchanged, proving both the
+   extraction and the mode defaults preserved today's behaviour. ✔
+4. `HubMode.Real`: the agent opens a genuine SignalR connection to the real
+   hub (`Api/Program.cs:167`) and reaches `Connected` — the first test in the
+   codebase to exercise SignalR rather than a recording fake. ✔
+5. Three consecutive green runs, 17 s each. ✔
+
+**Result.** `dotnet test tests/Backer.E2ETests/` — 4 passed, 17 s. Suite
+totals: **152 passed, 1 skipped, 153 total.**
+
+**Four findings.**
+
+- *A reported failure requeues the job rather than recording it.*
+  `ReportJobAsync` turns a reported `DoneFailure` into `Ready` with
+  `Owner = ""` (`HannibalServiceJobs.cs:361-372`), so the work is retried and
+  no failed state is ever persisted. Nothing counts the attempts — the
+  `TXWTODO` at `:367` says as much — so a job that always fails is retried
+  indefinitely. The test now asserts the real behaviour: a second `sync/copy`
+  arrives, and the retry succeeds. A retry cap is worth its own decision.
+- *`Owner` is cleared on success too* (`:376-377`), so a completed job does not
+  record which agent ran it.
+- *The agent's login credentials bypass the options pipeline.*
+  `BackerAgent/DependencyInjection.cs:44-45` binds a **fresh**
+  `RCloneServiceOptions` straight from `IConfiguration` inside the
+  `AutoAuthHandler` token callback, instead of using the registered
+  `IOptionsMonitor<RCloneServiceOptions>` the rest of the agent uses.
+  Anything that adjusts those options through the options pipeline — including
+  a runtime change — is invisible to authentication. The harness works around
+  it by writing the same values into configuration as well; production would
+  be better served by reading the options it already has.
+- *SignalR is load bearing for latency, not just for notifications.* With the
+  hub connection dropped, the agent only notices requeued work on its
+  120-second safety-net poll (`_jobPollInterval`, `RCloneService.cs:64`).
+  Wiring it took the full-loop suite from 77 s to 17 s.
 
 ### Gate 4 — Scheduler determinism
 
