@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\worker\WorkerRClone\WorkerRClone.csproj" />
+    <ProjectReference Include="..\TestSupport.RClone\TestSupport.RClone.csproj" />
   </ItemGroup>
 
 </Project>

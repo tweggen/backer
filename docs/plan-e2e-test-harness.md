@@ -126,24 +126,43 @@ Each layer is usable without the ones above it.
 ### The stub rclone (L2)
 
 A small ASP.NET Core host implementing the subset of rclone's RC API that
-`RCloneClient` actually calls — `core/version`, `config/listremotes`,
-`config/create`, `sync/copy`, `sync/sync`, `job/status`, `job/list`,
-`job/stop`, `core/stats`, `rc/noop`. It accepts the hardcoded `who:how` basic
-auth (`RCloneService.cs:1036-1039`).
+`RCloneClient` actually calls — verified by reading every method of
+`worker/WorkerRClone/Client/RCloneClient.cs`, which is exactly eleven paths:
+`config/listremotes`, `config/create`, `config/paths`, `sync/copy`,
+`sync/sync`, `rc/noop`, `job/status`, `job/stop`, `job/list`, `core/stats`,
+`core/quit`. It accepts the hardcoded `who:how` basic auth
+(`RCloneService.cs:1036-1039`).
 
 It is **scriptable**, because every interesting regression in this codebase is
 a failure path:
 
 - complete a job after N polls, or never;
 - fail a job with a chosen error;
-- emit chosen stderr lines (the agent counts token errors on stderr and
-  triggers re-auth at a threshold of 3 — `RCloneService.cs:59-60`);
-- stall (no stats change) to exercise the OAuth2 inactivity timeout
-  (`_oauth2InactivityTimeout`, `RCloneService.cs:67`);
+- stop a job and report it as cancelled;
 - report arbitrary `core/stats` so transfer-progress plumbing can be asserted;
 - record every request so tests assert on *what the agent asked rclone to do*
   — the remote config written, the source and destination URIs — which is the
-  real contract between Backer and rclone.
+  real contract between Backer and rclone;
+- expose arrival of a request as an awaitable condition, so tests never sleep.
+
+**What the stub deliberately cannot do.** The agent's token-error detection
+reads the *stderr of the rclone process* (`_readPrintLog`,
+`RCloneService.cs:911`, feeding `_stderrTokenErrorCount`,
+`RCloneService.cs:59-60`), and the OAuth2 inactivity timeout is driven from
+the same process plumbing (`RCloneService.cs:67`). An HTTP stub has no stderr.
+Those two paths therefore need the *process* seam, not the RC seam, and are
+covered in Gate 2 (which owns process start) rather than here.
+
+**Fidelity is asserted, not verified.** The stub's payloads are shaped to what
+`RCloneClient` reads. That makes it a valid double, but does not prove the
+field names match a real rclone — most sharply for `job/list`, where
+`JobListResult` (`worker/WorkerRClone/Client/Models/JobListResult.cs`) declares
+`jobsids`, `running_ids` and `finished_ids` and the production stop path reads
+`running_ids` (`RCloneService.cs:1390-1394`). The stub emits those spellings
+without having confirmed them against rclone, and emits only one spelling each
+so the open question stays visible. Closing it needs an opt-in test against a
+real rclone binary, in the style of the existing live OneDrive check — added
+as a follow-up in Gate 10, not silently assumed here.
 
 Because the stub records the `sync/copy` and `sync/sync` calls, L4 tests can
 assert the exact `remote:/path` URIs built at `RCloneService.cs:700` without
@@ -215,26 +234,39 @@ Each gate is independently verifiable and independently committable. A gate is
 Baseline for every gate: `dotnet build Backer.sln` clean, and the existing
 78 unit tests plus 28 integration tests still green.
 
-### Gate 1 — Stub rclone
+### Gate 1 — Stub rclone — **MET (2026-08-20)**
 
 New `tests/TestSupport.RClone/` (a library, so both L4 and L5 can use it):
-scriptable in-process rclone RC stub per §"The stub rclone".
+scriptable in-process rclone RC stub per §"The stub rclone". Contract tests
+live in `tests/WorkerRClone.Tests/Client/RCloneStubContractTests.cs` rather
+than a new test project, because that project already references
+`WorkerRClone`.
 
 **Acceptance**
-1. The stub answers `core/version`, `config/listremotes`, `config/create`,
-   `sync/copy`, `sync/sync`, `job/status`, `job/list`, `job/stop`,
-   `core/stats` and `rc/noop`, and rejects requests without the `who:how`
-   basic auth.
+1. The stub answers all eleven paths `RCloneClient` calls, and rejects
+   requests without the `who:how` basic auth. ✔
 2. Unit tests drive the **real** `RCloneClient`
    (`worker/WorkerRClone/Client/RCloneClient.cs`) against the stub and get
-   correctly deserialised results for every one of those calls — this proves
-   the stub matches the client's actual wire expectations, not a guess.
-3. Scripted behaviours are demonstrated: succeed-after-N-polls, fail-with-
-   error, emit-stderr-lines, stall, and custom `core/stats`.
+   correctly deserialised results for every one of those calls. The stub does
+   not reference `WorkerRClone` and writes its JSON by hand, so this is a
+   two-sided check rather than a type round-tripping to itself. ✔
+3. Scripted behaviours demonstrated: succeed-after-N-polls, fail-with-error,
+   stall, stop-mid-job, unknown-job error, and custom `core/stats`
+   (including `transferring` entries). **Stderr scripting is not part of this
+   gate** — see §"The stub rclone"; it needs the process seam and moves to
+   Gate 2. ✔ (as amended)
 4. The stub records every request with its parsed body, and a test asserts on
-   a recorded `sync/copy` source/destination pair.
+   a recorded `sync/copy` source/destination pair. ✔
 5. The stub binds an ephemeral port; two instances run concurrently in one
-   test run without collision.
+   test run without collision. ✔
+6. `WaitForRequestAsync` makes "the agent got there" awaitable, counts
+   requests that already arrived, and fails with a message naming the paths
+   actually seen — so no test in later gates needs a sleep. ✔
+
+**Result.** `dotnet test tests/WorkerRClone.Tests/` — 53 passed, 1 skipped
+(the pre-existing opt-in live OneDrive check), 54 total; up from 31 passed /
+32 total. 22 new tests. No new build warnings (the warnings emitted by
+`worker/WorkerRClone` predate this work).
 
 ### Gate 2 — The agent is hostable in a test
 
@@ -257,6 +289,14 @@ Seams 1–3 from §"Production seams required", plus
    or processes remain.
 6. Manual smoke recorded here: `dotnet run --project BackerAgent/` against a
    real rclone still works after the `app.Run()` change.
+7. **Stderr classification becomes testable** (deferred here from Gate 1).
+   `_readPrintLog` (`RCloneService.cs:911`) currently loops on
+   `_processRClone.HasExited`, so with no process it cannot be called at all.
+   Extract the per-line handling into an `internal` method and cover it
+   directly: an `ERROR : ` line is appended to `_stderrErrors`; the buffer
+   stays capped at 200; a line containing `couldn't fetch token` or
+   `maybe token expired` increments `_stderrTokenErrorCount`; an unrelated
+   line does neither. This is re-auth-triggering logic with no test today.
 
 ### Gate 3 — Full-loop happy path
 
@@ -409,6 +449,14 @@ stack.
 4. Total L0–L4 wall-clock recorded here, with a stated budget; if it exceeds
    the budget the suite gets split rather than muted.
 5. Three consecutive full green runs recorded before the gate is declared met.
+6. **The stub's fidelity to real rclone is closed out.** An opt-in test,
+   guarded by an environment variable and skipping cleanly like the existing
+   live OneDrive check, drives `RCloneClient` against a real rclone binary and
+   asserts the same responses the stub produces — in particular which of
+   `jobids` / `jobsids` / `running_ids` / `finished_ids` `job/list` really
+   returns, since `RCloneService.cs:1390-1394` stops jobs based on
+   `running_ids`. Until this runs, every stub payload is asserted, not
+   verified.
 
 ## Sequencing against the git work
 
