@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using FluentAssertions;
 using WorkerRClone.Models;
+using TestSupport.Agent;
 using Xunit;
 
 namespace BackerAgent.IntegrationTests;

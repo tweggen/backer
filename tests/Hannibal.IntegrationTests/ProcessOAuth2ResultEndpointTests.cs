@@ -115,7 +115,7 @@ public class ProcessOAuth2ResultEndpointTests : ApiIntegrationTestBase
          * is only reached once the state itself has been accepted. Unlike the
          * expired/used cases this surfaces as HTTP 200 with an Error message.
          */
-        Api.OAuth2Transport = new TestSupport.StubOAuth2Transport()
+        Api.OAuth2Transport = new StubOAuth2Transport()
             .RespondTo("/token", HttpStatusCode.OK,
                 """{"access_token":"a","refresh_token":"r","token_type":"Bearer","expires_in":3600}""")
             .RespondTo("/me", HttpStatusCode.OK,

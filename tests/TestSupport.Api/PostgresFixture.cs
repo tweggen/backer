@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 
-namespace Hannibal.IntegrationTests;
+namespace TestSupport.Api;
 
 /// <summary>
 /// Creates a throwaway PostgreSQL database for the duration of one test run,
@@ -236,12 +236,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 }
 
 
-/// <summary>
-/// Every test class carrying [Collection(PostgresCollection.Name)] shares one
-/// throwaway database and therefore one CREATE/DROP cycle per run.
-/// </summary>
-[CollectionDefinition(Name)]
-public sealed class PostgresCollection : ICollectionFixture<PostgresFixture>
-{
-    public const string Name = "PostgreSQL integration";
-}
+/*
+ * The matching [CollectionDefinition] lives in each test assembly rather than
+ * here: xUnit only discovers a collection definition in the assembly that holds
+ * the tests using it. See PostgresCollection.cs in Hannibal.IntegrationTests
+ * and in Backer.E2ETests.
+ */
