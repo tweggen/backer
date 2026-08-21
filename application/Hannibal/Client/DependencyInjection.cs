@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Tools;
 
@@ -38,8 +39,15 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         // services.AddHostedService<BackofficeService>();
-        
-        
+
+
+        /*
+         * Production clock for RuleScheduler. TryAdd so a test host that has
+         * already registered its own TimeProvider (e.g. a FakeTimeProvider)
+         * is never overridden by this call.
+         */
+        services.TryAddSingleton(TimeProvider.System);
+
         services.AddSingleton<ScheduleCalculator>();
         services.AddSingleton<RuleScheduler>(sp =>
         {
