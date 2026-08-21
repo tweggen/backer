@@ -773,7 +773,7 @@ for git (default icon arm; `Rules.razor` has no technology-keyed code at
 all); actual browser rendering folds into Gate G AC1's manual smoke.
 Suite: **299 passed, 1 skipped** (94/76/7/28/22/64/9).
 
-### Gate G — UI and configuration round-trip
+### Gate G — UI and configuration round-trip — **implementation + AC2 MET (2026-08-21); AC1 + AC3 await the manual browser smoke**
 
 `Storages.razor` git branch (host, username, token, alias),
 `Endpoints.razor` placeholder/help for `owner/repo`, `Landscape.razor` icon,
@@ -790,6 +790,35 @@ Porter fields for the Gate E rule columns.
    fields.
 3. The token is never rendered back into the DOM after save (view-source
    check on the edit form).
+
+**Result (2026-08-21).** The UI: `Storages.razor` gains the git branch
+(Host/Username/token/Alias with the server's UriSchema rule in the help
+text) by joining `CredentialTechnologies`, which buys the decisive AC3
+property for free — `_onEdit` blanks `Password` before the edit card
+renders, so the token is never sent to the browser at all on the edit
+path; `Endpoints.razor` gains owner/repo placeholders and help;
+`Landscape.razor` gains a git icon. AC2 is automated
+(`GitStoragePorterRoundTripTests`): export → wipe → import reproduces
+storage/endpoints/rule including the Gate E flags, `includePasswords=false`
+leaves zero occurrences of the token in the raw export JSON, and importing
+such an export preserves an existing stored token. **No Porter changes were
+needed** — the mechanism was already technology-generic; the tests are
+proof, not a fix. (Incidental: `Endpoint.IsActive` defaults false, so the
+`includeInactive=false` export filter silently drops endpoints seeded
+without it — a thing to know, not a defect.) Suite: **301 passed,
+1 skipped** (94/78/7/28/22/64/9).
+
+**Manual smoke for AC1 + AC3 (run in the browser, record the result
+here).** AC1: Storages → create "Git Repository Mirror" (Host
+`https://github.com/` or a filesystem root, Username, token, lowercase
+Alias) → Endpoints: two `owner/repo` endpoints on it → Rules: Copy rule
+between them → Landscape: git storage renders with its icon, the job runs
+to a terminal state, no browser-console errors anywhere. This also closes
+Gate F AC3's runtime half. AC3: edit the git storage; inspect/view-source:
+the password input's rendered `value` is empty and a page-wide search for
+the token string finds zero matches in the DOM (the edit fetch's
+authenticated JSON response may carry it; the AC is about the rendered
+document).
 
 ### Gate H — opt-in live smoke test
 
