@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Hannibal.Models;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +8,67 @@ namespace Hannibal.Services;
 
 public partial class HannibalService
 {
+    private static readonly Regex _gitUriSchemaPattern = new(@"^[a-z0-9][a-z0-9_-]*$", RegexOptions.Compiled);
+
+    /**
+     * The codebase's first storage validation (plan-git-repo-storage.md Gate
+     * A). Technology must be one of the known technologies; a git storage
+     * additionally needs a real Host and a UriSchema that is well-formed and
+     * unique per user, because UriSchema becomes both the rclone remote name
+     * (for rclone technologies) and the git worker's cache directory name.
+     * Throws ArgumentException naming the offending field - Api/Program.cs
+     * maps that to a 400 with the message.
+     */
+    private async Task _validateStorageAsync(
+        string technology,
+        string? host,
+        string? uriSchema,
+        string userId,
+        int? excludeId,
+        CancellationToken cancellationToken)
+    {
+        if (!Technologies.GetTechnologies().Contains(technology))
+        {
+            throw new ArgumentException($"Technology '{technology}' is not a known storage technology.");
+        }
+
+        if (technology != "git")
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            throw new ArgumentException("Host must not be empty for a git storage.");
+        }
+
+        bool isHttpUrl = Uri.TryCreate(host, UriKind.Absolute, out var hostUri)
+                          && (hostUri.Scheme == Uri.UriSchemeHttp || hostUri.Scheme == Uri.UriSchemeHttps);
+        bool isFsRoot = Path.IsPathFullyQualified(host);
+        if (!isHttpUrl && !isFsRoot)
+        {
+            throw new ArgumentException(
+                $"Host '{host}' must be an absolute http/https URL or an absolute filesystem root for a git storage.");
+        }
+
+        if (string.IsNullOrEmpty(uriSchema) || !_gitUriSchemaPattern.IsMatch(uriSchema))
+        {
+            throw new ArgumentException(
+                $"UriSchema '{uriSchema}' must match ^[a-z0-9][a-z0-9_-]*$ for a git storage.");
+        }
+
+        var collision = await _context.Storages.AnyAsync(
+            s => s.UserId == userId
+                 && (!excludeId.HasValue || s.Id != excludeId.Value)
+                 && s.UriSchema.ToLower() == uriSchema.ToLower(),
+            cancellationToken);
+        if (collision)
+        {
+            throw new ArgumentException(
+                $"UriSchema '{uriSchema}' is already used by another storage of this user.");
+        }
+    }
+
     public async Task<Storage> GetStorageAsync(
         int id,
         CancellationToken cancellationToken)
@@ -34,9 +96,12 @@ public partial class HannibalService
         CancellationToken cancellationToken)
     {
         await _obtainUser();
-        
+
         storage.UserId = _currentUser.Id;
-        
+
+        await _validateStorageAsync(
+            storage.Technology, storage.Host, storage.UriSchema, storage.UserId, null, cancellationToken);
+
         await _context.Storages.AddAsync(storage, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
         return new CreateStorageResult() { Id = storage.Id };
@@ -100,6 +165,10 @@ public partial class HannibalService
         {
             throw new InvalidDataException($"Unable to change user id");
         }
+
+        await _validateStorageAsync(
+            updatedStorage.Technology, updatedStorage.Host, updatedStorage.UriSchema, storage.UserId, id,
+            cancellationToken);
 
         // Track if tokens changed for reauthentication notification.
         // Note that clearing a previously set token (OAuth2 disconnect) counts
