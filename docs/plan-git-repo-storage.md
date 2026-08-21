@@ -820,7 +820,7 @@ the token string finds zero matches in the DOM (the edit fetch's
 authenticated JSON response may carry it; the AC is about the rendered
 document).
 
-### Gate H — opt-in live smoke test
+### Gate H — opt-in live smoke test — **test shipped + AC1 MET (2026-08-21); ACs 2–4 await the live run**
 
 Following `docs/plan-phase2-gates.md` Gate F's convention: runs only when
 environment variables supply real credentials, skips cleanly otherwise.
@@ -835,6 +835,33 @@ environment variables supply real credentials, skips cleanly otherwise.
 3. Confirmed during this gate: whether Codeberg/Forgejo reserves
    `refs/pull/*` the way GitHub does, recorded here either way.
 4. Result recorded in this document with date, repo sizes and durations.
+
+**Result (2026-08-21, partial).**
+`tests/WorkerGit.Tests/LiveGitMirrorSmokeTests.cs` behind
+`LiveGitFactAttribute` (the live-OneDrive convention). AC1 proven: without
+the env vars the test skips with a message naming them and the suite stays
+green — pinned by its own always-on companion test. When enabled it runs a
+real Copy mirror with a command trace, asserts zero non-LFS ref errors and
+that no refspec outside MIRRORED (no `refs/pull`, no `--mirror`) was ever
+used, `ls-remote`-compares both sides, proves the second run performs two
+probes and nothing else, and prints the AC3 (`refs/pull/*` count on the
+destination) and AC4 (ref counts, durations) observations to transcribe
+here.
+
+**Runbook (PowerShell):**
+```powershell
+$env:BACKER_LIVE_GIT_TEST = '1'
+$env:BACKER_LIVE_GIT_SOURCE = 'https://github.com/<owner>/<repo-with-open-pr>'
+$env:BACKER_LIVE_GIT_SOURCE_USER = ''    # blank ok for a public repo
+$env:BACKER_LIVE_GIT_SOURCE_TOKEN = ''   # or fine-grained read-only PAT
+$env:BACKER_LIVE_GIT_DEST = 'https://codeberg.org/<owner>/<repo>'  # must exist; WILL be pushed to
+$env:BACKER_LIVE_GIT_DEST_USER = '<codeberg user>'
+$env:BACKER_LIVE_GIT_DEST_TOKEN = '<write-scoped PAT>'
+# non-empty unmarked destination only: $env:BACKER_LIVE_GIT_ALLOW_ADOPT = '1'
+dotnet test tests/WorkerGit.Tests/ --filter "FullyQualifiedName~LiveGitMirror"
+```
+Use a disposable destination repo. Record here afterwards: AC3's
+`refs/pull/*` answer for the destination forge, AC4's date/refs/durations.
 
 ---
 
