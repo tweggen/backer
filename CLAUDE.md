@@ -127,6 +127,8 @@ Located in `worker/WorkerRClone/Services/Providers/`:
 - `OAuth2:RedirectUri` - OAuth2 callback, defaults to `http://localhost:53682/`
   (the BackerAgent's local listener)
 - BackerAgent credentials: `RCloneService:BackerUsername/BackerPassword`
+- `RCloneService:SkipJobAcquisition` - agent logs in, connects and starts rclone
+  but never acquires jobs (for smoke tests beside the user's live agents)
 
 ## Testing
 

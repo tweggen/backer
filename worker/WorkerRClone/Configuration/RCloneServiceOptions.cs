@@ -42,6 +42,14 @@ public class RCloneServiceOptions
      */
     public string? ConfigDirectory { get; set; }
 
+    /**
+     * Log in, connect and start rclone as usual, but never acquire or execute
+     * jobs - they are left for the user's other agents. For running an agent
+     * that must not interfere with the machines doing the actual work, e.g. a
+     * startup smoke test beside a live deployment.
+     */
+    public bool SkipJobAcquisition { get; set; }
+
     public string? UrlSignalR { get; set; }
 
     /**
@@ -67,9 +75,10 @@ public class RCloneServiceOptions
         RCloneUrl = o.RCloneUrl;
         SkipProcessStart = o.SkipProcessStart;
         ConfigDirectory = o.ConfigDirectory;
+        SkipJobAcquisition = o.SkipJobAcquisition;
         UrlSignalR = o.UrlSignalR;
         Autostart = o.Autostart;
-        OAuth2 = OAuth2 != null ? new OAuthOptions(o.OAuth2) : null;
+        OAuth2 = o.OAuth2 != null ? new OAuthOptions(o.OAuth2) : null;
     }
 
     public RCloneServiceOptions()

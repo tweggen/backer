@@ -270,6 +270,7 @@ public sealed class AgentHostFactory : WebApplicationFactory<BackerAgentHost>
                 ["RCloneService:RCloneUrl"] = effective.RCloneUrl,
                 ["RCloneService:ConfigDirectory"] = effective.ConfigDirectory,
                 ["RCloneService:SkipProcessStart"] = effective.SkipProcessStart ? "true" : "false",
+                ["RCloneService:SkipJobAcquisition"] = effective.SkipJobAcquisition ? "true" : "false",
                 ["RCloneService:Autostart"] = effective.Autostart ? "true" : "false"
             });
         });
@@ -376,6 +377,7 @@ public sealed class AgentHostFactory : WebApplicationFactory<BackerAgentHost>
         target.RCloneOptions = source.RCloneOptions;
         target.RCloneUrl = source.RCloneUrl;
         target.SkipProcessStart = source.SkipProcessStart;
+        target.SkipJobAcquisition = source.SkipJobAcquisition;
         target.ConfigDirectory = source.ConfigDirectory;
         target.UrlSignalR = source.UrlSignalR;
         target.Autostart = source.Autostart;
