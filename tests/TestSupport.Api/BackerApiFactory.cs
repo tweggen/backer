@@ -189,11 +189,10 @@ public sealed class BackerApiFactory : WebApplicationFactory<Program>
 
         /*
          * The fixture already ran Database.Migrate() on a freshly created
-         * database, so the startup block in Program.cs has nothing to do. It is
-         * skipped rather than repeated: repeating it is harmless (Migrate() is a
-         * no-op and InitializeDatabaseAsync only seeds when Rules already
-         * exist) but it costs a round trip and would silently mask a fixture
-         * that failed to migrate.
+         * database, so the StartupMigrator in Program.cs has nothing to do. It
+         * is skipped rather than repeated: repeating it is harmless (a no-op)
+         * but it costs a round trip and would silently mask a fixture that
+         * failed to migrate.
          */
         ["Hannibal:SkipStartupMigration"] = "true",
 

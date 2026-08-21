@@ -795,18 +795,15 @@ app.Use(async (context, next) =>
 });
 
 
-// Initialize database right after building the application.
+// Bring the database schema up to date right after building the application.
 // A test host (or any deployment that manages migrations out of band) can opt
 // out via the Hannibal:SkipStartupMigration configuration flag.
 if (!app.Configuration.GetValue<bool>("Hannibal:SkipStartupMigration"))
 {
     using (var scope = app.Services.CreateScope())
     {
-        {
-            var hannibalContext = scope.ServiceProvider.GetRequiredService<HannibalContext>();
-            hannibalContext.Database.Migrate();
-            await hannibalContext.InitializeDatabaseAsync();
-        }
+        var hannibalContext = scope.ServiceProvider.GetRequiredService<HannibalContext>();
+        await StartupMigrator.MigrateAsync(hannibalContext, app.Logger);
     }
 }
 

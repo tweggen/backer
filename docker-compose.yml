@@ -17,6 +17,9 @@ services:
       context: ./
       dockerfile: Api/Dockerfile
     image: hannibal-api:latest
+    depends_on:
+      hannibal-db:
+        condition: service_healthy
     volumes:
       - dataprotection:/home/app/.aspnet/DataProtection-Keys
     labels:
