@@ -553,7 +553,7 @@ rclone-rule test plus the E2E suite, which creates rules over REST. New
 tests: `JobEngineTests` (unit), `RuleEngineValidationTests` (integration).
 Suite: **214 passed, 1 skipped** (77/64/9/45/16/4), up from 187/1.
 
-### Gate C — capability-aware acquisition
+### Gate C — capability-aware acquisition — **MET (2026-08-21)**
 
 `AcquireParams.Capabilities` becomes a comma-separated engine set; the server
 filters candidates in `AcquireNextJobAsync`
@@ -574,6 +574,23 @@ filters candidates in `AcquireNextJobAsync`
    stays `Ready` with `Owner == ""` — a mismatched agent must never park a job
    it cannot run.
 5. Existing `Networks` filtering tests still pass.
+
+**Result (2026-08-21).** All five ACs demonstrated from command output.
+`AgentCapabilities.Parse` (in `JobEngine.cs`) is the pure parser; the legacy
+mapping treats null/empty/`"use_me"`/unrecognized as `{rclone}`, and jobs
+classifying `Unsupported` are eligible to no agent. The filter skips like a
+`Networks` mismatch — never parks. Harness Gate 6, landed alongside per the
+execution order, then exposed **two pre-existing acquisition defects fixed in
+the same PR**: no user isolation (any authenticated agent could acquire any
+user's job — the candidate query now filters `j.UserId == _currentUser.Id`)
+and a double-grant race (read-then-write claim; two concurrent acquires
+both won the same job 27/27 on a cold host — the claim is now an atomic
+conditional `ExecuteUpdateAsync`, which also resolved the old `TXWTODO` so
+the earliest-`StartFrom` eligible candidate wins instead of the last). See
+`docs/plan-e2e-test-harness.md` Gate 6 for the findings' detail. New tests:
+`AgentCapabilitiesTests` (unit), `JobAcquisitionCapabilityTests`
+(integration). Suite: **241 passed, 1 skipped** (90/64/9/59/16/4), up from
+214/1.
 
 ### Gate D — mirror engine, additive push only
 

@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using Hannibal.Data;
 using Hannibal.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hannibal.IntegrationTests;
 
@@ -37,9 +39,11 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
     public async Task AC1_each_agent_receives_only_the_job_matching_its_engine(bool gitJobSeededFirst)
     {
         await ArrangeAsync();
-        using var client = await CreateAuthenticatedClientAsync(UniqueEmail("engine-filter"), Password);
+        var email = UniqueEmail("engine-filter");
+        using var client = await CreateAuthenticatedClientAsync(email, Password);
+        var userId = await _userIdAsync(email);
 
-        var seed = await _seedRcloneAndGitJobsAsync(gitJobSeededFirst);
+        var seed = await _seedRcloneAndGitJobsAsync(userId, gitJobSeededFirst);
 
         var rcloneResponse = await _acquireAsync(client, "rclone");
         rcloneResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -74,9 +78,11 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
     public async Task AC2_legacy_or_empty_capabilities_receive_only_the_rclone_job(string capabilities)
     {
         await ArrangeAsync();
-        using var client = await CreateAuthenticatedClientAsync(UniqueEmail("legacy-caps"), Password);
+        var email = UniqueEmail("legacy-caps");
+        using var client = await CreateAuthenticatedClientAsync(email, Password);
+        var userId = await _userIdAsync(email);
 
-        var seed = await _seedRcloneAndGitJobsAsync(gitJobSeededFirst: false);
+        var seed = await _seedRcloneAndGitJobsAsync(userId, gitJobSeededFirst: false);
 
         var response = await _acquireAsync(client, capabilities);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -101,9 +107,11 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
     public async Task AC3_agent_advertising_both_engines_can_receive_both()
     {
         await ArrangeAsync();
-        using var client = await CreateAuthenticatedClientAsync(UniqueEmail("both-engines"), Password);
+        var email = UniqueEmail("both-engines");
+        using var client = await CreateAuthenticatedClientAsync(email, Password);
+        var userId = await _userIdAsync(email);
 
-        var seed = await _seedRcloneAndGitJobsAsync(gitJobSeededFirst: false);
+        var seed = await _seedRcloneAndGitJobsAsync(userId, gitJobSeededFirst: false);
 
         var first = await _acquireAsync(client, "rclone,git");
         first.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -129,9 +137,11 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
     public async Task AC4_mismatched_agent_gets_not_found_and_the_job_stays_ready_and_unowned()
     {
         await ArrangeAsync();
-        using var client = await CreateAuthenticatedClientAsync(UniqueEmail("mismatch"), Password);
+        var email = UniqueEmail("mismatch");
+        using var client = await CreateAuthenticatedClientAsync(email, Password);
+        var userId = await _userIdAsync(email);
 
-        var gitJobId = await _seedSingleGitJobAsync();
+        var gitJobId = await _seedSingleGitJobAsync(userId);
 
         var response = await _acquireAsync(client, "rclone");
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -156,16 +166,34 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
         return await client.PostAsJsonAsync(AcquireRoute, acquireParams);
     }
 
+    /// <summary>
+    /// Resolves the Identity user id (a GUID string) behind an e-mail that
+    /// was just registered through <see cref="ApiIntegrationTestBase.CreateAuthenticatedClientAsync"/>,
+    /// the same way <see cref="ConcurrencySafetyTests"/> does - acquisition
+    /// now filters candidates by <c>UserId == _currentUser.Id</c>, so every
+    /// job seeded for a test must carry the authenticated client's real id,
+    /// not a fixed placeholder string.
+    /// </summary>
+    private async Task<string> _userIdAsync(string email)
+    {
+        using var scope = Api.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var user = await userManager.FindByEmailAsync(email);
+        user.Should().NotBeNull();
+        return user!.Id;
+    }
+
     private sealed record SeedResult(int RcloneJobId, int GitJobId);
 
     /// <summary>
     /// Seeds one Ready rclone job and one Ready git job, each with its own
-    /// Storage/Endpoint/Rule rows. <paramref name="gitJobSeededFirst"/>
+    /// Storage/Endpoint/Rule rows, owned by <paramref name="userId"/> (the
+    /// acquiring client's real id). <paramref name="gitJobSeededFirst"/>
     /// controls both insertion order (so the git job gets the lower id when
     /// true) and which job gets the earlier <c>StartFrom</c>, so AC1 can be
     /// proven independent of both.
     /// </summary>
-    private async Task<SeedResult> _seedRcloneAndGitJobsAsync(bool gitJobSeededFirst)
+    private async Task<SeedResult> _seedRcloneAndGitJobsAsync(string userId, bool gitJobSeededFirst)
     {
         await using var context = Fixture.CreateContext();
 
@@ -178,19 +206,19 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
 
         Job _buildRcloneJob()
         {
-            var source = new Storage { UserId = "capability-test", Technology = "local", UriSchema = $"caprc-src-{Guid.NewGuid():N}", IsActive = true };
-            var destination = new Storage { UserId = "capability-test", Technology = "smb", UriSchema = $"caprc-dst-{Guid.NewGuid():N}", IsActive = true };
-            var sourceEndpoint = new Endpoint { Name = $"caprc-src-ep-{Guid.NewGuid():N}", UserId = "capability-test", Storage = source, Path = "/source", IsActive = true };
-            var destinationEndpoint = new Endpoint { Name = $"caprc-dst-ep-{Guid.NewGuid():N}", UserId = "capability-test", Storage = destination, Path = "/destination", IsActive = true };
+            var source = new Storage { UserId = userId, Technology = "local", UriSchema = $"caprc-src-{Guid.NewGuid():N}", IsActive = true };
+            var destination = new Storage { UserId = userId, Technology = "smb", UriSchema = $"caprc-dst-{Guid.NewGuid():N}", IsActive = true };
+            var sourceEndpoint = new Endpoint { Name = $"caprc-src-ep-{Guid.NewGuid():N}", UserId = userId, Storage = source, Path = "/source", IsActive = true };
+            var destinationEndpoint = new Endpoint { Name = $"caprc-dst-ep-{Guid.NewGuid():N}", UserId = userId, Storage = destination, Path = "/destination", IsActive = true };
             var rule = new Rule
             {
-                Name = $"caprc-rule-{Guid.NewGuid():N}", Comment = "", UserId = "capability-test",
+                Name = $"caprc-rule-{Guid.NewGuid():N}", Comment = "", UserId = userId,
                 SourceEndpoint = sourceEndpoint, DestinationEndpoint = destinationEndpoint,
                 Operation = Rule.RuleOperation.Copy
             };
             return new Job
             {
-                UserId = "capability-test", Tag = "rclone-job", Operation = Rule.RuleOperation.Copy,
+                UserId = userId, Tag = "rclone-job", Operation = Rule.RuleOperation.Copy,
                 FromRule = rule, Owner = "", State = Job.JobState.Ready,
                 StartFrom = rcloneStartFrom, EndBy = rcloneStartFrom.AddDays(1), LastReported = rcloneStartFrom,
                 SourceEndpoint = sourceEndpoint, DestinationEndpoint = destinationEndpoint
@@ -199,19 +227,19 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
 
         Job _buildGitJob()
         {
-            var source = new Storage { UserId = "capability-test", Technology = "git", UriSchema = $"capgit-src-{Guid.NewGuid():N}", Host = "https://github.com/", IsActive = true };
-            var destination = new Storage { UserId = "capability-test", Technology = "git", UriSchema = $"capgit-dst-{Guid.NewGuid():N}", Host = "https://codeberg.org/", IsActive = true };
-            var sourceEndpoint = new Endpoint { Name = $"capgit-src-ep-{Guid.NewGuid():N}", UserId = "capability-test", Storage = source, Path = "owner/repo-source", IsActive = true };
-            var destinationEndpoint = new Endpoint { Name = $"capgit-dst-ep-{Guid.NewGuid():N}", UserId = "capability-test", Storage = destination, Path = "owner/repo-dest", IsActive = true };
+            var source = new Storage { UserId = userId, Technology = "git", UriSchema = $"capgit-src-{Guid.NewGuid():N}", Host = "https://github.com/", IsActive = true };
+            var destination = new Storage { UserId = userId, Technology = "git", UriSchema = $"capgit-dst-{Guid.NewGuid():N}", Host = "https://codeberg.org/", IsActive = true };
+            var sourceEndpoint = new Endpoint { Name = $"capgit-src-ep-{Guid.NewGuid():N}", UserId = userId, Storage = source, Path = "owner/repo-source", IsActive = true };
+            var destinationEndpoint = new Endpoint { Name = $"capgit-dst-ep-{Guid.NewGuid():N}", UserId = userId, Storage = destination, Path = "owner/repo-dest", IsActive = true };
             var rule = new Rule
             {
-                Name = $"capgit-rule-{Guid.NewGuid():N}", Comment = "", UserId = "capability-test",
+                Name = $"capgit-rule-{Guid.NewGuid():N}", Comment = "", UserId = userId,
                 SourceEndpoint = sourceEndpoint, DestinationEndpoint = destinationEndpoint,
                 Operation = Rule.RuleOperation.Copy
             };
             return new Job
             {
-                UserId = "capability-test", Tag = "git-job", Operation = Rule.RuleOperation.Copy,
+                UserId = userId, Tag = "git-job", Operation = Rule.RuleOperation.Copy,
                 FromRule = rule, Owner = "", State = Job.JobState.Ready,
                 StartFrom = gitStartFrom, EndBy = gitStartFrom.AddDays(1), LastReported = gitStartFrom,
                 SourceEndpoint = sourceEndpoint, DestinationEndpoint = destinationEndpoint
@@ -244,24 +272,24 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
         return new SeedResult(rcloneJob.Id, gitJob.Id);
     }
 
-    private async Task<int> _seedSingleGitJobAsync()
+    private async Task<int> _seedSingleGitJobAsync(string userId)
     {
         await using var context = Fixture.CreateContext();
 
-        var source = new Storage { UserId = "capability-test", Technology = "git", UriSchema = $"capgit-only-src-{Guid.NewGuid():N}", Host = "https://github.com/", IsActive = true };
-        var destination = new Storage { UserId = "capability-test", Technology = "git", UriSchema = $"capgit-only-dst-{Guid.NewGuid():N}", Host = "https://codeberg.org/", IsActive = true };
-        var sourceEndpoint = new Endpoint { Name = $"capgit-only-src-ep-{Guid.NewGuid():N}", UserId = "capability-test", Storage = source, Path = "owner/only-source", IsActive = true };
-        var destinationEndpoint = new Endpoint { Name = $"capgit-only-dst-ep-{Guid.NewGuid():N}", UserId = "capability-test", Storage = destination, Path = "owner/only-dest", IsActive = true };
+        var source = new Storage { UserId = userId, Technology = "git", UriSchema = $"capgit-only-src-{Guid.NewGuid():N}", Host = "https://github.com/", IsActive = true };
+        var destination = new Storage { UserId = userId, Technology = "git", UriSchema = $"capgit-only-dst-{Guid.NewGuid():N}", Host = "https://codeberg.org/", IsActive = true };
+        var sourceEndpoint = new Endpoint { Name = $"capgit-only-src-ep-{Guid.NewGuid():N}", UserId = userId, Storage = source, Path = "owner/only-source", IsActive = true };
+        var destinationEndpoint = new Endpoint { Name = $"capgit-only-dst-ep-{Guid.NewGuid():N}", UserId = userId, Storage = destination, Path = "owner/only-dest", IsActive = true };
         var rule = new Rule
         {
-            Name = $"capgit-only-rule-{Guid.NewGuid():N}", Comment = "", UserId = "capability-test",
+            Name = $"capgit-only-rule-{Guid.NewGuid():N}", Comment = "", UserId = userId,
             SourceEndpoint = sourceEndpoint, DestinationEndpoint = destinationEndpoint,
             Operation = Rule.RuleOperation.Copy
         };
         var now = DateTime.UtcNow;
         var job = new Job
         {
-            UserId = "capability-test", Tag = "git-only-job", Operation = Rule.RuleOperation.Copy,
+            UserId = userId, Tag = "git-only-job", Operation = Rule.RuleOperation.Copy,
             FromRule = rule, Owner = "", State = Job.JobState.Ready,
             StartFrom = now, EndBy = now.AddDays(1), LastReported = now,
             SourceEndpoint = sourceEndpoint, DestinationEndpoint = destinationEndpoint
