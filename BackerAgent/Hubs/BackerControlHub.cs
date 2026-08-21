@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using WorkerGit.Services;
 using WorkerRClone.Models;
 using WorkerRClone.Services;
 
@@ -12,13 +13,16 @@ namespace BackerAgent.Hubs;
 public class BackerControlHub : Hub
 {
     private readonly RCloneService _rcloneService;
+    private readonly GitWorkerService _gitWorkerService;
     private readonly ILogger<BackerControlHub> _logger;
 
     public BackerControlHub(
         RCloneService rcloneService,
+        GitWorkerService gitWorkerService,
         ILogger<BackerControlHub> logger)
     {
         _rcloneService = rcloneService;
+        _gitWorkerService = gitWorkerService;
         _logger = logger;
     }
 
@@ -71,7 +75,21 @@ public class BackerControlHub : Hub
     {
         try
         {
-            await _rcloneService.AbortJobAsync(hannibalJobId, CancellationToken.None);
+            /*
+             * Route by ownership rather than a guessed engine (same
+             * reasoning as the /jobs/{jobId}/abort minimal API endpoint in
+             * Program.cs): neither call has a side effect on a job it does
+             * not own, so trying both in a fixed order cannot misfire.
+             * Git first because TryAbortJobAsync is a cheap, in-process
+             * dictionary lookup and CTS cancellation - no network round trip
+             * to rclone's RC interface the way RCloneService.AbortJobAsync
+             * makes.
+             */
+            bool ownedByGit = await _gitWorkerService.TryAbortJobAsync(hannibalJobId);
+            if (!ownedByGit)
+            {
+                await _rcloneService.AbortJobAsync(hannibalJobId, CancellationToken.None);
+            }
         }
         catch (Exception ex)
         {

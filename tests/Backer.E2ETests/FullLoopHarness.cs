@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TestSupport.Agent;
 using TestSupport.Api;
 using TestSupport.RClone;
+using WorkerGit.Configuration;
 using WorkerRClone.Models;
 
 namespace Backer.E2ETests;
@@ -62,7 +63,15 @@ public sealed class FullLoopHarness : IAsyncDisposable
     /// <summary>An API client carrying a bearer token for <see cref="UserEmail"/>.</summary>
     public HttpClient Client { get; private set; } = null!;
 
-    public static async Task<FullLoopHarness> StartAsync(PostgresFixture fixture)
+    /// <summary>
+    /// <paramref name="configureGitWorkerOptions"/> is applied after the
+    /// agent's own GitWorker defaults (a per-test cache directory, real
+    /// "git" on PATH) - Gate D AC8's heartbeat test uses it to point
+    /// <c>GitWorker:GitPath</c> at a stub that holds a job in flight well
+    /// past the server's real 120s timeout.
+    /// </summary>
+    public static async Task<FullLoopHarness> StartAsync(
+        PostgresFixture fixture, Action<GitWorkerOptions>? configureGitWorkerOptions = null)
     {
         /*
          * SchedulerMode.Enabled is what makes a Rule turn into a Job; HubMode.Real
@@ -108,6 +117,7 @@ public sealed class FullLoopHarness : IAsyncDisposable
                 options.BackerUsername = email;
                 options.BackerPassword = password;
             },
+            ConfigureGitWorkerOptions = configureGitWorkerOptions,
             ConfigureServices = services =>
             {
                 services.PostConfigure<HannibalServiceClientOptions>(

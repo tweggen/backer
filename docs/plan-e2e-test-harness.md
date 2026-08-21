@@ -462,6 +462,14 @@ were about, now testable end to end.
    the job out (`HannibalServiceJobs.cs:205-222`) and it becomes
    re-acquirable. This is the contract the git engine's heartbeat depends on,
    so it must be pinned by a test before that engine exists.
+   **AC5 done early (2026-08-21)**, pulled forward per the git plan's
+   execution order: `JobTimeoutContractTests` (2 tests, no fake clock —
+   stale `LastReported` seeded directly). Pinned precisely: a timed-out job
+   is retired to **`DoneFailure` permanently** — "re-acquirable" is the
+   *endpoint slot*, which the next Ready job takes; the job row itself never
+   returns to Ready. A fresh `LastReported` keeps the job alive and its
+   endpoints blocked, which is the half the heartbeat relies on. The rest of
+   Gate 5 remains open.
 6. Stub restarts mid-job ⇒ the agent's state machine recovers rather than
    wedging.
 7. A full OAuth2 re-auth round trip: trigger, callback, storage updated,
@@ -482,6 +490,33 @@ were about, now testable end to end.
    `HostIsolationTests` to the full loop.
 5. Capability filtering, once `docs/plan-git-repo-storage.md` Gate C lands,
    plugs into this same suite. Stated here so the seam is designed for it now.
+
+**Result (2026-08-21) — MET**, landed alongside git-plan Gate C in
+`tests/Hannibal.IntegrationTests/ConcurrencySafetyTests.cs`, and the gate
+earned its keep before it was even done: writing the tests exposed **two real
+acquisition defects**, both fixed in the same PR.
+
+- *No user isolation (AC4).* `AcquireNextJobAsync`'s candidate query had no
+  user filter and `AcquireParams.Username` was never read — any authenticated
+  agent could acquire any user's job. Fixed: `j.UserId == _currentUser.Id` in
+  the candidate query (the Job.UserId creation-path audit found every minted
+  job sets it from its rule).
+- *Double-grant race (AC1).* The read-then-write claim let two concurrent
+  acquires both win one job — reproduced 27/27 on a cold host, both callers
+  receiving 200 with different Owners. Fixed: the claim is a single
+  conditional `ExecuteUpdateAsync` (`UPDATE … WHERE State=Ready AND
+  Owner=''`); the loser matches zero rows and moves to the next candidate.
+  The claim-in-loop shape also resolved the old `TXWTODO` — the earliest-
+  `StartFrom` eligible candidate now wins, where previously the *last* one
+  did because the loop kept overwriting its pick.
+- AC1 runs both sequentially and as a genuinely concurrent `Task.WhenAll`
+  test (2 and 4 callers, exactly one grant, winner-agnostic). AC2a/AC2b pin
+  writer-blocks-nested-writer / concurrent readers; AC3 the Networks pair;
+  AC5 proves capability, network and user filters compose. A test-data
+  finding: several earlier acquisition tests seeded jobs under placeholder
+  UserIds and only passed because isolation was missing; their seeds now use
+  the authenticated caller's real id. Integration suite stable across five
+  consecutive runs (3 by the implementing agent, 2 in verification).
 
 ### Gate 7 — REST surface and config round-trip
 

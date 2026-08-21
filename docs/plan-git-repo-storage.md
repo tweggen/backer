@@ -521,7 +521,7 @@ under a filesystem-root host would otherwise pass. New tests:
 `RCloneConfigTechnologyFilterTests` (agent-hosted leak test). Suite:
 **187 passed, 1 skipped** (54/64/9/41/16/4), up from 162/1.
 
-### Gate B — the server knows which engine a job needs, and blocks git rules
+### Gate B — the server knows which engine a job needs, and blocks git rules — **MET (2026-08-21)**
 
 Pure function `JobEngine Classify(Endpoint source, Endpoint destination)` →
 `Rclone` | `Git` | `Unsupported`, wired into rule create/update
@@ -540,7 +540,20 @@ nothing today).
 5. All existing rule tests pass unchanged; creating and updating non-git rules
    is unaffected.
 
-### Gate C — capability-aware acquisition
+**Result (2026-08-21).** All five ACs demonstrated from command output.
+`JobEngine`/`JobEngineClassifier`/`GitRemoteUrl` live in
+`application/Hannibal/Models/JobEngine.cs`; `GitRemoteUrl.Normalize` is the
+one place the join/`.git`-suffix/case rules live, deliberately shared with the
+later run-time self-mirror guard (Gate E). Rule create/update load endpoints
+with `.Include(e => e.Storage)` — technology lives on Storage — and
+`_validateRuleEndpoints` checks self-mirror before "engine not available" so
+the more specific message wins. A finding for AC5: the codebase had **no**
+pre-existing rule tests at all; the criterion is covered by the new positive
+rclone-rule test plus the E2E suite, which creates rules over REST. New
+tests: `JobEngineTests` (unit), `RuleEngineValidationTests` (integration).
+Suite: **214 passed, 1 skipped** (77/64/9/45/16/4), up from 187/1.
+
+### Gate C — capability-aware acquisition — **MET (2026-08-21)**
 
 `AcquireParams.Capabilities` becomes a comma-separated engine set; the server
 filters candidates in `AcquireNextJobAsync`
@@ -562,7 +575,24 @@ filters candidates in `AcquireNextJobAsync`
    it cannot run.
 5. Existing `Networks` filtering tests still pass.
 
-### Gate D — mirror engine, additive push only
+**Result (2026-08-21).** All five ACs demonstrated from command output.
+`AgentCapabilities.Parse` (in `JobEngine.cs`) is the pure parser; the legacy
+mapping treats null/empty/`"use_me"`/unrecognized as `{rclone}`, and jobs
+classifying `Unsupported` are eligible to no agent. The filter skips like a
+`Networks` mismatch — never parks. Harness Gate 6, landed alongside per the
+execution order, then exposed **two pre-existing acquisition defects fixed in
+the same PR**: no user isolation (any authenticated agent could acquire any
+user's job — the candidate query now filters `j.UserId == _currentUser.Id`)
+and a double-grant race (read-then-write claim; two concurrent acquires
+both won the same job 27/27 on a cold host — the claim is now an atomic
+conditional `ExecuteUpdateAsync`, which also resolved the old `TXWTODO` so
+the earliest-`StartFrom` eligible candidate wins instead of the last). See
+`docs/plan-e2e-test-harness.md` Gate 6 for the findings' detail. New tests:
+`AgentCapabilitiesTests` (unit), `JobAcquisitionCapabilityTests`
+(integration). Suite: **241 passed, 1 skipped** (90/64/9/59/16/4), up from
+214/1.
+
+### Gate D — mirror engine, additive push only — **MET (2026-08-21)**
 
 New `worker/WorkerGit/` and `tests/WorkerGit.Tests/`: `GitWorkerService`, git
 CLI wrapper, cache manager with locking, credential injection, progress
@@ -614,6 +644,39 @@ impossible at this gate. Ends by allowing git+git rules (Gate B AC3 inverted).
     `RCloneService.cs:2043-2102` behaviour.
 15. Progress reaches `BackerAgent`: the new callback fires at least once with
     a non-empty phase description during a fetch.
+
+**Result (2026-08-21).** All fifteen ACs demonstrated from command output,
+shipped in three slices: the offline engine (`worker/WorkerGit/`: GitCliRunner
+/ GitCacheManager / GitMirrorEngine, ACs 1-7, 9, 11, 12 against real git and
+bare temp repos, AC7 against a token-authenticated Kestrel + `git
+http-backend` smart-HTTP stub), the hosted `GitWorkerService` (AC10 version
+probe gating the capability; 25 s heartbeat; abort/shutdown/progress
+mechanisms), and the integration slice (AC8 in the full loop — a stub git
+holding `ls-remote` ~170 s while a 130 s DB poll observed `LastReported`
+advancing six times, the job staying `Executing`, and a rival acquire past
+the 120 s mark getting nothing; AC13 abort through a real SignalR hub call
+with a byte-identical destination; AC14 shutdown reporting; AC15 with
+`--progress` added to fetch/push argv, since a redirected non-tty pipe gets
+git's progress only opportunistically). The gate closed with the flip:
+git+git rules with `Copy`/`Nop` are now creatable; **`Sync` stays rejected
+at rule creation until Gate E ships the guards** (§5); self-mirror rejection
+is permanent. The E2E happy path runs the whole promise: a REST-created
+git+git Copy rule over two filesystem-root storages mirrors the source
+branch at the same SHA and the Job reaches `DoneSuccess` in PostgreSQL.
+
+Deviations, each verified: cache corruption is confirmed by `git fsck` (a
+local fetch can exit 0 against a destroyed pack); cache directory names hash
+the source identity (literal sanitized URLs exceeded `MAX_PATH` during
+repack); the `--atomic` push retry is unconditional, which also lands
+fast-forwardable refs of a partially rejected push before the re-probe diffs
+the rest. AC8 note: after its stub finally exits, the failed report is
+requeued to `Ready` by design (`ReportJobAsync`'s retry behavior, the known
+Gate-3 finding), so the test ends once the >120 s proof stands. A latent
+harness bug fixed on the way: `AgentHostFactory.Dispose` now clears
+read-only attributes before deleting its temp tree — git marks pack files
+read-only, and no earlier test had put real git objects there. Suite:
+**268 passed, 1 skipped** (90/16/64/9/62/22/6), up from 243/1 at the start
+of the gate; the E2E suite now runs ~2.5 min by design (AC8).
 
 ### Gate E — safety policy and `Sync` (true mirror)
 
