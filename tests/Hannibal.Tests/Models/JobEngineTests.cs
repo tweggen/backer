@@ -59,6 +59,62 @@ public class JobEngineClassifierTests
 }
 
 /// <summary>
+/// Gate C AC2 (docs/plan-git-repo-storage.md): the capability parser that
+/// decides which engines an agent can run, with the legacy mapping that keeps
+/// old field agents (sending "use_me", "" or null) receiving exactly the
+/// rclone jobs they always could.
+/// </summary>
+public class AgentCapabilitiesTests
+{
+    [Fact]
+    public void Parse_Rclone_ReturnsRcloneOnly()
+    {
+        AgentCapabilities.Parse("rclone").Should().BeEquivalentTo(new[] { JobEngine.Rclone });
+    }
+
+    [Fact]
+    public void Parse_Git_ReturnsGitOnly()
+    {
+        AgentCapabilities.Parse("git").Should().BeEquivalentTo(new[] { JobEngine.Git });
+    }
+
+    [Theory]
+    [InlineData("rclone,git")]
+    [InlineData("git, rclone")]
+    [InlineData("RCLONE,GIT")]
+    [InlineData(" rclone , git ")]
+    public void Parse_BothEngines_CaseInsensitive_ReturnsBoth(string capabilities)
+    {
+        AgentCapabilities.Parse(capabilities).Should().BeEquivalentTo(new[] { JobEngine.Rclone, JobEngine.Git });
+    }
+
+    [Fact]
+    public void Parse_UppercaseRclone_ReturnsRcloneOnly()
+    {
+        AgentCapabilities.Parse("RCLONE").Should().BeEquivalentTo(new[] { JobEngine.Rclone });
+    }
+
+    [Theory]
+    [InlineData("use_me")]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData(null)]
+    [InlineData("bogus")]
+    public void Parse_LegacyOrUnrecognizedInput_FallsBackToRcloneOnly(string? capabilities)
+    {
+        AgentCapabilities.Parse(capabilities).Should().BeEquivalentTo(new[] { JobEngine.Rclone });
+    }
+
+    [Fact]
+    public void Parse_KnownEngineMixedWithUnrecognizedToken_KeepsTheKnownEngine()
+    {
+        // A forward-compatible mix: the agent understands "git" and also sent
+        // some future/unknown token. The known engine must not be discarded.
+        AgentCapabilities.Parse("git,bogus").Should().BeEquivalentTo(new[] { JobEngine.Git });
+    }
+}
+
+/// <summary>
 /// Gate B AC1/AC4: the normalizer two endpoints must agree on for the
 /// self-mirror guard to catch two different Storage rows pointing at the
 /// same repository.

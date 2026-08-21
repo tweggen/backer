@@ -139,8 +139,17 @@ public partial class HannibalService
         {
             acquireNetworks = acquireParams.Networks.Trim();
         }
+        var agentEngines = AgentCapabilities.Parse(acquireParams.Capabilities);
         foreach (var candidate in listPossibleJobs)
         {
+            var jobEngine = JobEngineClassifier.Classify(candidate.SourceEndpoint, candidate.DestinationEndpoint);
+            if (!agentEngines.Contains(jobEngine))
+            {
+                _logger.LogInformation(
+                    $"Skipping job {candidate.Id} because it needs engine {jobEngine} which is not among the agent's capabilities \"{acquireParams.Capabilities}\"");
+                continue;
+            }
+
             if (!String.IsNullOrWhiteSpace(candidate.SourceEndpoint.Storage.Networks)
                 && acquireNetworks != candidate.SourceEndpoint.Storage.Networks.Trim())
             {
