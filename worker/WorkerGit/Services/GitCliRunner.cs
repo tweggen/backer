@@ -36,7 +36,8 @@ public sealed class GitCliRunner
         string workingDirectory,
         GitCredentials? credentials = null,
         Action<string>? onProgressLine = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string>? extraEnvironment = null)
     {
         if (string.IsNullOrEmpty(_options.CacheRoot))
         {
@@ -71,6 +72,18 @@ public sealed class GitCliRunner
             }
 
             _applyEnvironment(startInfo, homeDirectory, askpassPath, credentials);
+            if (extraEnvironment is not null)
+            {
+                // Applied last, and only used by the adopt marker's
+                // deterministic commit-tree call (GIT_AUTHOR_*/GIT_COMMITTER_*)
+                // - none of those keys overlap the security-critical ones set
+                // above, so there is nothing for a caller to accidentally
+                // clobber (GIT_TERMINAL_PROMPT, GIT_ASKPASS, GIT_CONFIG_*, HOME).
+                foreach (var (key, value) in extraEnvironment)
+                {
+                    startInfo.EnvironmentVariables[key] = value;
+                }
+            }
 
             var stdout = new StringBuilder();
             var stderr = new StringBuilder();

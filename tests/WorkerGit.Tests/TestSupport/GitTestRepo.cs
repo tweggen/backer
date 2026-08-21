@@ -65,10 +65,18 @@ public static class GitTestRepo
         Run(workdirPath, args.ToArray());
     }
 
-    /** <c>refname -&gt; sha</c> for every ref in a bare (or workdir) repo. */
-    public static Dictionary<string, string> ForEachRef(string repoPath)
+    /**
+     * <c>refname -&gt; sha</c> for every ref in a bare (or workdir) repo, or -
+     * with <paramref name="patterns"/> - only refs matching those
+     * <c>for-each-ref</c> patterns (e.g. the MIRRORED namespaces), which lets
+     * a test compare "just what the engine mirrors" without the Gate E adopt
+     * marker (outside MIRRORED by design) throwing the comparison off.
+     */
+    public static Dictionary<string, string> ForEachRef(string repoPath, params string[] patterns)
     {
-        var output = Run(repoPath, "for-each-ref", "--format=%(objectname)\t%(refname)");
+        var args = new List<string> { "for-each-ref", "--format=%(objectname)\t%(refname)" };
+        args.AddRange(patterns);
+        var output = Run(repoPath, args.ToArray());
         var refs = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
@@ -85,8 +93,32 @@ public static class GitTestRepo
     public static void DeleteRef(string repoPath, string refName) =>
         Run(repoPath, "update-ref", "-d", refName);
 
+    /**
+     * Raw, default-format <c>git for-each-ref</c> output (deterministically
+     * sorted by refname) - for a true byte-identical before/after comparison
+     * across a tripped guard (Gate E's constraint), stronger than comparing
+     * two <see cref="ForEachRef"/> dictionaries for equivalence.
+     */
+    public static string ForEachRefRaw(string repoPath) => Run(repoPath, "for-each-ref");
+
+    /**
+     * Creates a direct (non-symbolic) ref pointing at whatever <paramref name="targetSha"/>
+     * resolves to - used to seed foreign-namespace refs (e.g. a fake
+     * <c>refs/pull/1/head</c>) and marker refs directly, without going
+     * through the engine under test.
+     */
+    public static void UpdateRef(string repoPath, string refName, string targetSha) =>
+        Run(repoPath, "update-ref", refName, targetSha);
+
+    /**
+     * <c>--exclude=refs/backer/*</c> before <c>--all</c> (git resolves
+     * <c>--exclude</c> patterns against whatever ref-selecting option follows,
+     * per gitrevisions(7)) so the Gate E adopt marker - a real, reachable
+     * commit outside MIRRORED - never shows up as a spurious extra commit in
+     * a full-history comparison between source and destination.
+     */
     public static IReadOnlyList<string> LogAllHashes(string repoOrWorkdirPath) =>
-        Run(repoOrWorkdirPath, "log", "--all", "--format=%H")
+        Run(repoOrWorkdirPath, "log", "--exclude=refs/backer/*", "--all", "--format=%H")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Select(l => l.TrimEnd('\r'))
             .ToArray();
