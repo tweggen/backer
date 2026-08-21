@@ -1166,6 +1166,16 @@ public class RCloneService : BackgroundService
     private const int _retryDelayJitterMs = 500;  // ±500ms randomization
     private static readonly Random _retryRandom = new();
 
+    /**
+     * Every load of the user's storages must pass through here before
+     * assignment or iteration - it is the one place that keeps "git" (and any
+     * future non-rclone technology) out of rclone.conf. See
+     * Technologies.IsRCloneTechnology for why unknown technologies are
+     * excluded too.
+     */
+    private static IReadOnlyList<Storage> _toRCloneStorageList(IEnumerable<Storage> storages)
+        => storages.Where(s => Technologies.IsRCloneTechnology(s.Technology)).ToList().AsReadOnly();
+
     internal async Task _checkOnlineImpl()
     {
         _logger.LogInformation("RCloneService: Checking online.");
@@ -1189,8 +1199,8 @@ public class RCloneService : BackgroundService
              * we start rsync.
              */
             var storages = await hannibalService.GetStoragesAsync(CancellationToken.None);
-            _listStorages = new List<Storage>(storages).AsReadOnly();
-            
+            _listStorages = _toRCloneStorageList(storages);
+
             /*
              * OK, no exception, online connection works. So progress.
              * Reset retry counter for next time.
@@ -1633,7 +1643,7 @@ public class RCloneService : BackgroundService
                 using var scope = _serviceScopeFactory.CreateScope();
                 var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
                 var storages = await hannibalService.GetStoragesAsync(CancellationToken.None);
-                _listStorages = new List<Storage>(storages).AsReadOnly();
+                _listStorages = _toRCloneStorageList(storages);
                 _logger.LogInformation("RCloneService: Reloaded storage list with updated tokens");
             }
             catch (Exception e)
@@ -1677,7 +1687,7 @@ public class RCloneService : BackgroundService
             using var scope = _serviceScopeFactory.CreateScope();
             var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
             var storages = await hannibalService.GetStoragesAsync(CancellationToken.None);
-            updatedStorage = storages.FirstOrDefault(s => s.UriSchema == storageUriSchema);
+            updatedStorage = _toRCloneStorageList(storages).FirstOrDefault(s => s.UriSchema == storageUriSchema);
         }
         catch (Exception e)
         {

@@ -1,6 +1,9 @@
 # Git repositories as backup source and target
 
-Status: planned, not yet executed.
+Status: in execution since 2026-08-21, gate by gate — see §"Execution order".
+Revision 3 (2026-08-21) — the e2e harness gates 1–3 are merged, so revision
+2's "no in-process agent harness" constraints are lifted where noted below,
+and the interleaving with the remaining harness gates is now explicit.
 Revision 2 — rewritten after adversarial review (see §"Review history").
 
 ## Context
@@ -154,19 +157,26 @@ Agent host wiring (all of it is rclone-specific and must be paralleled):
   `.../Endpoints.razor:208-242`, `.../Landscape.razor:141-146` (which already
   has a default arm at `:147`).
 
-Test baseline, measured 2026-08-20 on `3d9d354`:
+Test baseline, updated 2026-08-21 on `0e39a9a` (revision 2 measured 78 unit
+tests on `3d9d354`; the e2e harness and migration hardening have landed
+since):
 
 | Project | Passed | Skipped | Total |
 |---|---|---|---|
-| `tests/Hannibal.Tests` | 37 | 0 | 37 |
-| `tests/WorkerRClone.Tests` | 31 | 1 (live OneDrive, opt-in) | 32 |
+| `tests/Hannibal.Tests` | 42 | 0 | 42 |
+| `tests/WorkerRClone.Tests` | 63 | 1 (live OneDrive, opt-in) | 64 |
 | `tests/Tools.Tests` | 9 | 0 | 9 |
-| **Sum** | **77** | **1** | **78** |
+| `tests/Hannibal.IntegrationTests` | 29 | 0 (needs PostgreSQL, else skips) | 29 |
+| `tests/BackerAgent.IntegrationTests` | 15 | 0 | 15 |
+| `tests/Backer.E2ETests` | 4 | 0 (needs PostgreSQL, else skips) | 4 |
+| **Sum** | **162** | **1** | **163** |
 
-`tests/Hannibal.IntegrationTests` hosts `Api` under `WebApplicationFactory`
-(`tests/Hannibal.IntegrationTests/BackerApiFactory.cs`) and needs a local
-PostgreSQL. **There is no harness that runs `BackerAgent` in-process**; no
-acceptance criterion below may assume one.
+**The in-process agent harness now exists** — `AgentHostFactory`
+(`tests/TestSupport.Agent/`), the scriptable rclone stub
+(`tests/TestSupport.RClone/`), and the full-loop suite
+(`tests/Backer.E2ETests/`), from gates 1–3 of
+`docs/plan-e2e-test-harness.md`. Acceptance criteria below that revision 2
+had to phrase as manual smoke runs are restated against that harness.
 
 ### Adjacent defect this work must route around (not fix)
 
@@ -423,6 +433,34 @@ to duplicate Storage rows (mitigated here only by the self-mirror guard).
 
 ---
 
+## Execution order — interleaved with the e2e harness
+
+Decided with Timo 2026-08-21: proceed on this plan now, pulling in the
+remaining harness gates just-in-time where a git gate depends on them:
+
+```
+A → B → (harness Gate 6 alongside C) → harness Gate 5 AC5 → D → E
+  → (harness Gate 4, then F) → G → H
+```
+
+- Harness gates 1–3 are **merged** — Gate D is built against a working
+  full-loop harness from day one, which was the point of the detour.
+- **Harness Gate 6** (concurrency/acquisition) lands alongside **Gate C**:
+  both exercise the same acquisition filter, and Gate 6's two-agents/one-job
+  and user-isolation tests are the natural regression net under C's
+  capability filtering.
+- **Harness Gate 5 AC5** (the 120-second job-timeout contract pinned by a
+  test) must be green before **Gate D AC8** — the git engine's heartbeat
+  exists solely to satisfy that contract.
+- **Harness Gate 4** (`TimeProvider` in `RuleScheduler`) must land before
+  **Gate F**, whose scheduler ACs are otherwise untestable.
+- Harness gates 7–10 and re-auth-plan Phase 3 block nothing here and are
+  deliberately deferred.
+
+Each gate ships as its own PR, with implementation delegated to sub-agents
+and every AC verified from command output before the gate is recorded as met
+in this document.
+
 ## Gates
 
 Each gate is independently verifiable and independently committable. A gate is
@@ -437,10 +475,10 @@ therefore rejects **all** rules touching a git endpoint, and Gate D flips
 git+git from rejected to allowed as its last step. Between A and D the feature
 is inert by construction.
 
-Baseline for every gate: `dotnet build Backer.sln` clean, and the 78-test unit
-baseline in §Context still green.
+Baseline for every gate: `dotnet build Backer.sln` clean, and the full
+163-test suite in §Context still green.
 
-### Gate A — `git` storages exist, and stay out of rclone
+### Gate A — `git` storages exist, and stay out of rclone — **MET (2026-08-21)**
 
 - Add `"git"` to `Technologies` and add
   `Technologies.IsRCloneTechnology(string)`.
@@ -463,12 +501,25 @@ baseline in §Context still green.
    storage validation in the codebase; assert the six existing technologies
    still create successfully.)
 4. `dotnet ef migrations list` is unchanged — Gate A adds no columns.
-5. **The rclone.conf leak is closed**: a unit test over the filtered list
-   proves a `git` storage is absent from what `_backendsLoginImpl` iterates.
-   Because there is no in-process agent harness, this is asserted on the
-   filter predicate and the list-construction sites, plus a manual smoke run
-   of `BackerAgent` against a config containing one git storage, diffing
-   `rclone.conf` before and after — result recorded in this document.
+5. **The rclone.conf leak is closed**: a unit test proves the filter
+   predicate excludes `git`, and — revision 3, the harness exists now — an
+   in-process agent test (`AgentHostFactory`) hosts the agent with a `git`
+   storage among its storages and asserts the `backer-rclone.conf` the agent
+   writes into its per-test directory contains no section for it, while a
+   sibling rclone storage in the same run does get its section.
+
+**Result (2026-08-21).** All five ACs demonstrated from command output.
+Storage-list loading turned out to have **three** sites, not the two revision
+2 cited (a third in the `StorageReauthenticated` handler); all three now pass
+through one `_toRCloneStorageList` helper. `IsRCloneTechnology` excludes
+unknown technologies as well as `git`, closing the empty-section quirk for
+unknowns along the way. Validation errors surface as HTTP 400 via
+`ArgumentException` caught in the four storage/endpoint POST/PUT handlers.
+The `..` segment check splits on both separators — a backslash traversal
+under a filesystem-root host would otherwise pass. New tests:
+`TechnologiesTests` (unit), `GitStorageValidationTests` (integration, 12),
+`RCloneConfigTechnologyFilterTests` (agent-hosted leak test). Suite:
+**187 passed, 1 skipped** (54/64/9/41/16/4), up from 162/1.
 
 ### Gate B — the server knows which engine a job needs, and blocks git rules
 
@@ -670,14 +721,12 @@ environment variables supply real credentials, skips cleanly otherwise.
 
 ## Verification
 
-**Prerequisite.** Several acceptance criteria below need a harness that does
-not exist yet — most sharply Gate D AC8 (heartbeat against the real 120 s
-server timeout), AC13 (abort routing) and AC14 (shutdown reporting), none of
-which can be reached without an in-process agent host.
-`docs/plan-e2e-test-harness.md` builds that harness; its Gates 1–3 should land
-before this plan's Gate D, and its Gate 4 before this plan's Gate F. The
-sequencing is spelled out in that document's §"Sequencing against the git
-work".
+**Prerequisite — satisfied.** Revision 2 required the e2e harness before Gate
+D; its gates 1–3 are merged (2026-08-20/21). Gate D AC8 (heartbeat against the
+real 120 s server timeout) runs in the full-loop suite, AC13/AC14 (abort
+routing, shutdown reporting) against `AgentHostFactory`. Still pending
+just-in-time per §"Execution order": harness Gate 5 AC5 before Gate D AC8,
+harness Gate 6 alongside Gate C, harness Gate 4 before Gate F.
 
 Per-project, because `dotnet test` with several project paths in one
 invocation fails with `MSB1008` on SDK 9.0.308 (the multi-project form in
@@ -689,8 +738,10 @@ dotnet build Backer.sln
 dotnet test tests/Hannibal.Tests/
 dotnet test tests/WorkerRClone.Tests/
 dotnet test tests/Tools.Tests/
-dotnet test tests/WorkerGit.Tests/            # from Gate D
-dotnet test tests/Hannibal.IntegrationTests/  # needs local PostgreSQL
+dotnet test tests/WorkerGit.Tests/               # from Gate D
+dotnet test tests/Hannibal.IntegrationTests/     # needs local PostgreSQL
+dotnet test tests/BackerAgent.IntegrationTests/  # agent harness (gate 2)
+dotnet test tests/Backer.E2ETests/               # full loop, needs PostgreSQL
 ```
 
 Standing constraints, inherited from `docs/TESTING.md`:
@@ -701,12 +752,11 @@ Standing constraints, inherited from `docs/TESTING.md`:
   entire mirror engine is verifiable offline.
 - Every destructive scenario asserts the destination is **unchanged** after a
   guard trips, not merely that the job failed.
-- No acceptance criterion may assume an in-process `BackerAgent` harness —
-  none exists. Server-side behaviour is tested through `BackerApiFactory`;
-  agent-side behaviour is tested against the engine's own classes, with the
-  two integration points that cannot be reached that way (Gate A AC5's
-  `rclone.conf` diff, Gate G AC1's UI flow) recorded as manual smoke results
-  in this document.
+- Server-side behaviour is tested through `BackerApiFactory`; agent-side
+  behaviour against `AgentHostFactory` or the engine's own classes; the full
+  loop through `tests/Backer.E2ETests/`. The one integration point still out
+  of automated reach is Gate G AC1's browser flow (harness Gate 9 is
+  deferred) — recorded as a manual smoke result in this document.
 
 ## Review history
 

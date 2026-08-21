@@ -610,6 +610,10 @@ app.MapPut("/api/hannibal/v1/storages/{id}", async (
         {
             return Results.NotFound();
         }
+        catch (ArgumentException e)
+        {
+            return Results.BadRequest(new { error = e.Message });
+        }
     })
     .RequireAuthorization()
     .WithName("UpdateStorage")
@@ -621,8 +625,15 @@ app.MapPost("/api/hannibal/v1/storages", async (
         Hannibal.Models.Storage storage,
         CancellationToken cancellationToken) =>
     {
-        var result = await higginsService.CreateStorageAsync(storage, cancellationToken);
-        return Results.Ok(result);
+        try
+        {
+            var result = await higginsService.CreateStorageAsync(storage, cancellationToken);
+            return Results.Ok(result);
+        }
+        catch (ArgumentException e)
+        {
+            return Results.BadRequest(new { error = e.Message });
+        }
     })
     .RequireAuthorization()
     .WithName("CreateStorage")
@@ -696,6 +707,10 @@ app.MapPut("/api/hannibal/v1/endpoints/{id}", async (
     {
         return Results.NotFound();
     }
+    catch (ArgumentException e)
+    {
+        return Results.BadRequest(new { error = e.Message });
+    }
 })
 .RequireAuthorization()
 .WithName("UpdateEndpoint")
@@ -707,8 +722,15 @@ app.MapPost("/api/hannibal/v1/endpoints", async (
     Hannibal.Models.Endpoint endpoint,
     CancellationToken cancellationToken) =>
 {
-    var result = await higginsService.CreateEndpointAsync(endpoint, cancellationToken);
-    return Results.Ok(result);
+    try
+    {
+        var result = await higginsService.CreateEndpointAsync(endpoint, cancellationToken);
+        return Results.Ok(result);
+    }
+    catch (ArgumentException e)
+    {
+        return Results.BadRequest(new { error = e.Message });
+    }
 })
 .RequireAuthorization()
 .WithName("CreateEndpoint")
