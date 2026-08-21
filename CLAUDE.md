@@ -123,15 +123,26 @@ Located in `worker/WorkerRClone/Services/Providers/`:
 - Database connection string: `ConnectionStrings:DefaultConnection`, else the
   `HANNIBAL_DB_CONNECTION` environment variable (what the live deployment uses),
   else a localhost fallback
-- `Hannibal:SkipStartupMigration` - skip migrate/seed at startup (default false)
+- `Hannibal:SkipStartupMigration` - skip the StartupMigrator at startup
+  (default false; tests set it because their fixture already migrated)
 - `OAuth2:RedirectUri` - OAuth2 callback, defaults to `http://localhost:53682/`
   (the BackerAgent's local listener)
 - BackerAgent credentials: `RCloneService:BackerUsername/BackerPassword`
 - `RCloneService:SkipJobAcquisition` - agent logs in, connects and starts rclone
   but never acquires jobs (for smoke tests beside the user's live agents)
 
+## Database Migrations
+
+Every schema change ships as an EF migration in the same PR
+(`dotnet ef migrations add <Name> --project application/Hannibal/`) — a
+no-database unit test fails the suite when the model drifts from the
+migration snapshot. Never use `EnsureCreated`; the startup path is
+`StartupMigrator` (`application/Hannibal/Data/StartupMigrator.cs`).
+Deploy runbook and rationale: `docs/plan-db-migration-strategy.md` and
+`docs/TESTING.md`.
+
 ## Testing
 
-See `docs/TESTING.md`. Four test projects; `tests/Hannibal.IntegrationTests`
-needs a local PostgreSQL and skips cleanly without one. No test touches live
-backup data or starts rclone.
+See `docs/TESTING.md`. Six test projects; `tests/Hannibal.IntegrationTests`
+and `tests/Backer.E2ETests` need a local PostgreSQL and skip cleanly without
+one. No test touches live backup data or starts rclone.
