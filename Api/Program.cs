@@ -334,8 +334,15 @@ app.MapPost("/api/hannibal/v1/rules", async (
     Hannibal.Models.Rule rule,
     CancellationToken cancellationToken) =>
 {
-    var result = await hannibalService.CreateRuleAsync(rule, cancellationToken);
-    return Results.Ok(result);
+    try
+    {
+        var result = await hannibalService.CreateRuleAsync(rule, cancellationToken);
+        return Results.Ok(result);
+    }
+    catch (ArgumentException e)
+    {
+        return Results.BadRequest(new { error = e.Message });
+    }
 })
 .RequireAuthorization()
 .WithName("CreateRule")
@@ -391,6 +398,10 @@ app.MapPut("/api/hannibal/v1/rules/{id}", async (
         catch (KeyNotFoundException)
         {
             return Results.NotFound();
+        }
+        catch (ArgumentException e)
+        {
+            return Results.BadRequest(new { error = e.Message });
         }
     })
     .RequireAuthorization()

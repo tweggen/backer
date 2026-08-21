@@ -521,7 +521,7 @@ under a filesystem-root host would otherwise pass. New tests:
 `RCloneConfigTechnologyFilterTests` (agent-hosted leak test). Suite:
 **187 passed, 1 skipped** (54/64/9/41/16/4), up from 162/1.
 
-### Gate B — the server knows which engine a job needs, and blocks git rules
+### Gate B — the server knows which engine a job needs, and blocks git rules — **MET (2026-08-21)**
 
 Pure function `JobEngine Classify(Endpoint source, Endpoint destination)` →
 `Rclone` | `Git` | `Unsupported`, wired into rule create/update
@@ -539,6 +539,19 @@ nothing today).
    pointing at the same host and account.
 5. All existing rule tests pass unchanged; creating and updating non-git rules
    is unaffected.
+
+**Result (2026-08-21).** All five ACs demonstrated from command output.
+`JobEngine`/`JobEngineClassifier`/`GitRemoteUrl` live in
+`application/Hannibal/Models/JobEngine.cs`; `GitRemoteUrl.Normalize` is the
+one place the join/`.git`-suffix/case rules live, deliberately shared with the
+later run-time self-mirror guard (Gate E). Rule create/update load endpoints
+with `.Include(e => e.Storage)` — technology lives on Storage — and
+`_validateRuleEndpoints` checks self-mirror before "engine not available" so
+the more specific message wins. A finding for AC5: the codebase had **no**
+pre-existing rule tests at all; the criterion is covered by the new positive
+rclone-rule test plus the E2E suite, which creates rules over REST. New
+tests: `JobEngineTests` (unit), `RuleEngineValidationTests` (integration).
+Suite: **214 passed, 1 skipped** (77/64/9/45/16/4), up from 187/1.
 
 ### Gate C — capability-aware acquisition
 
