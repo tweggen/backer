@@ -8,15 +8,52 @@ namespace Hannibal.Services;
 
 public partial class HannibalService
 {
-        public async Task<CreateRuleResult> CreateRuleAsync(
+    /**
+     * Gate B (plan-git-repo-storage.md): decide which engine a rule's
+     * endpoint pair would need and refuse every rule no engine can run.
+     * Must run after both endpoints are loaded WITH their Storage - the
+     * technology lives on Storage, not Endpoint. Self-mirror is checked
+     * before the "engine not available" message so a git+git rule pointing
+     * at one repository twice gets the more specific message even though
+     * both would otherwise throw.
+     */
+    private static void _validateRuleEndpoints(Endpoint sourceEndpoint, Endpoint destinationEndpoint)
+    {
+        var engine = JobEngineClassifier.Classify(sourceEndpoint, destinationEndpoint);
+
+        if (engine == JobEngine.Unsupported)
+        {
+            throw new ArgumentException(
+                $"A rule cannot pair technology '{sourceEndpoint.Storage.Technology}' with " +
+                $"'{destinationEndpoint.Storage.Technology}': no engine supports mixed transfers.");
+        }
+
+        if (engine == JobEngine.Git)
+        {
+            var sourceUrl = GitRemoteUrl.Normalize(sourceEndpoint.Storage.Host, sourceEndpoint.Path);
+            var destinationUrl = GitRemoteUrl.Normalize(destinationEndpoint.Storage.Host, destinationEndpoint.Path);
+            if (string.Equals(sourceUrl, destinationUrl, StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    "Source and destination are the same repository; a rule cannot mirror a repository to itself.");
+            }
+
+            // Gate D flips this to allowed once the git engine exists.
+            throw new ArgumentException(
+                "The git transfer engine is not yet available; git+git rules cannot be created until it ships.");
+        }
+    }
+
+    public async Task<CreateRuleResult> CreateRuleAsync(
         Rule rule,
         CancellationToken cancellationToken)
     {
         await _obtainUser();
-        
+
         rule.UserId = _currentUser.Id;
 
-        var sourceEndpoint = await _context.Endpoints.FirstAsync(e => e.Id == rule.SourceEndpointId, cancellationToken);
+        var sourceEndpoint = await _context.Endpoints.Include(e => e.Storage)
+            .FirstAsync(e => e.Id == rule.SourceEndpointId, cancellationToken);
         if (null == sourceEndpoint)
         {
             throw new KeyNotFoundException($"No source endpoint found for endpointid {sourceEndpoint.Id}");
@@ -25,8 +62,8 @@ public partial class HannibalService
         rule.SourceEndpoint = sourceEndpoint;
         rule.SourceEndpointId = sourceEndpoint.Id;
 
-        var destinationEndpoint =
-            await _context.Endpoints.FirstAsync(e => e.Id == rule.DestinationEndpointId, cancellationToken);
+        var destinationEndpoint = await _context.Endpoints.Include(e => e.Storage)
+            .FirstAsync(e => e.Id == rule.DestinationEndpointId, cancellationToken);
         if (null == destinationEndpoint)
         {
             throw new KeyNotFoundException($"No destination endpoint found for endpointid {destinationEndpoint.Id}");
@@ -34,7 +71,9 @@ public partial class HannibalService
 
         rule.DestinationEndpoint = destinationEndpoint;
         rule.DestinationEndpointId = destinationEndpoint.Id;
-            
+
+        _validateRuleEndpoints(sourceEndpoint, destinationEndpoint);
+
         await _context.Rules.AddAsync(rule, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -65,19 +104,21 @@ public partial class HannibalService
 
         rule.UserId = _currentUser.Id;
 
-        var sourceEndpoint = await _context.Endpoints.FirstOrDefaultAsync(
+        var sourceEndpoint = await _context.Endpoints.Include(e => e.Storage).FirstOrDefaultAsync(
             e => e.Id == updatedRule.SourceEndpointId, cancellationToken);
         if (null == sourceEndpoint)
         {
             throw new KeyNotFoundException($"No source endpoint found for endpointid {updatedRule.SourceEndpointId}");
         }
 
-        var destinationEndpoint = await _context.Endpoints.FirstOrDefaultAsync(
+        var destinationEndpoint = await _context.Endpoints.Include(e => e.Storage).FirstOrDefaultAsync(
             e => e.Id == updatedRule.DestinationEndpointId, cancellationToken);
         if (null == destinationEndpoint)
         {
             throw new KeyNotFoundException($"No destination endpoint found for endpointid {updatedRule.DestinationEndpointId}");
         }
+
+        _validateRuleEndpoints(sourceEndpoint, destinationEndpoint);
 
         // Check if scheduling-relevant fields changed BEFORE updating
         bool hasSchedulingChanges =
