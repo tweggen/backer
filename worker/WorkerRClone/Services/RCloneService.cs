@@ -882,7 +882,7 @@ public class RCloneService : BackgroundService
                     new()
                     {
                         Username = "timo.weggen@gmail.com",
-                        Capabilities = "use_me",
+                        Capabilities = "rclone",
                         Owner = _ownerId,
                         Networks = _networkIdentifier?.GetCurrentNetwork() ?? "Unknown"
                     },

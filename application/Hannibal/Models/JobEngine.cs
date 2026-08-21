@@ -54,6 +54,51 @@ public static class JobEngineClassifier
 }
 
 /**
+ * Parses AcquireParams.Capabilities (plan-git-repo-storage.md Gate C) into the
+ * set of engines an agent can run.
+ */
+public static class AgentCapabilities
+{
+    private const string RcloneCapability = "rclone";
+    private const string GitCapability = "git";
+
+    /**
+     * Splits on ',', trims, ignores empty entries, matches "rclone"/"git"
+     * case-insensitively.
+     *
+     * Legacy mapping (Gate C AC2, a hard requirement): null, empty/whitespace,
+     * the legacy "use_me" sentinel every field agent sent before this gate,
+     * or any value that contains no recognized engine name at all -> treated
+     * as {Rclone}. Every agent in the field before this gate shipped only
+     * ever ran rclone jobs and never advertised a real capability set, so
+     * silence (or a token this parser does not recognize) must keep meaning
+     * exactly what it meant before: "I can run rclone jobs."
+     */
+    public static IReadOnlySet<JobEngine> Parse(string? capabilities)
+    {
+        var engines = new HashSet<JobEngine>();
+
+        if (!string.IsNullOrWhiteSpace(capabilities))
+        {
+            foreach (var token in capabilities.Split(
+                         ',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (string.Equals(token, RcloneCapability, StringComparison.OrdinalIgnoreCase))
+                {
+                    engines.Add(JobEngine.Rclone);
+                }
+                else if (string.Equals(token, GitCapability, StringComparison.OrdinalIgnoreCase))
+                {
+                    engines.Add(JobEngine.Git);
+                }
+            }
+        }
+
+        return engines.Count == 0 ? new HashSet<JobEngine> { JobEngine.Rclone } : engines;
+    }
+}
+
+/**
  * Canonical remote identity for a git endpoint (plan-git-repo-storage.md
  * Design §1 "Remote URL = Host + Path + (.git if not already present)").
  * Used both by Gate B's self-mirror rejection at rule creation and, per the

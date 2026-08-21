@@ -126,7 +126,7 @@ public partial class HannibalService
         _logger.LogInformation("new job requested by for client with capas {capabilities}", acquireParams.Capabilities);
 
         var listPossibleJobs = await _context.Jobs
-            .Where(j => j.State == Job.JobState.Ready && j.Owner == "")
+            .Where(j => j.State == Job.JobState.Ready && j.Owner == "" && j.UserId == _currentUser.Id)
             .Include(j => j.SourceEndpoint)
             .Include(j => j.DestinationEndpoint)
             .OrderBy(j => j.StartFrom)
@@ -139,8 +139,17 @@ public partial class HannibalService
         {
             acquireNetworks = acquireParams.Networks.Trim();
         }
+        var agentEngines = AgentCapabilities.Parse(acquireParams.Capabilities);
         foreach (var candidate in listPossibleJobs)
         {
+            var jobEngine = JobEngineClassifier.Classify(candidate.SourceEndpoint, candidate.DestinationEndpoint);
+            if (!agentEngines.Contains(jobEngine))
+            {
+                _logger.LogInformation(
+                    $"Skipping job {candidate.Id} because it needs engine {jobEngine} which is not among the agent's capabilities \"{acquireParams.Capabilities}\"");
+                continue;
+            }
+
             if (!String.IsNullOrWhiteSpace(candidate.SourceEndpoint.Storage.Networks)
                 && acquireNetworks != candidate.SourceEndpoint.Storage.Networks.Trim())
             {
@@ -169,17 +178,43 @@ public partial class HannibalService
                 continue;
             }
             
-            job = candidate; // TXWTODO: Why not just break here?
+            // Candidate passed every skip-filter above; try to claim it with a
+            // single conditional UPDATE ... WHERE instead of read-then-write, so
+            // two concurrent acquires racing the same row cannot both win it -
+            // whichever request's UPDATE commits first flips Owner/State away
+            // from the WHERE clause's Ready/"" match, so the loser's UPDATE
+            // matches zero rows instead of silently overwriting the winner.
+            var claimed = await _context.Jobs
+                .Where(j => j.Id == candidate.Id && j.State == Job.JobState.Ready && j.Owner == "")
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(j => j.Owner, acquireParams.Owner)
+                    .SetProperty(j => j.State, Job.JobState.Executing)
+                    .SetProperty(j => j.LastReported, DateTime.UtcNow),
+                    cancellationToken);
+
+            if (claimed == 1)
+            {
+                // We won the race for this candidate. ExecuteUpdateAsync bypasses
+                // the change tracker, so mirror the claim onto the tracked
+                // instance before handing it back - restores earliest-StartFrom-
+                // first semantics as a side effect, since we stop at the first
+                // eligible candidate instead of scanning to the last one.
+                candidate.Owner = acquireParams.Owner;
+                candidate.State = Job.JobState.Executing;
+                candidate.LastReported = DateTime.UtcNow;
+                job = candidate;
+                break;
+            }
+
+            // claimed == 0: another agent's acquire claimed this job between our
+            // read above and this UPDATE. Move on to the next eligible candidate
+            // rather than treating the race as a failure.
         }
-        
+
         if (job != null)
         {
             _logger.LogInformation("owner {owner} acquired job {jobId}.", acquireParams.Owner, job.Id);
-            job.Owner = acquireParams.Owner;
-            job.State = Job.JobState.Executing;
-            job.LastReported = DateTime.UtcNow;
-            await _context.SaveChangesAsync(cancellationToken);
-            
+
             await _hannibalHub.Clients.All.SendAsync("JobUpdated", job.Id, job.State.ToString());
 
             return job;
