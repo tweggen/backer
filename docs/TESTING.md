@@ -1,15 +1,18 @@
 # Testing
 
-Four test projects, all `net9.0` + xUnit 2.9.2 + FluentAssertions 6.12.0.
+Six test projects, all `net9.0` + xUnit 2.9.2 + FluentAssertions 6.12.0.
 NSubstitute 5.3.0 is the mocking library (chosen because the vendored
-`external/OAuth2` fork already uses it).
+`external/OAuth2` fork already uses it). The layered design (stub rclone,
+hosted agent, full loop) is documented in `docs/plan-e2e-test-harness.md`.
 
 | Project | Tests | Needs |
 |---|---|---|
-| `tests/Hannibal.Tests` | 37 | nothing — pure unit |
-| `tests/WorkerRClone.Tests` | 31 + 1 opt-in | nothing — pure unit (the opt-in one needs a live OneDrive account) |
+| `tests/Hannibal.Tests` | 42 | nothing — pure unit |
+| `tests/WorkerRClone.Tests` | 63 + 1 opt-in | nothing — pure unit (the opt-in one needs a live OneDrive account) |
 | `tests/Tools.Tests` | 9 | nothing — pure unit |
-| `tests/Hannibal.IntegrationTests` | 26 | a local PostgreSQL (skips cleanly without one) |
+| `tests/Hannibal.IntegrationTests` | 29 | a local PostgreSQL (skips cleanly without one) |
+| `tests/BackerAgent.IntegrationTests` | 15 | nothing — hosts the agent against an in-process rclone stub |
+| `tests/Backer.E2ETests` | 4 | a local PostgreSQL (skips cleanly without one) |
 
 ```bash
 # everything
@@ -80,8 +83,31 @@ in memory and:
 | Key | Purpose |
 |---|---|
 | `ConnectionStrings:DefaultConnection` | DB connection string. Takes precedence over the `HANNIBAL_DB_CONNECTION` environment variable, which still works and is what the live deployment uses. Falls back to `Host=localhost;Port=5432;Database=hannibal;Username=postgres;Password=admin`. |
-| `Hannibal:SkipStartupMigration` | When true, skips `Database.Migrate()` and `InitializeDatabaseAsync()` at startup. Default false (existing behaviour). |
+| `Hannibal:SkipStartupMigration` | When true, skips the `StartupMigrator` at startup (tests do this because their fixture already migrated). Default false (existing behaviour). |
 | `OAuth2:RedirectUri` | OAuth2 callback URI. Defaults to `http://localhost:53682/` — the BackerAgent's local callback listener — when unset, which is the production behaviour. |
+
+## Database migrations
+
+The strategy and its history are in `docs/plan-db-migration-strategy.md`.
+The rules it established:
+
+- **Every schema change ships as a migration in the same PR:**
+  `dotnet ef migrations add <Name> --project application/Hannibal/`.
+  Enforced by `MigrationsCoverModelTests.EveryModelChangeHasAMigration`
+  (`tests/Hannibal.Tests/`), which needs no database and fails the suite
+  whenever the model has drifted from the migration snapshot.
+- **`EnsureCreated` never returns, in any code path.** It creates schema
+  without migration history and thereby breaks every future `Migrate()`.
+  The server startup path is `StartupMigrator`
+  (`application/Hannibal/Data/StartupMigrator.cs`): it retries transient
+  connection failures, logs pending/applied migrations, and refuses a
+  history-less database with a pointer to the baseline runbook.
+- **Migrations are forward-only in production.** The deploy runbook is:
+  back up first (`pg_dump -U postgres -Fc hannibal > hannibal-<date>.dump`
+  in the `hannibal-db` container), deploy, then confirm the api log shows
+  either "Database schema is up to date" or exactly the expected migrations
+  being applied. Recovery is restore-from-dump, which is why the backup is
+  part of the runbook, not optional.
 
 ## Opt-in live OneDrive credential check
 

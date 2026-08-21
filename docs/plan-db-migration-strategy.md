@@ -1,8 +1,10 @@
 # Database migration strategy for the server
 
-Status: Gates M1 and M3 executed 2026-08-21; M2 diagnosis run 2026-08-21 —
-production is healthy, no baseline needed (see Gate M2). Open: M2's backup +
-one observed clean redeploy (which also closes M3 AC2), and Gate M4.
+Status: executed 2026-08-21 — M1 and M3 shipped, the M2 diagnosis found
+production fully migrated (no baseline needed), the post-merge Coolify
+redeploy was observed clean, and M4 recorded the rules in `CLAUDE.md` and
+`docs/TESTING.md`. Open: only M2 AC1, the `pg_dump` backup as a standing
+part of the deploy runbook.
 
 ## Context
 
@@ -232,23 +234,26 @@ that starts with `SkipStartupMigration` semantics confused.
    (`pg_restore --list`).
 2. Probe results recorded in this file. ✔ (above)
 3. ~~Baseline insert~~ — not needed, history is complete. ✔
-4. A redeploy of the current image starts cleanly; the log shows zero pending
-   migrations.
+4. A redeploy of the current image starts cleanly. ✔ — observed by Timo
+   2026-08-21 after merging the M1+M3 PR: the redeployed stack came up
+   running, looking "as always, in the best way".
 
-### Gate M3 — Deploy ordering — **code MET (2026-08-21), one observation open**
+### Gate M3 — Deploy ordering — **MET (2026-08-21)**
 
 **Acceptance**
 1. `api` waits for `hannibal-db` health in `docker-compose.yml`. ✔
-2. ⏳ One full Coolify redeploy observed: no connection-refused crash loop,
-   Api healthy on first start. Shared with Gate M2 AC4 — the next deploy
-   closes both.
+2. One full Coolify redeploy observed: no crash loop, Api healthy on first
+   start. ✔ — the same observation as Gate M2 AC4.
 
-### Gate M4 — Discipline recorded
+### Gate M4 — Discipline recorded — **MET (2026-08-21)**
 
 **Acceptance**
-1. `CLAUDE.md` and `docs/TESTING.md` carry the authoring rules and the deploy
-   runbook (backup → deploy → verify log line).
-2. The migration-only rule has its enforcement test (M1.5) referenced there.
+1. `CLAUDE.md` (a "Database Migrations" section) and `docs/TESTING.md`
+   (a "Database migrations" section) carry the authoring rules and the deploy
+   runbook (backup → deploy → verify log line). ✔
+2. The migration-only rule has its enforcement test
+   (`MigrationsCoverModelTests.EveryModelChangeHasAMigration`) referenced in
+   both. ✔
 
 ## Verification
 
