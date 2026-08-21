@@ -12,6 +12,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using TestSupport.RClone;
 using Tools;
+using WorkerGit.Configuration;
+using WorkerGit.Services;
 using WorkerRClone.Configuration;
 using WorkerRClone.Models;
 using WorkerRClone.Services;
@@ -51,6 +53,13 @@ public sealed class AgentHostOptions
     /// for instance to point the agent at a port nothing listens on.
     /// </summary>
     public Action<RCloneServiceOptions>? ConfigureRCloneOptions { get; set; }
+
+    /// <summary>
+    /// Applied after the harness's GitWorker defaults (a per-test cache
+    /// directory, real "git" on PATH) - for instance to point GitPath at a
+    /// nonexistent binary (Gate D AC10).
+    /// </summary>
+    public Action<GitWorkerOptions>? ConfigureGitWorkerOptions { get; set; }
 
     /// <summary>
     /// Applied after the harness's own service overrides.
@@ -110,6 +119,13 @@ public sealed class AgentHostFactory : WebApplicationFactory<BackerAgentHost>
     /// Per factory, so hosts running in parallel cannot race on one file.
     /// </summary>
     public string RCloneConfigDirectory => Path.Combine(_configDirectory, "rclone");
+
+    /// <summary>
+    /// Throwaway directory this agent's <c>GitWorkerService</c> uses as its
+    /// bare mirror cache root - NEVER the real machine config dir a
+    /// production agent defaults to (WorkerGit/DependencyInjection.cs).
+    /// </summary>
+    public string GitCacheDirectory => Path.Combine(_configDirectory, "git-cache");
 
     private readonly AgentHostOptions _options;
 
@@ -177,6 +193,10 @@ public sealed class AgentHostFactory : WebApplicationFactory<BackerAgentHost>
     /// <summary>The hosted <see cref="RCloneService"/> instance.</summary>
     public RCloneService Service =>
         Services.GetServices<IHostedService>().OfType<RCloneService>().Single();
+
+    /// <summary>The hosted <see cref="GitWorkerService"/> instance.</summary>
+    public GitWorkerService GitService =>
+        Services.GetServices<IHostedService>().OfType<GitWorkerService>().Single();
 
     /// <summary>The state the service is in right now.</summary>
     public RCloneServiceState.ServiceState CurrentState => Service._state.State;
@@ -249,6 +269,7 @@ public sealed class AgentHostFactory : WebApplicationFactory<BackerAgentHost>
          */
 
         var effective = _effectiveOptions();
+        var effectiveGit = _effectiveGitWorkerOptions(effective);
 
         /*
          * The same values have to reach raw configuration as well, not only the
@@ -271,7 +292,11 @@ public sealed class AgentHostFactory : WebApplicationFactory<BackerAgentHost>
                 ["RCloneService:ConfigDirectory"] = effective.ConfigDirectory,
                 ["RCloneService:SkipProcessStart"] = effective.SkipProcessStart ? "true" : "false",
                 ["RCloneService:SkipJobAcquisition"] = effective.SkipJobAcquisition ? "true" : "false",
-                ["RCloneService:Autostart"] = effective.Autostart ? "true" : "false"
+                ["RCloneService:Autostart"] = effective.Autostart ? "true" : "false",
+
+                ["GitWorker:GitPath"] = effectiveGit.GitPath,
+                ["GitWorker:CacheRoot"] = effectiveGit.CacheRoot,
+                ["GitWorker:SkipJobAcquisition"] = effectiveGit.SkipJobAcquisition ? "true" : "false"
             });
         });
 
@@ -324,6 +349,7 @@ public sealed class AgentHostFactory : WebApplicationFactory<BackerAgentHost>
              * BackerAgent/Program.cs assembled its sources.
              */
             services.PostConfigure<RCloneServiceOptions>(options => _apply(effective, options));
+            services.PostConfigure<GitWorkerOptions>(options => _applyGit(effectiveGit, options));
 
             _options.ConfigureServices?.Invoke(services);
         });
@@ -381,6 +407,45 @@ public sealed class AgentHostFactory : WebApplicationFactory<BackerAgentHost>
         target.ConfigDirectory = source.ConfigDirectory;
         target.UrlSignalR = source.UrlSignalR;
         target.Autostart = source.Autostart;
+    }
+
+    /// <summary>
+    /// The GitWorker options this agent should run with: a per-test cache
+    /// directory (never WorkerGit/DependencyInjection.cs's machine-wide
+    /// default) and real "git" on PATH, then whatever the test asked for -
+    /// same dual mechanism (in-memory configuration + PostConfigure) as
+    /// <see cref="_effectiveOptions"/>, for the same reason.
+    ///
+    /// <para><c>SkipJobAcquisition</c> defaults to whatever the rclone side
+    /// resolved to, so a test that only calls
+    /// <c>AgentHostFactory.CreateAsync(o =&gt; o.SkipJobAcquisition = true)</c>
+    /// (the RCloneServiceOptions overload) still gets an agent that never
+    /// acquires anything on either engine - matching that switch's
+    /// documented, agent-wide intent (CLAUDE.md). A test wanting the two
+    /// engines to disagree sets <see cref="AgentHostOptions.ConfigureGitWorkerOptions"/>
+    /// explicitly, which runs after this default and wins.</para>
+    /// </summary>
+    private GitWorkerOptions _effectiveGitWorkerOptions(RCloneServiceOptions rcloneEffective)
+    {
+        var options = new GitWorkerOptions
+        {
+            GitPath = "git",
+            CacheRoot = GitCacheDirectory,
+            SkipJobAcquisition = rcloneEffective.SkipJobAcquisition
+        };
+
+        _options.ConfigureGitWorkerOptions?.Invoke(options);
+        return options;
+    }
+
+    private static void _applyGit(GitWorkerOptions source, GitWorkerOptions target)
+    {
+        target.GitPath = source.GitPath;
+        target.CacheRoot = source.CacheRoot;
+        target.JobTimeout = source.JobTimeout;
+        target.StallTimeout = source.StallTimeout;
+        target.MinFreeDiskBytes = source.MinFreeDiskBytes;
+        target.SkipJobAcquisition = source.SkipJobAcquisition;
     }
 
     protected override void Dispose(bool disposing)

@@ -128,7 +128,8 @@ Located in `worker/WorkerRClone/Services/Providers/`:
   (the BackerAgent's local listener)
 - BackerAgent credentials: `RCloneService:BackerUsername/BackerPassword`
 - `RCloneService:SkipJobAcquisition` - agent logs in, connects and starts rclone
-  but never acquires jobs (for smoke tests beside the user's live agents)
+  but never acquires jobs, rclone or git (for smoke tests beside the user's
+  live agents); `GitWorker:SkipJobAcquisition` gates only the git worker
 
 ## Testing
 

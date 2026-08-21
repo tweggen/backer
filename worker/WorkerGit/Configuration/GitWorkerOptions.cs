@@ -42,4 +42,16 @@ public sealed class GitWorkerOptions
      * would need even more space than the fetch that just failed.
      */
     public long MinFreeDiskBytes { get; set; } = 1L * 1024 * 1024 * 1024;
+
+    /**
+     * Mirrors RCloneServiceOptions.SkipJobAcquisition's intent - CLAUDE.md
+     * documents that switch as agent-wide ("agent logs in, connects and
+     * starts rclone but never acquires jobs"), and GitWorkerService is a
+     * second acquirer now, so it needs its own way to honour the same
+     * smoke-test mode. Kept as an independent flag bound from its own
+     * "GitWorker" section (not shared config) because the two engines have
+     * separate options sections; a caller that wants agent-wide behaviour
+     * sets both.
+     */
+    public bool SkipJobAcquisition { get; set; } = false;
 }

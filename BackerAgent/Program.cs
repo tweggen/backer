@@ -17,6 +17,8 @@ using Tools;
 using WorkerRClone.Configuration;
 using WorkerRClone.Services;
 using WorkerRClone.Services.Utils;
+using WorkerGit;
+using WorkerGit.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -147,6 +149,8 @@ builder.Services
     .AddBackgroundHannibalServiceClient(builder.Configuration)
         // Workers - this registers OAuth2ClientFactory, storage providers, and RCloneStorages
     .AddRCloneService(builder.Configuration)
+        // Git mirror engine (plan-git-repo-storage.md Gate D) - a second, independent transfer engine
+    .AddGitWorker(builder.Configuration)
     ;
 
 
@@ -177,6 +181,27 @@ builder.Services.AddSingleton(sp =>
     
     return rcloneService;
 });
+
+// Enhance GitWorkerService registration with BackerControl progress wiring.
+// Resolved through the IHostedService pool (not GetRequiredService<GitWorkerService>())
+// for the same reason as above: this factory is itself registering another
+// GitWorkerService descriptor, so resolving the type directly here would recurse.
+builder.Services.AddSingleton(sp =>
+{
+    var gitWorkerService = sp.GetServices<IHostedService>()
+        .OfType<GitWorkerService>()
+        .First();
+
+    var hubContext = sp.GetRequiredService<IHubContext<BackerAgent.Hubs.BackerControlHub>>();
+
+    gitWorkerService.OnJobProgress = (jobId, phase) =>
+    {
+        _ = hubContext.Clients.All.SendAsync("GitJobProgressUpdated", jobId, phase);
+    };
+
+    return gitWorkerService;
+});
+
 builder.Services.AddSingleton<HubConnectionFactory>();
 builder.Services.AddSingleton(provider =>
 {
@@ -283,10 +308,24 @@ app.MapGet("/jobtransfers", async (
 app.MapPost("/jobs/{jobId}/abort", async (
     int jobId,
     RCloneService rcloneService,
+    GitWorkerService gitWorkerService,
     CancellationToken cancellationToken
 ) =>
 {
-    await rcloneService.AbortJobAsync(jobId, cancellationToken);
+    /*
+     * Route by ownership rather than a guessed engine: TryAbortJobAsync has
+     * no side effect at all when the job is not its own, and
+     * RCloneService.AbortJobAsync equally no-ops (logs "not found") for a
+     * job it does not own - so trying both in a fixed order can never
+     * misfire. Git first because it is an in-process CTS cancellation (no
+     * network round trip), so it is the cheaper check to make first.
+     */
+    bool ownedByGit = await gitWorkerService.TryAbortJobAsync(jobId);
+    if (!ownedByGit)
+    {
+        await rcloneService.AbortJobAsync(jobId, cancellationToken);
+    }
+
     return Results.Ok();
 });
 

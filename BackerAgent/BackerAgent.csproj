@@ -10,6 +10,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\worker\WorkerRClone\WorkerRClone.csproj" />
+      <ProjectReference Include="..\worker\WorkerGit\WorkerGit.csproj" />
     </ItemGroup>
 
     <!-- ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'" >
