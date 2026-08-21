@@ -144,34 +144,113 @@ public sealed class GitWorkerServiceTests : IDisposable
         }
     }
 
+    /**
+     * Gate E slice 2: the Sync-interception removed from _runJobAsync - Sync
+     * now reaches the engine like any other operation (the guards, wired in
+     * slice 1 and reachable here via Rule.AllowAdopt/AllowUnsafeRefChange
+     * since slice 2, are what keeps it safe). The fixture is a plain 1:1
+     * mirror onto an empty destination, so no guard trips and the job
+     * completes DoneSuccess, non-terminal.
+     */
     [Fact]
-    public async Task SyncOperation_ReportsDoneFailure_NamesGateE_AndNeverInvokesTheEngine()
+    public async Task SyncOperation_ReachesTheEngine_AndReportsDoneSuccess()
     {
-        var (sourceBare, destinationBare, _) = _seedRepos();
+        var (sourceBare, destinationBare, sha) = _seedRepos();
         var job = _buildJob(7, sourceBare, destinationBare, Rule.RuleOperation.Sync);
 
         var engineTrace = new RecordingGitCommandTrace();
-        var capturingLogger = new _CapturingLogger<GitWorkerService>();
-        var (service, hannibal) = _buildService(_env.Options, engineTrace, capturingLogger);
+        var (service, hannibal) = _buildService(_env.Options, engineTrace);
         hannibal.AcquireNextJobAsync(Arg.Any<AcquireParams>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<Job?>(job), Task.FromResult<Job?>(null));
 
         await service.StartAsync(CancellationToken.None);
         try
         {
-            await _waitUntilAsync(() => _reportedStates(hannibal, 7).Any(), "job 7 was never reported back");
+            await _waitUntilAsync(() => _reportedStatuses(hannibal, 7).Any(), "job 7 was never reported back");
 
-            _reportedStates(hannibal, 7).Should().ContainSingle().Which.Should().Be(Job.JobState.DoneFailure);
+            var reports = _reportedStatuses(hannibal, 7);
+            reports.Should().ContainSingle().Which.State.Should().Be(Job.JobState.DoneSuccess);
+            reports.Single().Terminal.Should().BeFalse();
 
-            engineTrace.Records.Should().BeEmpty(
-                "Sync must never reach the engine before Gate E ships the safety guards (plan §5)");
+            engineTrace.Records.Should().Contain(r => r.Arguments.Count > 0 && r.Arguments[0] == "push",
+                "Sync must reach the engine now that Gate E's guards are wired in");
 
-            lock (capturingLogger.Messages)
-            {
-                capturingLogger.Messages.Should().Contain(m =>
-                    m.Contains("Gate E", StringComparison.Ordinal)
-                    && m.Contains("safety guard", StringComparison.OrdinalIgnoreCase));
-            }
+            var destinationRefs = GitTestRepo.ForEachRef(destinationBare);
+            destinationRefs.Should().ContainKey("refs/heads/main");
+            destinationRefs["refs/heads/main"].Should().Be(sha);
+        }
+        finally
+        {
+            await service.StopAsync(CancellationToken.None);
+        }
+    }
+
+    /**
+     * Gate E AC8's mechanism at the WorkerGit level: a guard-tripping job
+     * (zero-ref source, plan §5 "Zero-ref guard") is reported DoneFailure
+     * with Terminal=true - the flag that stops HannibalServiceJobs.ReportJobAsync
+     * from requeuing it to Ready for an immediate re-acquire/re-fail spin.
+     */
+    [Fact]
+    public async Task ExecutesAcquiredJob_GuardTrips_ReportsDoneFailureWithTerminalTrue()
+    {
+        var emptySourceBare = _env.NewPath("empty-source.git");
+        GitTestRepo.InitBare(emptySourceBare);
+        var destinationBare = _env.NewPath("dest.git");
+        GitTestRepo.InitBare(destinationBare);
+
+        var job = _buildJob(11, emptySourceBare, destinationBare, Rule.RuleOperation.Copy);
+
+        var (service, hannibal) = _buildService(_env.Options);
+        hannibal.AcquireNextJobAsync(Arg.Any<AcquireParams>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Job?>(job), Task.FromResult<Job?>(null));
+
+        await service.StartAsync(CancellationToken.None);
+        try
+        {
+            await _waitUntilAsync(() => _reportedStatuses(hannibal, 11).Any(), "job 11 was never reported back");
+
+            var reports = _reportedStatuses(hannibal, 11);
+            reports.Should().ContainSingle();
+            reports.Single().State.Should().Be(Job.JobState.DoneFailure);
+            reports.Single().Terminal.Should().BeTrue(
+                "the zero-ref guard tripped - requeuing this job would just spin forever");
+        }
+        finally
+        {
+            await service.StopAsync(CancellationToken.None);
+        }
+    }
+
+    /**
+     * Contrast case for the same AC: an ordinary infrastructure failure (an
+     * unreachable source - not a git repository at all) is not a guard trip
+     * (<c>GitMirrorResult.TrippedGuard</c> stays <c>None</c>), so it keeps
+     * reporting Terminal=false - a network blip should still be retried.
+     */
+    [Fact]
+    public async Task ExecutesAcquiredJob_OrdinaryFailure_ReportsDoneFailureWithTerminalFalse()
+    {
+        var unreachableSource = _env.NewPath("does-not-exist");
+        var destinationBare = _env.NewPath("dest.git");
+        GitTestRepo.InitBare(destinationBare);
+
+        var job = _buildJob(13, unreachableSource, destinationBare, Rule.RuleOperation.Copy);
+
+        var (service, hannibal) = _buildService(_env.Options);
+        hannibal.AcquireNextJobAsync(Arg.Any<AcquireParams>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Job?>(job), Task.FromResult<Job?>(null));
+
+        await service.StartAsync(CancellationToken.None);
+        try
+        {
+            await _waitUntilAsync(() => _reportedStatuses(hannibal, 13).Any(), "job 13 was never reported back");
+
+            var reports = _reportedStatuses(hannibal, 13);
+            reports.Should().ContainSingle();
+            reports.Single().State.Should().Be(Job.JobState.DoneFailure);
+            reports.Single().Terminal.Should().BeFalse(
+                "an unreachable remote is an ordinary failure, not a tripped guard - it should still be retried");
         }
         finally
         {
@@ -265,6 +344,13 @@ public sealed class GitWorkerServiceTests : IDisposable
             .Select(js => js.State)
             .ToList();
 
+    private static List<JobStatus> _reportedStatuses(IHannibalServiceClient hannibal, int jobId) =>
+        hannibal.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(IHannibalServiceClient.ReportJobAsync))
+            .Select(c => (JobStatus)c.GetArguments()[0]!)
+            .Where(js => js.JobId == jobId)
+            .ToList();
+
     private static (GitWorkerService Service, IHannibalServiceClient Hannibal) _buildService(
         GitWorkerOptions options,
         IGitCommandTrace? engineTrace = null,
@@ -317,30 +403,5 @@ public sealed class GitWorkerServiceTests : IDisposable
         }
 
         throw new TimeoutException(because);
-    }
-
-    private sealed class _CapturingLogger<T> : ILogger<T>
-    {
-        public List<string> Messages { get; } = new();
-
-        public IDisposable BeginScope<TState>(TState state) where TState : notnull => _NullScope.Instance;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(
-            LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-            Func<TState, Exception?, string> formatter)
-        {
-            lock (Messages)
-            {
-                Messages.Add(formatter(state, exception));
-            }
-        }
-
-        private sealed class _NullScope : IDisposable
-        {
-            public static readonly _NullScope Instance = new();
-            public void Dispose() { }
-        }
     }
 }

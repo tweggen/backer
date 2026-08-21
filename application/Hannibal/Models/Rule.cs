@@ -56,4 +56,22 @@ public class Rule
      * if there is no urgent indication listed.
      */
     public TimeSpan DailyTriggerTime { get; set; }
+
+    /**
+     * Gate E (plan-git-repo-storage.md §5 "Adopt guard"): overrides the git
+     * engine's refusal to push to a non-empty destination that carries no
+     * matching refs/backer/mirror-of/<sha256> marker. Ignored by the rclone
+     * engine. Defaults to false - adopting an existing destination is an
+     * explicit, per-rule opt-in.
+     */
+    public bool AllowAdopt { get; set; }
+
+    /**
+     * Gate E (plan-git-repo-storage.md §5 "Shrink guard" and "Force-push
+     * guard"): overrides both the shrink guard (refs removed on the
+     * destination beyond Git:MaxRefShrinkPercent) and the force-push guard
+     * (non-fast-forward ref updates beyond Git:MaxNonFfPercent). Ignored by
+     * the rclone engine. Defaults to false.
+     */
+    public bool AllowUnsafeRefChange { get; set; }
 }

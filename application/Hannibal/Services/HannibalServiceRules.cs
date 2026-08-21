@@ -17,12 +17,20 @@ public partial class HannibalService
      * git+git rule pointing at one repository twice gets the more specific
      * message even though both would otherwise throw.
      *
-     * Gate D (this flip): worker/WorkerGit's mirror engine exists now, so
-     * git+git is no longer rejected wholesale - Copy and Nop are allowed
-     * (the engine only ever pushes additively at this gate, plan §5 "Copy
-     * never forces and never deletes"). Sync stays rejected until Gate E
-     * ships the safety guards (zero-ref/shrink/force-push/adopt, plan §5)
-     * that make forcing and deleting on the destination safe.
+     * Gate D: worker/WorkerGit's mirror engine exists now, so git+git is no
+     * longer rejected wholesale - Copy and Nop are allowed (the engine only
+     * ever pushes additively at that gate, plan §5 "Copy never forces and
+     * never deletes"). Sync stayed rejected until Gate E shipped the safety
+     * guards (zero-ref/shrink/force-push/adopt, plan §5) that make forcing
+     * and deleting on the destination safe.
+     *
+     * Gate E (this flip): the guards are wired into the engine (slice 1) and
+     * their per-rule overrides (Rule.AllowAdopt/AllowUnsafeRefChange) flow
+     * through to it (slice 2, this change) - so Sync is no longer rejected
+     * for git+git. Self-mirror is still rejected here, at rule-creation time,
+     * as well as at run time by the engine itself (belt and suspenders,
+     * since two Storage rows can point at the same host/account and defeat
+     * the endpoint-in-use check, plan §5 "Self-mirror guard").
      */
     private static void _validateRuleEndpoints(
         Endpoint sourceEndpoint, Endpoint destinationEndpoint, Rule.RuleOperation operation)
@@ -44,13 +52,6 @@ public partial class HannibalService
             {
                 throw new ArgumentException(
                     "Source and destination are the same repository; a rule cannot mirror a repository to itself.");
-            }
-
-            if (operation == Rule.RuleOperation.Sync)
-            {
-                throw new ArgumentException(
-                    "Sync for git rules is not enabled until Gate E ships the safety guards named in " +
-                    "plan-git-repo-storage.md §5 (zero-ref, shrink, force-push and adopt guards); use Copy until then.");
             }
         }
     }
@@ -154,6 +155,8 @@ public partial class HannibalService
         rule.MinRetryTime = updatedRule.MinRetryTime;
         rule.MaxTimeAfterSourceModification = updatedRule.MaxTimeAfterSourceModification;
         rule.DailyTriggerTime = updatedRule.DailyTriggerTime;
+        rule.AllowAdopt = updatedRule.AllowAdopt;
+        rule.AllowUnsafeRefChange = updatedRule.AllowUnsafeRefChange;
 
         await _context.SaveChangesAsync(cancellationToken);
 
