@@ -281,7 +281,7 @@ than a new test project, because that project already references
 32 total. 22 new tests. No new build warnings (the warnings emitted by
 `worker/WorkerRClone` predate this work).
 
-### Gate 2 — The agent is hostable in a test — **MET (2026-08-20), one item open**
+### Gate 2 — The agent is hostable in a test — **MET (2026-08-20; AC6 closed 2026-08-21)**
 
 Seams 1–3, 6 and 7 from §"Production seams required", plus
 `tests/BackerAgent.IntegrationTests/` with an `AgentHostFactory` that starts
@@ -317,11 +317,13 @@ alias. `BackerAgent` therefore exports a purpose-named marker type instead.
    field null exactly as a skipped one does.
 5. The agent shuts down cleanly within the test's timeout; no orphan
    processes remain. ✔
-6. ⏳ **Open:** manual smoke, `dotnet run --project BackerAgent/` against a
-   real rclone, confirming the `app.Run()` change did not affect service
-   startup. Not run — it would start rclone and could execute real backup
-   jobs on live data, so it needs an explicit go-ahead and a moment when that
-   is safe.
+6. Manual smoke, `dotnet run --project BackerAgent/` against a real rclone,
+   confirming the `app.Run()` change did not affect service startup. ✔ Run by
+   Timo 2026-08-21: with no rclone running beforehand, the agent started one
+   (so the spawn path was exercised, not the attach path) and terminated it
+   again on shutdown. Made safe to run beside the user's live agents by the
+   `RCloneService:SkipJobAcquisition` option added for exactly this purpose —
+   the agent logs in, connects and runs rclone but never acquires jobs.
 7. **Stderr classification is testable.** `_readPrintLog`
    (`RCloneService.cs:911`) loops on `_processRClone.HasExited`, so it cannot
    be called without a process; the per-line handling is now

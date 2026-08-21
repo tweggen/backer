@@ -66,6 +66,10 @@ public class RCloneService : BackgroundService
     private DateTime _lastJobPollUtc = DateTime.MinValue;
     private static readonly TimeSpan _jobPollInterval = TimeSpan.FromSeconds(120);
 
+    // How often SkipJobAcquisition declined a fetch. internal so a test can
+    // await "the fetch path fired and was refused" instead of sleeping.
+    internal int _skippedJobFetchCount = 0;
+
     // Timeout for stalled OAuth2 jobs with no activity (5 minutes)
     private static readonly TimeSpan _oauth2InactivityTimeout = TimeSpan.FromMinutes(5);
 
@@ -837,7 +841,18 @@ public class RCloneService : BackgroundService
             _logger.LogDebug($"RCloneService: Spurious call of _triggerFetchJob in state {_state.State}, ignoring.");
             return;
         }
-        
+
+        if (_options is { SkipJobAcquisition: true })
+        {
+            /*
+             * This agent observes without working; the user's other agents
+             * are meant to pick the jobs up instead.
+             */
+            Interlocked.Increment(ref _skippedJobFetchCount);
+            _logger.LogInformation("RCloneService: SkipJobAcquisition is set, leaving jobs to other agents.");
+            return;
+        }
+
         try
         {
             /*
