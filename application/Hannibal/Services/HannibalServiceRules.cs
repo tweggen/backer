@@ -13,11 +13,19 @@ public partial class HannibalService
      * endpoint pair would need and refuse every rule no engine can run.
      * Must run after both endpoints are loaded WITH their Storage - the
      * technology lives on Storage, not Endpoint. Self-mirror is checked
-     * before the "engine not available" message so a git+git rule pointing
-     * at one repository twice gets the more specific message even though
-     * both would otherwise throw.
+     * before the "engine not available"/"Sync not enabled" messages so a
+     * git+git rule pointing at one repository twice gets the more specific
+     * message even though both would otherwise throw.
+     *
+     * Gate D (this flip): worker/WorkerGit's mirror engine exists now, so
+     * git+git is no longer rejected wholesale - Copy and Nop are allowed
+     * (the engine only ever pushes additively at this gate, plan §5 "Copy
+     * never forces and never deletes"). Sync stays rejected until Gate E
+     * ships the safety guards (zero-ref/shrink/force-push/adopt, plan §5)
+     * that make forcing and deleting on the destination safe.
      */
-    private static void _validateRuleEndpoints(Endpoint sourceEndpoint, Endpoint destinationEndpoint)
+    private static void _validateRuleEndpoints(
+        Endpoint sourceEndpoint, Endpoint destinationEndpoint, Rule.RuleOperation operation)
     {
         var engine = JobEngineClassifier.Classify(sourceEndpoint, destinationEndpoint);
 
@@ -38,9 +46,12 @@ public partial class HannibalService
                     "Source and destination are the same repository; a rule cannot mirror a repository to itself.");
             }
 
-            // Gate D flips this to allowed once the git engine exists.
-            throw new ArgumentException(
-                "The git transfer engine is not yet available; git+git rules cannot be created until it ships.");
+            if (operation == Rule.RuleOperation.Sync)
+            {
+                throw new ArgumentException(
+                    "Sync for git rules is not enabled until Gate E ships the safety guards named in " +
+                    "plan-git-repo-storage.md §5 (zero-ref, shrink, force-push and adopt guards); use Copy until then.");
+            }
         }
     }
 
@@ -72,7 +83,7 @@ public partial class HannibalService
         rule.DestinationEndpoint = destinationEndpoint;
         rule.DestinationEndpointId = destinationEndpoint.Id;
 
-        _validateRuleEndpoints(sourceEndpoint, destinationEndpoint);
+        _validateRuleEndpoints(sourceEndpoint, destinationEndpoint, rule.Operation);
 
         await _context.Rules.AddAsync(rule, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
@@ -118,7 +129,7 @@ public partial class HannibalService
             throw new KeyNotFoundException($"No destination endpoint found for endpointid {updatedRule.DestinationEndpointId}");
         }
 
-        _validateRuleEndpoints(sourceEndpoint, destinationEndpoint);
+        _validateRuleEndpoints(sourceEndpoint, destinationEndpoint, updatedRule.Operation);
 
         // Check if scheduling-relevant fields changed BEFORE updating
         bool hasSchedulingChanges =

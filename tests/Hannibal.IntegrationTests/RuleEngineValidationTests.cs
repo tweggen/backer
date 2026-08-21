@@ -45,21 +45,47 @@ public class RuleEngineValidationTests : ApiIntegrationTestBase
         body.Should().Contain("onedrive");
     }
 
+    /// <summary>
+    /// Gate D flips this: worker/WorkerGit's mirror engine exists now, so a
+    /// git+git rule with Copy is allowed (Gate B AC3 inverted).
+    /// </summary>
     [SkippableFact]
-    public async Task Git_plus_git_rule_is_rejected_because_the_engine_does_not_exist_yet()
+    public async Task Git_plus_git_rule_with_Copy_succeeds()
     {
         await ArrangeAsync();
-        using var client = await CreateAuthenticatedClientAsync(UniqueEmail("git-plus-git"), Password);
+        using var client = await CreateAuthenticatedClientAsync(UniqueEmail("git-plus-git-copy"), Password);
 
-        var storageId = await _createStorageAsync(client, "git", "gitengine", "https://github.com/");
+        var storageId = await _createStorageAsync(client, "git", "gitenginecopy", "https://github.com/");
         var sourceEndpointId = await _createEndpointAsync(client, storageId, "owner/repo-one");
         var destinationEndpointId = await _createEndpointAsync(client, storageId, "owner/repo-two");
 
-        var response = await _postRuleAsync(client, sourceEndpointId, destinationEndpointId);
+        var response = await _postRuleAsync(client, sourceEndpointId, destinationEndpointId, Rule.RuleOperation.Copy);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await response.Content.ReadFromJsonAsync<CreateRuleResult>();
+        result.Should().NotBeNull();
+        result!.Id.Should().BeGreaterThan(0);
+    }
+
+    /// <summary>
+    /// Sync stays rejected until Gate E ships plan §5's safety guards - the
+    /// engine can only push additively at this gate.
+    /// </summary>
+    [SkippableFact]
+    public async Task Git_plus_git_rule_with_Sync_is_rejected_naming_GateE()
+    {
+        await ArrangeAsync();
+        using var client = await CreateAuthenticatedClientAsync(UniqueEmail("git-plus-git-sync"), Password);
+
+        var storageId = await _createStorageAsync(client, "git", "gitenginesync", "https://github.com/");
+        var sourceEndpointId = await _createEndpointAsync(client, storageId, "owner/repo-one");
+        var destinationEndpointId = await _createEndpointAsync(client, storageId, "owner/repo-two");
+
+        var response = await _postRuleAsync(client, sourceEndpointId, destinationEndpointId, Rule.RuleOperation.Sync);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("not yet available");
+        body.Should().Contain("Gate E");
     }
 
     [SkippableFact]
@@ -122,14 +148,16 @@ public class RuleEngineValidationTests : ApiIntegrationTestBase
         return result!.Id;
     }
 
-    private static async Task<HttpResponseMessage> _postRuleAsync(HttpClient client, int sourceEndpointId, int destinationEndpointId)
+    private static async Task<HttpResponseMessage> _postRuleAsync(
+        HttpClient client, int sourceEndpointId, int destinationEndpointId,
+        Rule.RuleOperation operation = Rule.RuleOperation.Copy)
     {
         var rule = new Rule
         {
             Name = $"rule-{Guid.NewGuid():N}",
             SourceEndpointId = sourceEndpointId,
             DestinationEndpointId = destinationEndpointId,
-            Operation = Rule.RuleOperation.Copy
+            Operation = operation
         };
         return await client.PostAsJsonAsync(RulesRoute, rule);
     }

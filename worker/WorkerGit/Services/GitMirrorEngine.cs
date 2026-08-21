@@ -237,7 +237,9 @@ public sealed class GitMirrorEngine
         string cachePath, string destinationUrl, IReadOnlyList<string> refspecs, GitCredentials credentials,
         bool withAtomic, Action<string>? onProgress, CancellationToken cancellationToken)
     {
-        var args = new List<string> { "push" };
+        // --progress for the same reason as the fetch side (Gate D AC15):
+        // a redirected, non-tty pipe otherwise gets no progress lines at all.
+        var args = new List<string> { "push", "--progress" };
         if (withAtomic)
         {
             args.Add("--atomic");

@@ -285,7 +285,11 @@ public sealed class GitCacheManager
 
     private static string[] _buildFetchArgs(string sourceRemoteUrl, IReadOnlyList<string> fetchRefspecs)
     {
-        var args = new List<string> { "fetch", "--prune", "--prune-tags", sourceRemoteUrl };
+        // --progress (Gate D AC15): git only writes its progress lines to
+        // stderr on its own when connected to a terminal - a service's
+        // redirected pipe never is, so without this flag a small/local fetch
+        // can complete without ever calling onProgressLine.
+        var args = new List<string> { "fetch", "--progress", "--prune", "--prune-tags", sourceRemoteUrl };
         args.AddRange(fetchRefspecs);
         return args.ToArray();
     }

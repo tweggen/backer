@@ -463,12 +463,37 @@ public sealed class AgentHostFactory : WebApplicationFactory<BackerAgentHost>
         {
             if (Directory.Exists(_configDirectory))
             {
-                Directory.Delete(_configDirectory, recursive: true);
+                _deleteDirectoryEvenIfReadOnly(_configDirectory);
             }
         }
         catch (IOException)
         {
             // A leftover temp directory is not worth failing a test over.
         }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// A plain recursive delete refuses on Windows once
+    /// <see cref="GitCacheDirectory"/> has real git objects/pack files under
+    /// it - git marks them read-only, and .NET's <c>Directory.Delete</c>
+    /// does not clear that first. Same technique as
+    /// <c>WorkerGit.Tests/TestSupport/GitTestRepo.CorruptOnePackFile</c> and
+    /// <c>WorkerGit/Services/GitCacheManager._deleteDirectory</c>.
+    /// </summary>
+    private static void _deleteDirectoryEvenIfReadOnly(string path)
+    {
+        foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+        {
+            var attributes = File.GetAttributes(file);
+            if ((attributes & FileAttributes.ReadOnly) != 0)
+            {
+                File.SetAttributes(file, attributes & ~FileAttributes.ReadOnly);
+            }
+        }
+
+        Directory.Delete(path, recursive: true);
     }
 }
