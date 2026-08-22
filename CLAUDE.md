@@ -32,6 +32,12 @@ dotnet run --project Api/                    # Web API
 dotnet run --project BackerAgent/            # Background service
 dotnet run --project frontend/Poe/           # Blazor web UI
 
+# Local dev stack (Git Bash on Windows): API + Poe + BackerAgent, all pointed
+# at localhost. See the header of the script for the why.
+scripts/dev-stack.sh              # start everything, follow the logs
+scripts/dev-stack.sh stop         # free the ports again
+scripts/dev-stack.sh test         # headless: the E2E git tests, no servers
+
 # Docker deployment
 docker-compose up
 
