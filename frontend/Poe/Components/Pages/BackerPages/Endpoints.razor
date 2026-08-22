@@ -160,6 +160,12 @@ else
                                 <InputText id="comment" placeholder="Optional notes" class="form-control" @bind-Value="_newEndpoint.Comment" />
                             </div>
                         </fieldset>
+                        @if (!string.IsNullOrEmpty(_createError))
+                        {
+                            <div class="alert alert-danger mt-3" role="alert">
+                                @_createError
+                            </div>
+                        }
                         <div class="d-flex gap-2 justify-content-end">
                             <button type="button" class="btn btn-secondary" @onclick="_onCancelCreate" disabled="@_isCreating">Cancel</button>
                             <button type="submit" class="btn btn-primary" disabled="@_isCreating">
@@ -185,6 +191,10 @@ else
     private bool _showEndpointsDetails = false;
     private bool _showCreateForm = false;
     private bool _isCreating = false;
+
+    // The server's validation message for a failed create (400 with a
+    // field-naming error, e.g. a git endpoint path that is not owner/repo).
+    private string? _createError;
 
     private int _editingEndpointId { get; set; } = -1;
     private int _editingEndpointStorageId { get; set; } = -1;
@@ -256,12 +266,14 @@ else
     private void _onShowCreateForm()
     {
         _resetNewEndpointForm();
+        _createError = null;
         _showCreateForm = true;
     }
 
     private void _onCancelCreate()
     {
         _showCreateForm = false;
+        _createError = null;
         _resetNewEndpointForm();
     }
 
@@ -376,20 +388,22 @@ else
         }
 
         _isCreating = true;
+        _createError = null;
         await InvokeAsync(StateHasChanged);
 
         try
         {
             await HigginsServiceClient.CreateEndpointAsync(_newEndpoint, CancellationToken.None);
             await _rereadListEndpoints();
-            
+
             // Success - close form and reset
             _showCreateForm = false;
             _resetNewEndpointForm();
         }
         catch (Exception e)
         {
-            // Stay open on error
+            // Stay open and show the server's field-naming message.
+            _createError = e.Message;
         }
         finally
         {
