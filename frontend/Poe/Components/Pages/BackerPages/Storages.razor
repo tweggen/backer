@@ -322,6 +322,12 @@ else
                                 <small class="form-text text-muted">Comma-separated network names</small>
                             </div>
                         </fieldset>
+                        @if (!string.IsNullOrEmpty(_createError))
+                        {
+                            <div class="alert alert-danger mt-3" role="alert">
+                                @_createError
+                            </div>
+                        }
                         <div class="d-flex gap-2 justify-content-end">
                             <button type="button" class="btn btn-secondary" @onclick="_onCancelCreate" disabled="@_isCreating">Cancel</button>
                             <button type="submit" class="btn btn-primary" disabled="@_isCreating">
@@ -350,6 +356,10 @@ else
     private bool _showStoragesDetails = false;
     private bool _showCreateForm = false;
     private bool _isCreating = false;
+
+    // The server's validation message for a failed create - the Api answers
+    // 400 with a field-naming error the user is meant to read and act on.
+    private string? _createError;
     private string? _oauthError = null;
 
     private int _editingStorageId { get; set; } = -1;
@@ -452,12 +462,14 @@ else
     private void _onShowCreateForm()
     {
         _resetNewStorageForm();
+        _createError = null;
         _showCreateForm = true;
     }
 
     private void _onCancelCreate()
     {
         _showCreateForm = false;
+        _createError = null;
         _resetNewStorageForm();
     }
 
@@ -696,20 +708,23 @@ else
     private async Task _addStorage()
     {
         _isCreating = true;
+        _createError = null;
         await InvokeAsync(StateHasChanged);
 
         try
         {
             await HigginsServiceClient.CreateStorageAsync(_newStorage, CancellationToken.None);
             await _rereadStorages();
-            
+
             // Success - close form and reset
             _showCreateForm = false;
             _resetNewStorageForm();
         }
         catch (Exception e)
         {
-            // Stay open on error
+            // Stay open and show the server's message - for a validation 400
+            // the client surfaces the field-naming error text.
+            _createError = e.Message;
             Console.WriteLine($"Create storage error: {e}");
         }
         finally

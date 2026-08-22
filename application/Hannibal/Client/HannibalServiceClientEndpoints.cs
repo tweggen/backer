@@ -13,7 +13,7 @@ public partial class HannibalServiceClient
         var response = await _httpClient.PostAsJsonAsync(
             $"/api/hannibal/v1/endpoints", endpoint,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _ensureSuccessWithServerMessageAsync(response, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<CreateEndpointResult>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
@@ -49,7 +49,7 @@ public partial class HannibalServiceClient
         var response = await _httpClient.PutAsJsonAsync(
             $"/api/hannibal/v1/endpoints/{id}", endpoint,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _ensureSuccessWithServerMessageAsync(response, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<Endpoint>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;

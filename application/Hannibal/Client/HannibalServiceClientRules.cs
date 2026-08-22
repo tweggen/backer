@@ -11,7 +11,7 @@ public partial class HannibalServiceClient
         var response = await _httpClient.PostAsJsonAsync(
             $"/api/hannibal/v1/rules", rule,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _ensureSuccessWithServerMessageAsync(response, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<CreateRuleResult>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
@@ -48,7 +48,7 @@ public partial class HannibalServiceClient
         var response = await _httpClient.PutAsJsonAsync(
             $"/api/hannibal/v1/rules/{id}", updatedRule,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _ensureSuccessWithServerMessageAsync(response, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<Rule>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;

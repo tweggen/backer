@@ -13,7 +13,7 @@ public partial class HannibalServiceClient
         var response = await _httpClient.PostAsJsonAsync(
             $"/api/hannibal/v1/storages", storage,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _ensureSuccessWithServerMessageAsync(response, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<CreateStorageResult>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
@@ -49,7 +49,7 @@ public partial class HannibalServiceClient
         var response = await _httpClient.PutAsJsonAsync(
             $"/api/hannibal/v1/storages/{id}", storage,
             cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await _ensureSuccessWithServerMessageAsync(response, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
         return JsonSerializer.Deserialize<Storage>(
             content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;

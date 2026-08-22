@@ -31,6 +31,47 @@ public partial class HannibalServiceClient : IHannibalServiceClient
     }
 
     
+    /**
+     * Like EnsureSuccessStatusCode, but keeps the server's message. The Api
+     * answers validation failures with 400 and a JSON body {"error": "..."}
+     * naming the offending field (storage/endpoint/rule validation from the
+     * git-storage work); EnsureSuccessStatusCode discards that body, leaving
+     * the UI with a bare "400 (Bad Request)". Used on the mutating calls
+     * whose failures a user is expected to read and act on.
+     */
+    private static async Task _ensureSuccessWithServerMessageAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        string detail = "";
+        try
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var document = JsonDocument.Parse(body);
+            if (document.RootElement.TryGetProperty("error", out var error))
+            {
+                detail = error.GetString() ?? "";
+            }
+        }
+        catch
+        {
+            // Not JSON or unreadable - fall through to the generic message.
+        }
+
+        if (string.IsNullOrWhiteSpace(detail))
+        {
+            response.EnsureSuccessStatusCode();
+        }
+
+        throw new HttpRequestException(detail, null, response.StatusCode);
+    }
+
+
     private async Task SetAuthorizationHeader()
     {
         string? token = null;

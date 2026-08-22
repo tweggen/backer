@@ -274,6 +274,12 @@ else
                                 <InputText id="comment" placeholder="Optional notes" class="form-control" @bind-Value="_newRule.Comment" />
                             </div>
                         </fieldset>
+                        @if (!string.IsNullOrEmpty(_createError))
+                        {
+                            <div class="alert alert-danger mt-3" role="alert">
+                                @_createError
+                            </div>
+                        }
                         <div class="d-flex gap-2 justify-content-end">
                             <button type="button" class="btn btn-secondary" @onclick="_onCancelCreate" disabled="@_isCreating">Cancel</button>
                             <button type="submit" class="btn btn-primary" disabled="@_isCreating">
@@ -327,6 +333,10 @@ else
     private bool _showRulesDetails = false;
     private bool _showCreateForm = false;
     private bool _isCreating = false;
+
+    // The server's validation message for a failed create (400 with a
+    // field-naming error, e.g. a mixed-technology pair or a git self-mirror).
+    private string? _createError;
     private bool _showSuspendModal = false;
     private bool _isSuspending = false;
 
@@ -424,12 +434,14 @@ else
     private void _onShowCreateForm()
     {
         _resetNewRuleForm();
+        _createError = null;
         _showCreateForm = true;
     }
 
     private void _onCancelCreate()
     {
         _showCreateForm = false;
+        _createError = null;
         _resetNewRuleForm();
     }
 
@@ -594,6 +606,7 @@ else
         }
 
         _isCreating = true;
+        _createError = null;
         await InvokeAsync(StateHasChanged);
 
         try
@@ -601,17 +614,18 @@ else
             _newRule.DailyTriggerTime = TimeSpan.FromSeconds(_newDailyTriggerTime);
             _newRule.MaxDestinationAge = TimeSpan.FromSeconds(_newMaxDestAge);
             _newRule.MinRetryTime = TimeSpan.FromSeconds(_newMinRetryTime);
-            
+
             await HannibalServiceClient.CreateRuleAsync(_newRule, CancellationToken.None);
             await _reloadRulePage(CancellationToken.None);
-            
+
             // Success - close form and reset
             _showCreateForm = false;
             _resetNewRuleForm();
         }
         catch (Exception e)
         {
-            // Stay open on error
+            // Stay open and show the server's field-naming message.
+            _createError = e.Message;
         }
         finally
         {
