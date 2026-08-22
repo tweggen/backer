@@ -352,6 +352,15 @@ push:
 - **Minimum git 2.31** (for `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n`), probed at
   startup with `git --version`. The agent advertises the `git` capability only
   if the probe succeeds, so an agent without git never receives git jobs.
+- **The installer ships the git client** (Gate I). The corollary of the bullet
+  above is that a machine without git runs a Backer that looks healthy and
+  silently never picks up a git job — and a Windows service does not inherit
+  the installing user's `PATH` anyway. So `BackerInstaller.iss` bundles MinGit
+  under `{app}\contrib\git` and writes its absolute path into
+  `GitWorker:GitPath`, exactly as it already does for `RClonePath`. Bundling
+  also keeps the client isolated from whatever Git Credential Manager the
+  machine has configured — the thing three bullets below go out of their way
+  to neutralise.
 - **Credentials never touch disk and never appear in argv.** `-c
   http.extraHeader=…` is an argv item — visible in any same-user process
   listing, and re-sent across cross-host redirects. Use `GIT_ASKPASS` pointing
@@ -862,6 +871,65 @@ dotnet test tests/WorkerGit.Tests/ --filter "FullyQualifiedName~LiveGitMirror"
 ```
 Use a disposable destination repo. Record here afterwards: AC3's
 `refs/pull/*` answer for the destination forge, AC4's date/refs/durations.
+
+### Gate I — the installer ships a git client — **implementation MET (2026-08-22); AC4 awaits a manual install**
+
+Gates A–H made the agent able to mirror git repositories; none of them put a
+git client on a user's machine. `BackerInstaller.iss` shipped only
+`contrib\rclone.exe`, and `GitWorkerOptions.GitPath` defaults to the bare name
+`"git"` — resolved against the *service* account's `PATH`, not the installing
+user's. Combined with §6's capability probe, the failure is silent: no git,
+no `git` capability, git rules queue forever, nothing in the UI says why.
+
+Decision (2026-08-22, with Timo): **bundle MinGit** rather than require Git for
+Windows as a prerequisite. It pins the version we test against, works offline,
+and keeps the client away from the machine's Git Credential Manager. The cost
+is ~39 MB of installer and a GPLv2 redistribution obligation.
+
+**Acceptance**
+1. `contrib/fetch-mingit.ps1` fetches a pinned MinGit release, verifies its
+   SHA-256, and refuses to unpack anything missing `cmd\git.exe` or
+   `LICENSE.txt`, or reporting a version below the §6 floor of 2.31.
+2. Compiling the installer without having fetched it fails the compile, rather
+   than producing an installer that quietly contains no git.
+3. A completed install leaves `GitWorker:GitPath` as an absolute path under
+   `{app}\contrib\git`, and the install itself reports a bundled git that will
+   not run instead of leaving it to the silent startup probe.
+4. Manual: a clean install on a machine with **no git on the system `PATH`**
+   yields an agent that advertises the `git` capability and runs a git rule end
+   to end.
+5. Uninstall removes the bare mirror cache (§7), which is disposable by design
+   and can reach gigabytes.
+
+**Result (2026-08-22, implementation).**
+`contrib/fetch-mingit.ps1` pins MinGit 2.55.0.windows.5 (`cmd\git.exe`
+verified at 2.55.0 ≥ 2.31; 39 MB zip, 91 MB unpacked, top-level
+`LICENSE.txt`), SHA-256 checked before unpacking, extracted to the
+`.gitignore`d `contrib\git\` — not committed, unlike the single
+`contrib\rclone.exe`. `BackerInstaller.iss` ships that tree to
+`{app}\contrib\git` (AC2 falls out of Inno's "no files found matching" on the
+`Source:` line), and its `UpdateAppSettings` is generalised from the
+hardcoded `RClonePath` rewrite into `UpdateJsonStringSetting(file, key,
+value)` — preserving each line's indentation and trailing comma — so the same
+mechanism now patches `GitPath` too (AC3), against the new `GitWorker` section
+in `BackerAgent/appsettings.json`. `VerifyBundledGit` runs the bundled
+`git --version` post-install and shows an error box when it fails (AC3's
+second half); `[UninstallDelete]` drops
+`{commonappdata}\Backer\Config\git-cache` (AC5). GPLv2 compliance is recorded
+in `docs/THIRD-PARTY.md`, and MinGit's own `LICENSE.txt` installs beside the
+binaries. **AC4 is the human remainder**: build the installer, run it on a
+box without git, confirm the agent takes a git job.
+
+**Runbook (PowerShell, from the repository root):**
+```powershell
+powershell -ExecutionPolicy Bypass -File contrib\fetch-mingit.ps1
+dotnet publish BackerAgent\BackerAgent.csproj -c Release -r win-x64
+dotnet publish YourBacker\YourBacker.csproj  -c Release -r win-x64
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" BackerInstaller.iss
+# then, after installing on a git-less machine:
+#   %ProgramData%\Backer\Logs\service-*.log should NOT contain a git probe failure
+#   the agent should acquire jobs with Capabilities = "git"
+```
 
 ---
 

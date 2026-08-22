@@ -34,6 +34,13 @@ dotnet run --project frontend/Poe/           # Blazor web UI
 
 # Docker deployment
 docker-compose up
+
+# Windows installer (Inno Setup). Fetch the bundled git client first - the
+# compile aborts with "No files found matching ...\contrib\git\*" without it.
+powershell -ExecutionPolicy Bypass -File contrib\fetch-mingit.ps1
+dotnet publish BackerAgent\BackerAgent.csproj -c Release -r win-x64
+dotnet publish YourBacker\YourBacker.csproj  -c Release -r win-x64
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" BackerInstaller.iss
 ```
 
 ## Technology Stack
@@ -128,6 +135,10 @@ Located in `worker/WorkerRClone/Services/Providers/`:
 - `OAuth2:RedirectUri` - OAuth2 callback, defaults to `http://localhost:53682/`
   (the BackerAgent's local listener)
 - BackerAgent credentials: `RCloneService:BackerUsername/BackerPassword`
+- `GitWorker:GitPath` - the git executable for the git transfer engine
+  (default `git`, i.e. a PATH lookup). The Windows installer bundles MinGit
+  and rewrites this to an absolute path; without a working git >= 2.31 the
+  agent never advertises the `git` capability and git jobs stay queued
 - `RCloneService:SkipJobAcquisition` - agent logs in, connects and starts rclone
   but never acquires jobs, rclone or git (for smoke tests beside the user's
   live agents); `GitWorker:SkipJobAcquisition` gates only the git worker
