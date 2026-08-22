@@ -11,3 +11,8 @@ erl_crash.dump
 obj/
 bin/
 MSBuildEditorConfig.editorconfig
+
+# MinGit, bundled into the installer as the git engine's client. Fetched by
+# contrib/fetch-mingit.ps1 rather than committed: unlike the single
+# contrib/rclone.exe, it is ~2000 files and 91 MB.
+/contrib/git/

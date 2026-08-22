@@ -14,6 +14,23 @@
 | `Autostart` | `bool` | Whether to begin rclone operations automatically on startup |
 | `OAuth2` | `OAuthOptions?` | Nested provider client IDs/secrets (OneDrive, Dropbox) |
 
+**`GitWorkerOptions`** (`worker/WorkerGit/Configuration/GitWorkerOptions.cs`,
+bound from the `GitWorker` section) configures the second transfer engine. Two
+of its properties matter to deployment:
+
+| Property | Type | Purpose |
+|----------|------|---------|
+| `GitPath` | `string` | Path (or bare name, resolved via `PATH`) of the git executable |
+| `CacheRoot` | `string?` | Bare mirror cache; defaults to `<config dir>\git-cache` |
+
+`GitPath` defaults to `"git"`, which only works when git is on the *service
+account's* `PATH` — it usually is not. The Windows installer therefore bundles
+MinGit and rewrites this setting to `{app}\contrib\git\cmd\git.exe`, the same
+way it rewrites `RClonePath` (`BackerInstaller.iss`, `docs/THIRD-PARTY.md`).
+When the executable is missing or older than 2.31, the agent logs the failed
+startup probe and never advertises the `git` capability, so git jobs simply
+stay queued — check the probe first when git rules do not run.
+
 ## Configuration Source Layering
 
 Sources are listed lowest to highest precedence:
