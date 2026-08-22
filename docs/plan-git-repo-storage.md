@@ -678,7 +678,7 @@ read-only, and no earlier test had put real git objects there. Suite:
 **268 passed, 1 skipped** (90/16/64/9/62/22/6), up from 243/1 at the start
 of the gate; the E2E suite now runs ~2.5 min by design (AC8).
 
-### Gate E — safety policy and `Sync` (true mirror)
+### Gate E — safety policy and `Sync` (true mirror) — **MET (2026-08-21)**
 
 Implements §5 in full and unlocks `Sync`. **This gate carries phase 1's only
 migration**: two `Rule` columns, `AllowAdopt` and `AllowUnsafeRefChange`
@@ -713,6 +713,34 @@ DTO fields and UI checkboxes.
 9. Each guard failure emits a distinct warning event id suitable for alerting.
 10. Migration applies and rolls back cleanly; existing rules default to
     overrides off.
+
+**Result (2026-08-21).** All ten ACs demonstrated from command output, in two
+slices. Slice 1, the engine: every §5 guard with byte-identical
+`for-each-ref` destination proofs after each trip; distinct Warning
+`EventId`s in `GitGuardEvents`; the run-time self-mirror check sits *before*
+the already-in-sync fast path, which a self-mirror would always satisfy;
+the adopt marker is a deterministic empty commit (fixed author env over
+git's empty tree) pushed by raw SHA before the first data push, proven by
+trace ordering, and `AllowAdopt` never overrides a marker for a *different*
+source. Slice 2, the plumbing: migration
+`20260821175101_AddGitRuleSafetyOverrides` (apply → rollback → re-apply
+verified on a scratch DB), Porter round-trip, UI checkboxes, `Sync`
+unlocked at rule validation, and the flags reach the agent via
+`.Include(j => j.FromRule)` on the acquire query — they were absent from
+the payload before.
+
+**AC8 required a server-side design addition**: `ReportJobAsync` requeues
+every reported `DoneFailure` to `Ready` immediately (the standing Gate-3
+finding), which would have a guard-tripped job re-acquired and re-failing
+in a tight loop forever. `JobStatus.Terminal` (additive, wire-compatible —
+old agents keep the retry behavior) now lets the git worker mark
+guard-tripped failures terminal: the row stays `DoneFailure`, and
+`RuleScheduler` paces the next job via `LastReported + MinRetryTime`.
+First-ever `ScheduleCalculator` unit tests pin that path. Findings while
+here: `/config/export` treats its two query booleans as *required* (minimal
+API semantics — omitting either 400s), and no Porter tests existed before
+this gate. Suite: **289 passed, 1 skipped** (94/67/28/22/6/64/9), up from
+268/1 at the gate's start.
 
 ### Gate F — scheduler fit
 

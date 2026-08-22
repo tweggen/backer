@@ -129,6 +129,13 @@ public partial class HannibalService
             .Where(j => j.State == Job.JobState.Ready && j.Owner == "" && j.UserId == _currentUser.Id)
             .Include(j => j.SourceEndpoint)
             .Include(j => j.DestinationEndpoint)
+            // Gate E slice 2 (plan-git-repo-storage.md): the git engine needs
+            // Rule.AllowAdopt/AllowUnsafeRefChange on the acquired job. Loaded
+            // explicitly here, exactly like SourceEndpoint/DestinationEndpoint
+            // above, rather than left to lazy-loading-proxy-during-JSON-
+            // serialization - deterministic and avoids a synchronous lazy
+            // load firing mid-response-write.
+            .Include(j => j.FromRule)
             .OrderBy(j => j.StartFrom)
             .ToListAsync(cancellationToken);
 
@@ -394,14 +401,36 @@ public partial class HannibalService
                     break;
                 
                 case Job.JobState.DoneFailure:
-                    _logger.LogInformation("job {jobId} is not done", jobStatus.JobId);
-                    /*
-                     * Job failed. Can be executed once again. We do not remember the
-                     * previous failure of the job.
-                     */
-                    // TXWTODO: Include something like number of retries? To not jam the pipeline with an erranous job?
-                    job.State = Job.JobState.Ready;
-                    job.Owner = "";
+                    if (jobStatus.Terminal)
+                    {
+                        /*
+                         * Gate E AC8 (plan-git-repo-storage.md): a tripped
+                         * safety guard is a terminal failure for this job -
+                         * requeuing it to Ready would have it re-acquired and
+                         * re-fail within seconds, forever (the same guard
+                         * trips again immediately). Recorded as DoneFailure
+                         * and left there; RuleScheduler reacts to the
+                         * JobCompletedEvent published below and schedules the
+                         * rule's NEXT job per ScheduleCalculator's
+                         * LastReported + MinRetryTime path (ScheduleCalculator.cs:56-62),
+                         * which is what actually paces the retry.
+                         */
+                        _logger.LogInformation(
+                            "job {jobId} is done, terminally failed (guard tripped) - not requeued", jobStatus.JobId);
+                        job.State = Job.JobState.DoneFailure;
+                        job.Owner = "";
+                    }
+                    else
+                    {
+                        _logger.LogInformation("job {jobId} is not done", jobStatus.JobId);
+                        /*
+                         * Job failed. Can be executed once again. We do not remember the
+                         * previous failure of the job.
+                         */
+                        // TXWTODO: Include something like number of retries? To not jam the pipeline with an erranous job?
+                        job.State = Job.JobState.Ready;
+                        job.Owner = "";
+                    }
                     hasFinished = true;
                     finalState = Job.JobState.DoneFailure;
                     break;

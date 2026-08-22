@@ -154,6 +154,38 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
         await Fixture.ResetAsync();
     }
 
+    /// <summary>
+    /// Gate E slice 2 (plan-git-repo-storage.md): the git engine needs
+    /// <c>Rule.AllowAdopt</c>/<c>AllowUnsafeRefChange</c> on the acquired
+    /// job. <c>AcquireNextJobAsync</c>'s candidate query now
+    /// <c>.Include(j => j.FromRule)</c>, and this proves the values actually
+    /// round-trip over the wire (JSON, through the real REST endpoint) to
+    /// the deserialized <see cref="Job"/> the agent works with - not merely
+    /// that the server-side entity has them loaded.
+    /// </summary>
+    [SkippableFact]
+    public async Task AcquiredJob_CarriesItsRule_WithTheGitSafetyOverrideFlags()
+    {
+        await ArrangeAsync();
+        var email = UniqueEmail("acquire-rule-flags");
+        using var client = await CreateAuthenticatedClientAsync(email, Password);
+        var userId = await _userIdAsync(email);
+
+        var jobId = await _seedSingleGitJobAsync(userId, allowAdopt: true, allowUnsafeRefChange: true);
+
+        var response = await _acquireAsync(client, "git");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var job = await response.Content.ReadFromJsonAsync<Job>();
+
+        job.Should().NotBeNull();
+        job!.Id.Should().Be(jobId);
+        job.FromRule.Should().NotBeNull("the client-side GitMirrorRequest is built from job.FromRule");
+        job.FromRule!.AllowAdopt.Should().BeTrue();
+        job.FromRule!.AllowUnsafeRefChange.Should().BeTrue();
+
+        await Fixture.ResetAsync();
+    }
+
     private static async Task<HttpResponseMessage> _acquireAsync(HttpClient client, string? capabilities)
     {
         var acquireParams = new AcquireParams
@@ -272,7 +304,8 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
         return new SeedResult(rcloneJob.Id, gitJob.Id);
     }
 
-    private async Task<int> _seedSingleGitJobAsync(string userId)
+    private async Task<int> _seedSingleGitJobAsync(
+        string userId, bool allowAdopt = false, bool allowUnsafeRefChange = false)
     {
         await using var context = Fixture.CreateContext();
 
@@ -284,7 +317,9 @@ public class JobAcquisitionCapabilityTests : ApiIntegrationTestBase
         {
             Name = $"capgit-only-rule-{Guid.NewGuid():N}", Comment = "", UserId = userId,
             SourceEndpoint = sourceEndpoint, DestinationEndpoint = destinationEndpoint,
-            Operation = Rule.RuleOperation.Copy
+            Operation = Rule.RuleOperation.Copy,
+            AllowAdopt = allowAdopt,
+            AllowUnsafeRefChange = allowUnsafeRefChange
         };
         var now = DateTime.UtcNow;
         var job = new Job

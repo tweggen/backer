@@ -113,6 +113,12 @@ public class RuleExport
     public string MinRetryTime { get; set; } = "00:15:00";                  // TimeSpan as string
     public string MaxTimeAfterSourceModification { get; set; } = "00:30:00";// TimeSpan as string
     public string DailyTriggerTime { get; set; } = "03:00:00";              // TimeSpan as string
+
+    // Gate E (plan-git-repo-storage.md §5): per-rule git safety-guard overrides.
+    // Ignored by the rclone engine; default false on import, matching the
+    // migration's column default.
+    public bool AllowAdopt { get; set; }
+    public bool AllowUnsafeRefChange { get; set; }
 }
 
 #endregion
@@ -215,7 +221,9 @@ public partial class HannibalService
                 MaxDestinationAge = r.MaxDestinationAge.ToString(),
                 MinRetryTime = r.MinRetryTime.ToString(),
                 MaxTimeAfterSourceModification = r.MaxTimeAfterSourceModification.ToString(),
-                DailyTriggerTime = r.DailyTriggerTime.ToString()
+                DailyTriggerTime = r.DailyTriggerTime.ToString(),
+                AllowAdopt = r.AllowAdopt,
+                AllowUnsafeRefChange = r.AllowUnsafeRefChange
             });
         }
 
@@ -561,6 +569,8 @@ public partial class HannibalService
                 existing.MinRetryTime = minRetry;
                 existing.MaxTimeAfterSourceModification = maxTimeAfterMod;
                 existing.DailyTriggerTime = dailyTrigger;
+                existing.AllowAdopt = exp.AllowAdopt;
+                existing.AllowUnsafeRefChange = exp.AllowUnsafeRefChange;
                 result.RulesUpdated++;
             }
             else
@@ -577,7 +587,9 @@ public partial class HannibalService
                     MaxDestinationAge = maxDestAge,
                     MinRetryTime = minRetry,
                     MaxTimeAfterSourceModification = maxTimeAfterMod,
-                    DailyTriggerTime = dailyTrigger
+                    DailyTriggerTime = dailyTrigger,
+                    AllowAdopt = exp.AllowAdopt,
+                    AllowUnsafeRefChange = exp.AllowUnsafeRefChange
                 };
 
                 _context.Rules.Add(rule);

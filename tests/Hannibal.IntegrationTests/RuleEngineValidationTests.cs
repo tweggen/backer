@@ -68,11 +68,12 @@ public class RuleEngineValidationTests : ApiIntegrationTestBase
     }
 
     /// <summary>
-    /// Sync stays rejected until Gate E ships plan §5's safety guards - the
-    /// engine can only push additively at this gate.
+    /// Gate E flips this: the engine's safety guards (plan §5) and their
+    /// per-rule overrides (Rule.AllowAdopt/AllowUnsafeRefChange) are wired in
+    /// now, so a git+git rule with Sync is allowed (Gate D AC3 inverted).
     /// </summary>
     [SkippableFact]
-    public async Task Git_plus_git_rule_with_Sync_is_rejected_naming_GateE()
+    public async Task Git_plus_git_rule_with_Sync_succeeds()
     {
         await ArrangeAsync();
         using var client = await CreateAuthenticatedClientAsync(UniqueEmail("git-plus-git-sync"), Password);
@@ -83,9 +84,10 @@ public class RuleEngineValidationTests : ApiIntegrationTestBase
 
         var response = await _postRuleAsync(client, sourceEndpointId, destinationEndpointId, Rule.RuleOperation.Sync);
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("Gate E");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await response.Content.ReadFromJsonAsync<CreateRuleResult>();
+        result.Should().NotBeNull();
+        result!.Id.Should().BeGreaterThan(0);
     }
 
     [SkippableFact]

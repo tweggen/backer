@@ -44,6 +44,28 @@ public sealed class GitWorkerOptions
     public long MinFreeDiskBytes { get; set; } = 1L * 1024 * 1024 * 1024;
 
     /**
+     * Shrink guard ceiling (plan-git-repo-storage.md §5 "Shrink guard"):
+     * refs present on the destination's MIRRORED set but absent from the
+     * source may not exceed this percentage of the destination's MIRRORED
+     * ref count, or <see cref="GitMirrorOperation.Sync"/> refuses to delete
+     * them. Per-rule override is <c>GitMirrorRequest.AllowUnsafeRefChange</c>.
+     */
+    public int MaxRefShrinkPercent { get; set; } = 50;
+
+    /**
+     * Force-push guard ceiling (plan-git-repo-storage.md §5 "Force-push
+     * guard"): of the refs whose SHA differs between source and destination,
+     * the fraction classified non-fast-forward (<c>git merge-base
+     * --is-ancestor</c> against the fetched objects) may not exceed this
+     * percentage, or <see cref="GitMirrorOperation.Sync"/> refuses to force
+     * them. This is the guard that catches a compromised source
+     * force-pushing garbage over every branch - ref *count* alone would not
+     * notice that attack. Per-rule override is
+     * <c>GitMirrorRequest.AllowUnsafeRefChange</c>.
+     */
+    public int MaxNonFfPercent { get; set; } = 25;
+
+    /**
      * Mirrors RCloneServiceOptions.SkipJobAcquisition's intent - CLAUDE.md
      * documents that switch as agent-wide ("agent logs in, connects and
      * starts rclone but never acquires jobs"), and GitWorkerService is a

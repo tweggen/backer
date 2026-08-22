@@ -99,6 +99,14 @@ else
                             <InputNumber class="form-control" @bind-Value="_editDailyTriggerTime"/>
                         </div>
                     </div>
+                    <div class="form-group form-check">
+                        <InputCheckbox class="form-check-input" id="editAllowAdopt" @bind-Value="_editRule.AllowAdopt"/>
+                        <label class="form-check-label" for="editAllowAdopt">Allow adopting a non-empty destination (git)</label>
+                    </div>
+                    <div class="form-group form-check">
+                        <InputCheckbox class="form-check-input" id="editAllowUnsafeRefChange" @bind-Value="_editRule.AllowUnsafeRefChange"/>
+                        <label class="form-check-label" for="editAllowUnsafeRefChange">Allow unsafe ref changes: large deletions and force-pushes (git)</label>
+                    </div>
                     <div class="form-group">
                         <label>Comment</label>
                         <InputText class="form-control" @bind-Value="_editRule.Comment" placeholder="Optional notes"/>
@@ -252,6 +260,14 @@ else
                                     <InputNumber id="dailyTriggerTime" class="form-control" @bind-Value="_newDailyTriggerTime"/>
                                     <small class="form-text text-muted">7200 = 2:00 AM</small>
                                 </div>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <InputCheckbox id="allowAdopt" class="form-check-input" @bind-Value="_newRule.AllowAdopt"/>
+                                <label for="allowAdopt" class="form-check-label">Allow adopting a non-empty destination (git)</label>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <InputCheckbox id="allowUnsafeRefChange" class="form-check-input" @bind-Value="_newRule.AllowUnsafeRefChange"/>
+                                <label for="allowUnsafeRefChange" class="form-check-label">Allow unsafe ref changes: large deletions and force-pushes (git)</label>
                             </div>
                             <div class="mb-3">
                                 <label for="comment" class="form-label">Comment (optional):</label>
@@ -520,7 +536,9 @@ else
                 MaxDestinationAge = ru.MaxDestinationAge,
                 MinRetryTime = ru.MinRetryTime,
                 MaxTimeAfterSourceModification = ru.MaxTimeAfterSourceModification,
-                DailyTriggerTime = ru.DailyTriggerTime
+                DailyTriggerTime = ru.DailyTriggerTime,
+                AllowAdopt = ru.AllowAdopt,
+                AllowUnsafeRefChange = ru.AllowUnsafeRefChange
             };
             _editSourceEndpoint = ru.SourceEndpoint;
             _editSourceEndpointId = ru.SourceEndpointId;

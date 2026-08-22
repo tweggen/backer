@@ -335,19 +335,11 @@ public sealed class GitWorkerService : BackgroundService
 
         try
         {
-            if (job.Operation == Rule.RuleOperation.Sync)
-            {
-                // Gate E ships §5's guards, which is what makes Sync safe to
-                // run at all; the engine is never called for it here, so
-                // there is no risk of it forcing/deleting anything.
-                const string message =
-                    "Sync for git ships with the safety guards in a later gate (Gate E, plan §5: "
-                    + "zero-ref/shrink/force-push/adopt guards) - refusing to run it now.";
-                _logger.LogWarning("GitWorkerService: job {JobId} requested Sync: {Message}", job.Id, message);
-                await _reportAsync(job.Id, Job.JobState.DoneFailure, cts.Token);
-                return;
-            }
-
+            // Gate E ships §5's guards and wires their per-rule overrides
+            // (Rule.AllowAdopt/AllowUnsafeRefChange) into the request built
+            // below, so Sync is now safe to hand to the engine like any
+            // other operation - it is the guards, not an interception here,
+            // that keep a destructive mirror from destroying the backup.
             var request = _buildMirrorRequest(job);
             var result = await _engine.ExecuteAsync(request, cts.Token);
 
@@ -358,9 +350,17 @@ public sealed class GitWorkerService : BackgroundService
                 _ => Job.JobState.DoneFailure
             };
 
+            // Gate E AC8: a DoneFailure caused by a tripped safety guard
+            // (GitMirrorGuard != None) must not be requeued for an immediate
+            // retry - the same guard would trip again within seconds. An
+            // ordinary failure (network blip, unreachable remote) keeps the
+            // existing retry-by-requeue behaviour (Terminal defaults false).
+            var terminal = state == Job.JobState.DoneFailure && result.TrippedGuard != GitMirrorGuard.None;
+
             _logger.LogInformation(
-                "GitWorkerService: job {JobId} finished as {State}: {Message}", job.Id, state, result.Message);
-            await _reportAsync(job.Id, state, cts.Token);
+                "GitWorkerService: job {JobId} finished as {State} (terminal={Terminal}): {Message}",
+                job.Id, state, terminal, result.Message);
+            await _reportAsync(job.Id, state, cts.Token, terminal);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
@@ -423,11 +423,19 @@ public sealed class GitWorkerService : BackgroundService
         {
             Rule.RuleOperation.Nop => GitMirrorOperation.Nop,
             Rule.RuleOperation.Copy => GitMirrorOperation.Copy,
-            // Sync is intercepted in _runJobAsync before this is ever
-            // called; anything else reaching here is itself a bug, and Nop
-            // (never touch a remote) is the safe direction to fail in.
+            Rule.RuleOperation.Sync => GitMirrorOperation.Sync,
+            // Anything else reaching here is itself a bug; Nop (never touch
+            // a remote) is the safe direction to fail in.
             _ => GitMirrorOperation.Nop
         };
+
+        // Gate E slice 2: per-rule overrides of the adopt/shrink/force-push
+        // guards (plan §5). job.FromRule is populated by the server's
+        // AcquireNextJobAsync .Include(j => j.FromRule) - absent only if an
+        // older server never sent it, in which case both overrides default
+        // to false (the safe direction: guards stay enforced).
+        var allowAdopt = job.FromRule?.AllowAdopt ?? false;
+        var allowUnsafeRefChange = job.FromRule?.AllowUnsafeRefChange ?? false;
 
         return new GitMirrorRequest
         {
@@ -446,18 +454,21 @@ public sealed class GitWorkerService : BackgroundService
             Operation = operation,
             UserId = sourceStorage.UserId,
             SourceUriSchema = sourceStorage.UriSchema,
+            AllowAdopt = allowAdopt,
+            AllowUnsafeRefChange = allowUnsafeRefChange,
             OnProgress = line => OnJobProgress?.Invoke(job.Id, line)
         };
     }
 
-    private async Task _reportAsync(int jobId, Job.JobState state, CancellationToken cancellationToken)
+    private async Task _reportAsync(
+        int jobId, Job.JobState state, CancellationToken cancellationToken, bool terminal = false)
     {
         try
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var hannibalService = scope.ServiceProvider.GetRequiredService<IHannibalServiceClient>();
             await hannibalService.ReportJobAsync(
-                new() { JobId = jobId, State = state, Owner = _ownerId }, cancellationToken);
+                new() { JobId = jobId, State = state, Owner = _ownerId, Terminal = terminal }, cancellationToken);
         }
         catch (Exception e)
         {

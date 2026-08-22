@@ -83,8 +83,9 @@ public class PostgresFixtureTests
         var pending = await context.Database.GetPendingMigrationsAsync();
         pending.Should().BeEmpty();
 
-        _fixture.AppliedMigrations.Should().HaveCount(6);
+        _fixture.AppliedMigrations.Should().HaveCount(7);
         _fixture.AppliedMigrations.Should().Contain("20260120100000_AddCredentialFieldsToStorage");
+        _fixture.AppliedMigrations.Should().Contain("20260821175101_AddGitRuleSafetyOverrides");
     }
 
 

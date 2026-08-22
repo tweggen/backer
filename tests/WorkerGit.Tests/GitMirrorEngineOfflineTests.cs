@@ -31,18 +31,30 @@ public sealed class GitMirrorEngineOfflineTests : IDisposable
 
         result.Outcome.Should().Be(GitMirrorOutcome.Success);
 
-        var sourceRefs = GitTestRepo.ForEachRef(sourceBare);
-        var destinationRefs = GitTestRepo.ForEachRef(destinationBare);
+        // Restricted to the MIRRORED namespaces: the destination also now
+        // carries the Gate E adopt marker (refs/backer/mirror-of/*, outside
+        // MIRRORED by design - plan §5), which must NOT be part of "exactly
+        // what got mirrored".
+        var sourceRefs = GitTestRepo.ForEachRef(sourceBare, "refs/heads/*", "refs/tags/*", "refs/notes/*");
+        var destinationRefs = GitTestRepo.ForEachRef(destinationBare, "refs/heads/*", "refs/tags/*", "refs/notes/*");
         destinationRefs.Should().BeEquivalentTo(sourceRefs);
         destinationRefs.Should().HaveCount(5); // main, feature, v1-lw, v1-ann, refs/notes/commits
         destinationRefs.Should().ContainKey("refs/notes/commits");
+
+        // The marker itself was written (adopt guard, empty-destination path).
+        GitTestRepo.ForEachRef(destinationBare, "refs/backer/mirror-of/*").Should().HaveCount(1);
 
         var allArguments = trace.Records.SelectMany(r => r.Arguments).ToArray();
         allArguments.Should().NotContain(a => a.Contains("refs/pull", StringComparison.Ordinal));
         allArguments.Should().NotContain("--mirror");
         allArguments.Should().NotContain(a => a == "refs/*:refs/*" || a == "+refs/*:refs/*");
 
-        var pushRecord = trace.Records.Single(r => r.Arguments.Count > 0 && r.Arguments[0] == "push");
+        // Gate E's adopt guard writes the marker as its own, separate push
+        // (command-trace-ordering proof for AC7) before the data push - find
+        // the DATA push specifically rather than assuming there is only one.
+        var pushRecord = trace.Records.Single(
+            r => r.Arguments.Count > 0 && r.Arguments[0] == "push"
+                && r.Arguments.Contains("refs/heads/*:refs/heads/*"));
         pushRecord.Arguments.Should().Contain("refs/heads/*:refs/heads/*");
         pushRecord.Arguments.Should().Contain("refs/tags/*:refs/tags/*");
         pushRecord.Arguments.Should().Contain("refs/notes/*:refs/notes/*");
