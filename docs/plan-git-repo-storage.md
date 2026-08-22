@@ -742,7 +742,7 @@ API semantics — omitting either 400s), and no Porter tests existed before
 this gate. Suite: **289 passed, 1 skipped** (94/67/28/22/6/64/9), up from
 268/1 at the gate's start.
 
-### Gate F — scheduler fit
+### Gate F — scheduler fit — **MET (2026-08-21; AC3's runtime half folds into Gate G AC1)**
 
 Git rules behave like any other rule under the **actual** scheduler
 (`RuleScheduler` + `ScheduleCalculator`; note `MaxTimeAfterSourceModification`
@@ -757,6 +757,21 @@ is inert for every technology and this plan does not change that).
 3. `Landscape.razor` and `Rules.razor` render a git rule's state without
    errors. (The icon switch already has a default arm at `Landscape.razor:147`,
    so this is about the rule/job panels, not the icon.)
+
+**Result (2026-08-21).** Built on harness Gate 4's `TimeProvider` seam,
+landed in the same PR. AC1's boundary half and AC2 are deterministic
+fake-clock tests with real git rules (`GitSchedulerFitTests`); AC1's
+fast-path half extends the full-loop happy path — a second job on the same
+rule (seeded directly; no re-trigger REST endpoint exists, confirmed) is
+nudged via the real `NewJobAvailable` broadcast and completes `DoneSuccess`
+with the destination's `for-each-ref` byte-identical. The engine's
+"already in sync" log line is unreachable from tests (`UseSerilog()`
+replaces the logger factory, the standing Gate-2 finding) and neither Job
+nor the wire DTO carries `TransferPerformed`, so the AC's stated minimum
+bar is what is asserted. AC3's static review found both razor files safe
+for git (default icon arm; `Rules.razor` has no technology-keyed code at
+all); actual browser rendering folds into Gate G AC1's manual smoke.
+Suite: **299 passed, 1 skipped** (94/76/7/28/22/64/9).
 
 ### Gate G — UI and configuration round-trip
 

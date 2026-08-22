@@ -22,6 +22,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IHubContext<HannibalHub> _hannibalHub;
     private readonly ScheduleCalculator _calculator;
+    private readonly TimeProvider _timeProvider;
 
     // Priority queue: rules sorted by next execution time
     private readonly PriorityQueue<int, DateTime> _scheduleQueue = new();
@@ -70,12 +71,14 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
         ILogger<RuleScheduler> logger,
         IServiceScopeFactory serviceScopeFactory,
         IHubContext<HannibalHub> hannibalHub,
-        ScheduleCalculator calculator)
+        ScheduleCalculator calculator,
+        TimeProvider timeProvider)
     {
         _logger = logger;
         _serviceScopeFactory = serviceScopeFactory;
         _hannibalHub = hannibalHub;
         _calculator = calculator;
+        _timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -129,7 +132,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
                 // Wait until: (a) next scheduled time OR (b) external event
                 if (nextExecuteTime.HasValue)
                 {
-                    var delay = nextExecuteTime.Value - DateTime.UtcNow;
+                    var delay = nextExecuteTime.Value - _timeProvider.GetUtcNow().UtcDateTime;
                     if (delay > TimeSpan.Zero)
                     {
                         // Cap delay to 24 hours - SemaphoreSlim.WaitAsync only accepts up to ~24.8 days
@@ -215,7 +218,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
             foreach (var rule in rules)
             {
                 stateDict.TryGetValue(rule.Id, out var state);
-                var nextTime = _calculator.CalculateNextExecution(rule, state, DateTime.UtcNow);
+                var nextTime = _calculator.CalculateNextExecution(rule, state, _timeProvider.GetUtcNow().UtcDateTime);
                 var reason = _calculator.GetScheduleReason(rule, state);
 
                 ScheduleRule(rule.Id, nextTime, reason);
@@ -335,10 +338,10 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
             // Dependencies not satisfied - track deferral for anti-starvation
             if (_scheduledRules.TryGetValue(ruleId, out var sched))
             {
-                sched.DependencyDeferredSince ??= DateTime.UtcNow;
+                sched.DependencyDeferredSince ??= _timeProvider.GetUtcNow().UtcDateTime;
 
                 // Check anti-starvation threshold
-                var deferredDuration = DateTime.UtcNow - sched.DependencyDeferredSince.Value;
+                var deferredDuration = _timeProvider.GetUtcNow().UtcDateTime - sched.DependencyDeferredSince.Value;
                 var threshold = rule.MaxDestinationAge > TimeSpan.Zero
                     ? rule.MaxDestinationAge * AntiStarvationMultiplier
                     : TimeSpan.FromDays(2); // default 2 days if no MaxDestinationAge
@@ -409,7 +412,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
     /// </summary>
     private async Task ProcessReadyRulesAsync(CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var readyRules = new List<int>();
 
         // Collect all ready rules
@@ -469,10 +472,10 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
                 .FirstOrDefaultAsync(rs => rs.Rule!.Id == ruleId, cancellationToken);
 
             // Verify rule is still ready (double-check)
-            if (!_calculator.IsReadyToExecute(rule, state, DateTime.UtcNow))
+            if (!_calculator.IsReadyToExecute(rule, state, _timeProvider.GetUtcNow().UtcDateTime))
             {
                 _logger.LogDebug("Rule {RuleId} no longer ready, rescheduling", ruleId);
-                var nextTime = _calculator.CalculateNextExecution(rule, state, DateTime.UtcNow);
+                var nextTime = _calculator.CalculateNextExecution(rule, state, _timeProvider.GetUtcNow().UtcDateTime);
                 var reason = _calculator.GetScheduleReason(rule, state);
                 ScheduleRule(ruleId, nextTime, reason);
                 return;
@@ -484,7 +487,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
                 _logger.LogInformation(
                     "Rule {RuleId} ({RuleName}) deferred due to unsatisfied dependencies",
                     ruleId, rule.Name);
-                ScheduleRule(ruleId, DateTime.UtcNow + DependencyDeferralDelay,
+                ScheduleRule(ruleId, _timeProvider.GetUtcNow().UtcDateTime + DependencyDeferralDelay,
                     ScheduleReason.DependencySatisfied);
                 return;
             }
@@ -507,7 +510,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
             }
 
             // Reschedule for next execution
-            var newNextTime = _calculator.CalculateNextExecution(rule, state, DateTime.UtcNow);
+            var newNextTime = _calculator.CalculateNextExecution(rule, state, _timeProvider.GetUtcNow().UtcDateTime);
             var newReason = _calculator.GetScheduleReason(rule, state);
             ScheduleRule(ruleId, newNextTime, newReason);
         }
@@ -526,7 +529,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
         HannibalContext context,
         CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         var job = new Job
         {
@@ -652,7 +655,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
                 _blockedForStarvation.Remove(ruleId);
             }
 
-            ScheduleRule(ruleId, DateTime.UtcNow, ScheduleReason.ManualTrigger);
+            ScheduleRule(ruleId, _timeProvider.GetUtcNow().UtcDateTime, ScheduleReason.ManualTrigger);
         }
 
         // Also reschedule any dependent rules that may have been waiting
@@ -700,7 +703,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
             .FirstOrDefaultAsync(rs => rs.Rule!.Id == evt.RuleId, cancellationToken);
 
         // Recalculate next execution time based on completion
-        var nextTime = _calculator.CalculateNextExecution(rule, state, DateTime.UtcNow);
+        var nextTime = _calculator.CalculateNextExecution(rule, state, _timeProvider.GetUtcNow().UtcDateTime);
         var reason = _calculator.GetScheduleReason(rule, state);
 
         // If this rule is blocked for starvation, defer it
@@ -716,7 +719,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
                 "Rule {RuleId} ({RuleName}) completed but blocked for anti-starvation, deferring",
                 evt.RuleId, rule.Name);
             // Don't reschedule immediately - wait for downstream to finish
-            ScheduleRule(evt.RuleId, DateTime.UtcNow + DependencyDeferralDelay,
+            ScheduleRule(evt.RuleId, _timeProvider.GetUtcNow().UtcDateTime + DependencyDeferralDelay,
                 ScheduleReason.DependencySatisfied);
         }
         else
@@ -764,7 +767,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
                             }
 
                             // Schedule immediately
-                            ScheduleRule(depId, DateTime.UtcNow, ScheduleReason.DependencySatisfied);
+                            ScheduleRule(depId, _timeProvider.GetUtcNow().UtcDateTime, ScheduleReason.DependencySatisfied);
                         }
                     }
                 }
@@ -815,7 +818,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
             .Include(rs => rs.RecentJob)
             .FirstOrDefaultAsync(rs => rs.Rule!.Id == evt.RuleId, cancellationToken);
 
-        var nextTime = _calculator.CalculateNextExecution(rule, state, DateTime.UtcNow);
+        var nextTime = _calculator.CalculateNextExecution(rule, state, _timeProvider.GetUtcNow().UtcDateTime);
         var reason = evt.ChangeType == RuleChangeType.Created
             ? ScheduleReason.InitialSchedule
             : ScheduleReason.RuleModified;
@@ -823,7 +826,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
         ScheduleRule(evt.RuleId, nextTime, reason);
 
         // Wake up if ready now
-        if (nextTime <= DateTime.UtcNow)
+        if (nextTime <= _timeProvider.GetUtcNow().UtcDateTime)
         {
             try { _wakeupSignal.Release(); }
             catch (SemaphoreFullException) { }
@@ -855,7 +858,7 @@ public class RuleScheduler : BackgroundService, ISchedulerEventPublisher
         _logger.LogInformation("Manual trigger for rule {RuleId}", evt.RuleId);
 
         // Schedule immediately
-        ScheduleRule(evt.RuleId, DateTime.UtcNow, ScheduleReason.ManualTrigger);
+        ScheduleRule(evt.RuleId, _timeProvider.GetUtcNow().UtcDateTime, ScheduleReason.ManualTrigger);
 
         // Wake up scheduler
         try { _wakeupSignal.Release(); }

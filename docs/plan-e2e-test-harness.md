@@ -442,6 +442,25 @@ full-loop tests.
 6. Anti-starvation and dependency deferral paths
    (`RuleScheduler.cs:306-341`) each have one test.
 
+**Result (2026-08-21) — MET, one finding.** `RuleScheduler` had grown to
+**seventeen** `DateTime.UtcNow` sites (ten at planning, five more from the
+dependency work, two more since); all are behind an injected `TimeProvider`
+now, `TryAddSingleton(TimeProvider.System)` at the single production wiring
+point, and a grep proves zero raw reads remain. The deterministic tests
+(`SchedulerDeterminismTests`, 7) construct the real scheduler directly
+against the fixture database with a `FakeTimeProvider`, drive passes via
+`PublishEventAsync` (the wakeup semaphore, deliberately left on real time,
+answers immediately), and assert both sides of every boundary — including
+that Gate E's *terminal* failures schedule identically through
+`MinRetryTime`. **Finding (pre-existing, pinned not fixed):** the
+anti-starvation escalation is unreachable — `ProcessReadyRulesAsync`
+removes the rule from `_scheduledRules` before `AreDependenciesSatisfied`
+(its only caller path) looks the entry up, so `DependencyDeferredSince` is
+never stamped and the starvation escape never fires, no matter how long a
+rule is deferred. This corroborates `docs/plan-job-dependency-ordering.md`'s
+"layer 1 is not a dependency mechanism" diagnosis and belongs to that
+plan's fix, not this gate. Suite: **296 passed, 1 skipped**.
+
 ### Gate 5 — Failure and re-auth paths
 
 The paths `docs/plan-onedrive-oauth2-reauth.md` and `docs/plan-phase2-gates.md`

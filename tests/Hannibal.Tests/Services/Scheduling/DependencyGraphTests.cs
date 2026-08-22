@@ -62,7 +62,8 @@ public class DependencyGraphTests
             logger,
             null!, // serviceScopeFactory - not needed for graph tests
             null!, // hannibalHub - not needed for graph tests
-            calculator);
+            calculator,
+            TimeProvider.System); // not needed for graph tests either
     }
 
     [Fact]
