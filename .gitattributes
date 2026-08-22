@@ -1,0 +1,4 @@
+# Shell scripts must keep LF endings even on Windows checkouts. With
+# core.autocrlf=true (the usual Git for Windows default) a fresh clone would
+# otherwise hand Git Bash a "#!/usr/bin/env bash\r" shebang, which fails.
+*.sh text eol=lf

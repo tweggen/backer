@@ -16,3 +16,7 @@ MSBuildEditorConfig.editorconfig
 # contrib/fetch-mingit.ps1 rather than committed: unlike the single
 # contrib/rclone.exe, it is ~2000 files and 91 MB.
 /contrib/git/
+
+# Working directory of scripts/dev-stack.sh: logs, the local git mirror cache,
+# and dev-stack.env, which holds a local login.
+/.dev-stack/
