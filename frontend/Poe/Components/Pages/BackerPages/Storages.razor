@@ -236,6 +236,30 @@ else
                                         <small class="form-text text-muted">A unique identifier for this connection</small>
                                     </div>
                                 }
+                                else if (_newStorage.Technology == "git")
+                                {
+                                    <div class="mb-3">
+                                        <label for="host" class="form-label">Host / base URL: <span class="text-danger">*</span></label>
+                                        <InputText id="host" placeholder="https://github.com/ or D:/backup/git/" class="form-control" @bind-Value="_newStorage.Host"/>
+                                        <small class="form-text text-muted">A forge base URL (e.g. https://github.com/) or a local filesystem root (e.g. D:/backup/git/) for bare-repo mirrors</small>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="username" class="form-label">Username: <span class="text-danger">*</span></label>
+                                            <InputText id="username" placeholder="username" class="form-control" @bind-Value="_newStorage.Username"/>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="password" class="form-label">Personal access token:</label>
+                                            <InputText id="password" type="password" placeholder="personal access token" class="form-control" @bind-Value="_newStorage.Password"/>
+                                            <small class="form-text text-muted">Used as the HTTPS password; not needed for a local filesystem root</small>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="urischema" class="form-label">Alias: <span class="text-danger">*</span></label>
+                                        <InputText id="urischema" placeholder="e.g., github_mirror" class="form-control" @bind-Value="_newStorage.UriSchema"/>
+                                        <small class="form-text text-muted">A short unique identifier for logs and cache directory naming - lowercase letters, digits, "_" or "-", starting with a letter or digit (^[a-z0-9][a-z0-9_-]*$)</small>
+                                    </div>
+                                }
                                 else
                                 {
                                     <div class="mb-3">
@@ -350,7 +374,8 @@ else
     private static readonly HashSet<string> CredentialTechnologies = new(StringComparer.OrdinalIgnoreCase)
     {
         "smb",
-        "nextcloud"
+        "nextcloud",
+        "git"
     };
 
     /// <summary>
@@ -382,6 +407,7 @@ else
             "nextcloud" => "Nextcloud / ownCloud",
             "smb" => "SMB/CIFS Network Share",
             "local" => "Local Filesystem",
+            "git" => "Git Repository Mirror",
             _ => technology ?? "Unknown"
         };
     }

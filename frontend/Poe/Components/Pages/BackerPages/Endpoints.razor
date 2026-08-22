@@ -208,6 +208,7 @@ else
             "smb" => "ShareName/Folder/Subfolder (e.g., DATA/Documents)",
             "local" => "Folder/Subfolder (e.g., Documents/Work)",
             "onedrive" or "dropbox" or "googledrive" => "Folder/Subfolder (e.g., Backups/Daily)",
+            "git" => "owner/repo (e.g., myuser/myrepo)",
             _ => "Folder path"
         };
     }
@@ -218,12 +219,13 @@ else
     private string GetPathTooltip()
     {
         if (_selectedStorage == null) return "Select a storage first to see path format";
-        
+
         return _selectedStorage.Technology?.ToLowerInvariant() switch
         {
             "smb" => "For SMB: Start with the SHARE NAME, then add the folder path. Example: 'DATA/Documents/Work' accesses \\\\server\\DATA\\Documents\\Work",
             "local" => "Folder path relative to the storage base path on the agent machine.",
             "onedrive" or "dropbox" or "googledrive" => "Folder path within your cloud storage. Leave empty for root.",
+            "git" => "owner/repo under the storage's Host, or a relative directory under a local filesystem-root storage. The remote repository must already exist.",
             _ => "Folder path within this storage"
         };
     }
@@ -234,12 +236,13 @@ else
     private string GetPathHelpText()
     {
         if (_selectedStorage == null) return "Select a storage to see path format guidance";
-        
+
         return _selectedStorage.Technology?.ToLowerInvariant() switch
         {
             "smb" => $"Format: ShareName/Path — e.g., 'DATA/Documents' connects to \\\\{_selectedStorage.Host}\\DATA\\Documents",
             "local" => "Folder path relative to the storage base path",
             "onedrive" or "dropbox" or "googledrive" => "Folder path in your cloud drive (e.g., 'Backups/Daily')",
+            "git" => "Format: owner/repo — e.g., 'myuser/myrepo' mirrors to/from that repository under this storage's Host. For a filesystem-root storage, use a relative directory instead.",
             _ => "Folder path within this storage"
         };
     }
